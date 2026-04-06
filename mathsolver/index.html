@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>x3e Math Solver Ultra</title>
+    <style>
+        :root {
+            --bg-color: #0f0f13;
+            --panel-bg: #1e1e24;
+            --accent: #00ffcc;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 800px; width: 100%; background: var(--panel-bg); padding: 30px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
+        h1 { text-align: center; color: var(--accent); margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: var(--text-muted); margin-top: 0; margin-bottom: 30px; }
+        .tabs { display: flex; justify-content: space-between; border-bottom: 2px solid #333; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { background: none; border: none; color: var(--text-muted); padding: 12px 20px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; flex-grow: 1; }
+        .tab-btn:hover { color: white; background: rgba(255,255,255,0.05); }
+        .tab-btn.active { color: var(--accent); border-bottom: 3px solid var(--accent); }
+        .solver-panel { display: none; animation: fadeIn 0.4s; }
+        .solver-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .tool-card { background: #2a2a32; border-radius: 8px; padding: 20px; margin-bottom: 20px; border-left: 4px solid var(--accent); }
+        .tool-card h3 { margin-top: 0; color: #fff; }
+        input[type="number"], select { padding: 10px; margin: 5px; border-radius: 6px; border: 1px solid #444; background: #121212; color: white; font-size: 14px; width: 80px; text-align: center; }
+        input[type="number"]::placeholder { color: #666; }
+        button.solve { background: var(--accent); color: #000; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.2s; }
+        button.solve:hover { background: #00e6b8; transform: scale(1.02); }
+        .result-box { margin-top: 15px; padding: 10px; background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 6px; color: var(--accent); font-weight: bold; display: inline-block; min-width: 200px; text-align: center; }
+        .math-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+        .fraction { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 10px; }
+        .fraction input { width: 60px; margin: 2px; }
+        .fraction-line { width: 100%; height: 2px; background-color: var(--text-main); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>x3e Math Helper</h1>
+    <p class="subtitle">This should help with broad topics</p>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('elementary')">Elementary (1st-5th)</button>
+        <button class="tab-btn" onclick="showTab('middle')">Middle (6th-8th)</button>
+        <button class="tab-btn" onclick="showTab('high')">High (9th-12th)</button>
+    </div>
+
+    <div id="elementary" class="solver-panel active">
+        <div class="tool-card">
+            <h3>Basic Arithmetic</h3>
+            <div class="math-row">
+                <input type="number" id="e1" placeholder="Num 1">
+                <select id="op">
+                    <option value="+">+</option>
+                    <option value="-">-</option>
+                    <option value="*">×</option>
+                    <option value="/">÷</option>
+                </select>
+                <input type="number" id="e2" placeholder="Num 2">
+            </div>
+            <button class="solve" onclick="calcArithmetic()">Calculate</button>
+            <br><div class="result-box" id="res-arithmetic">Result will appear here</div>
+        </div>
+
+        <div class="tool-card">
+            <h3>Fraction Simplifier</h3>
+            <div class="math-row">
+                <div class="fraction">
+                    <input type="number" id="fNum" placeholder="Top">
+                    <div class="fraction-line"></div>
+                    <input type="number" id="fDen" placeholder="Bottom">
+                </div>
+            </div>
+            <button class="solve" onclick="calcFraction()">Simplify</button>
+            <br><div class="result-box" id="res-fraction">Result will appear here</div>
+        </div>
+
+        <div class="tool-card">
+            <h3>Geometry: Area & Perimeter</h3>
+            <select id="geoShape" onchange="updateGeoInputs()">
+                <option value="rect">Rectangle</option>
+                <option value="circle">Circle</option>
+            </select>
+            <div class="math-row" id="geoInputs" style="margin-top: 10px;">
+                <input type="number" id="gL" placeholder="Length">
+                <input type="number" id="gW" placeholder="Width">
+            </div>
+            <button class="solve" onclick="calcGeometry()">Calculate</button>
+            <br><div class="result-box" id="res-geometry">Result will appear here</div>
+        </div>
+    </div>
+
+    <div id="middle" class="solver-panel">
+        <div class="tool-card">
+            <h3>Percentage Finder</h3>
+            <div class="math-row">
+                What is <input type="number" id="percP" placeholder="%"> % of <input type="number" id="percW" placeholder="Total">?
+            </div>
+            <button class="solve" onclick="calcPercentage()">Calculate</button>
+            <br><div class="result-box" id="res-percent">Result will appear here</div>
+        </div>
+
+        <div class="tool-card">
+            <h3>Pythagorean Theorem (a² + b² = c²)</h3>
+            <p style="font-size:12px; color:#aaa;">Leave the unknown side blank.</p>
+            <div class="math-row">
+                <input type="number" id="pyA" placeholder="Side a">² + 
+                <input type="number" id="pyB" placeholder="Side b">² = 
+                <input type="number" id="pyC" placeholder="Hyp c">²
+            </div>
+            <button class="solve" onclick="calcPythagorean()">Solve</button>
+            <br><div class="result-box" id="res-pythag">Result will appear here</div>
+        </div>
+
+        <div class="tool-card">
+            <h3>Solve Linear Equation (ax + b = c)</h3>
+            <div class="math-row">
+                <input type="number" id="linA" placeholder="a"> x + 
+                <input type="number" id="linB" placeholder="b"> = 
+                <input type="number" id="linC" placeholder="c">
+            </div>
+            <button class="solve" onclick="calcLinear()">Solve for x</button>
+            <br><div class="result-box" id="res-linear">Result will appear here</div>
+        </div>
+    </div>
+
+    <div id="high" class="solver-panel">
+        <div class="tool-card">
+            <h3>Quadratic Formula (ax² + bx + c = 0)</h3>
+            <div class="math-row">
+                <input type="number" id="qa" placeholder="a"> x² + 
+                <input type="number" id="qb" placeholder="b"> x + 
+                <input type="number" id="qc" placeholder="c"> = 0
+            </div>
+            <button class="solve" onclick="calcQuadratic()">Solve for x</button>
+            <br><div class="result-box" id="res-quad">Result will appear here</div>
+        </div>
+
+        <div class="tool-card">
+            <h3>Trigonometry</h3>
+            <div class="math-row">
+                <select id="trigFunc">
+                    <option value="sin">Sine (sin)</option>
+                    <option value="cos">Cosine (cos)</option>
+                    <option value="tan">Tangent (tan)</option>
+                </select>
+                of <input type="number" id="trigAngle" placeholder="Angle"> 
+                <select id="trigUnit">
+                    <option value="deg">Degrees</option>
+                    <option value="rad">Radians</option>
+                </select>
+            </div>
+            <button class="solve" onclick="calcTrig()">Calculate</button>
+            <br><div class="result-box" id="res-trig">Result will appear here</div>
+        </div>
+
+        <div class="tool-card">
+            <h3>Calculus: Power Rule Derivative</h3>
+            <p style="font-size:12px; color:#aaa;">Find the derivative d/dx of axⁿ</p>
+            <div class="math-row">
+                <input type="number" id="derivA" placeholder="a"> x ^ 
+                <input type="number" id="derivN" placeholder="n">
+            </div>
+            <button class="solve" onclick="calcDerivative()">Differentiate</button>
+            <br><div class="result-box" id="res-deriv">Result will appear here</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function showTab(tabId) {
+        document.querySelectorAll('.solver-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    function calcArithmetic() {
+        const n1 = parseFloat(document.getElementById('e1').value);
+        const n2 = parseFloat(document.getElementById('e2').value);
+        const op = document.getElementById('op').value;
+        if(isNaN(n1) || isNaN(n2)) return alert("Please enter both numbers.");
+        
+        let res = 0;
+        switch(op) {
+            case '+': res = n1 + n2; break;
+            case '-': res = n1 - n2; break;
+            case '*': res = n1 * n2; break;
+            case '/': res = n2 !== 0 ? n1 / n2 : "Cannot divide by zero"; break;
+        }
+        document.getElementById('res-arithmetic').innerText = res;
+    }
+
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+    function calcFraction() {
+        let num = parseInt(document.getElementById('fNum').value);
+        let den = parseInt(document.getElementById('fDen').value);
+        if(isNaN(num) || isNaN(den) || den === 0) return alert("Enter valid numbers. Denominator cannot be 0.");
+        
+        let divisor = gcd(Math.abs(num), Math.abs(den));
+        document.getElementById('res-fraction').innerText = `${num/divisor} / ${den/divisor}`;
+    }
+
+    function updateGeoInputs() {
+        const shape = document.getElementById('geoShape').value;
+        const container = document.getElementById('geoInputs');
+        if (shape === 'rect') {
+            container.innerHTML = '<input type="number" id="gL" placeholder="Length"> <input type="number" id="gW" placeholder="Width">';
+        } else {
+            container.innerHTML = '<input type="number" id="gR" placeholder="Radius">';
+        }
+    }
+
+    function calcGeometry() {
+        const shape = document.getElementById('geoShape').value;
+        let area, perim;
+        if (shape === 'rect') {
+            let l = parseFloat(document.getElementById('gL').value);
+            let w = parseFloat(document.getElementById('gW').value);
+            if(isNaN(l) || isNaN(w)) return;
+            area = l * w; perim = 2 * (l + w);
+            document.getElementById('res-geometry').innerText = `Area: ${area} | Perimeter: ${perim}`;
+        } else {
+            let r = parseFloat(document.getElementById('gR').value);
+            if(isNaN(r)) return;
+            area = (Math.PI * r * r).toFixed(2); perim = (2 * Math.PI * r).toFixed(2);
+            document.getElementById('res-geometry').innerText = `Area: ${area} | Circumference: ${perim}`;
+        }
+    }
+
+    function calcPercentage() {
+        const p = parseFloat(document.getElementById('percP').value);
+        const w = parseFloat(document.getElementById('percW').value);
+        if(isNaN(p) || isNaN(w)) return;
+        document.getElementById('res-percent').innerText = `${p}% of ${w} is ${(p / 100) * w}`;
+    }
+
+    function calcPythagorean() {
+        let a = parseFloat(document.getElementById('pyA').value);
+        let b = parseFloat(document.getElementById('pyB').value);
+        let c = parseFloat(document.getElementById('pyC').value);
+        let res = "";
+
+        if (isNaN(c) && !isNaN(a) && !isNaN(b)) res = `c = ${Math.sqrt(a*a + b*b).toFixed(3)}`;
+        else if (isNaN(a) && !isNaN(b) && !isNaN(c)) res = `a = ${Math.sqrt(c*c - b*b).toFixed(3)}`;
+        else if (isNaN(b) && !isNaN(a) && !isNaN(c)) res = `b = ${Math.sqrt(c*c - a*a).toFixed(3)}`;
+        else res = "Please leave exactly one field blank to solve.";
+
+        if(res.includes("NaN")) res = "Invalid Triangle";
+        document.getElementById('res-pythag').innerText = res;
+    }
+
+    function calcLinear() {
+        let a = parseFloat(document.getElementById('linA').value);
+        let b = parseFloat(document.getElementById('linB').value);
+        let c = parseFloat(document.getElementById('linC').value);
+        if(isNaN(a) || isNaN(b) || isNaN(c)) return;
+        
+        if (a === 0) {
+            document.getElementById('res-linear').innerText = (b === c) ? "Infinite solutions" : "No solution";
+        } else {
+            let x = (c - b) / a;
+            document.getElementById('res-linear').innerText = `x = ${x}`;
+        }
+    }
+
+    function calcQuadratic() {
+        const a = parseFloat(document.getElementById('qa').value);
+        const b = parseFloat(document.getElementById('qb').value);
+        const c = parseFloat(document.getElementById('qc').value);
+        if(isNaN(a) || isNaN(b) || isNaN(c)) return;
+        if(a === 0) return document.getElementById('res-quad').innerText = "Not a quadratic equation (a cannot be 0).";
+
+        const discriminant = (b * b) - (4 * a * c);
+        if (discriminant < 0) {
+            document.getElementById('res-quad').innerText = "No real roots (Complex answers)";
+        } else if (discriminant === 0) {
+            document.getElementById('res-quad').innerText = `x = ${(-b / (2 * a)).toFixed(3)}`;
+        } else {
+            const x1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+            const x2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+            document.getElementById('res-quad').innerText = `x = ${x1.toFixed(3)} or x = ${x2.toFixed(3)}`;
+        }
+    }
+
+    function calcTrig() {
+        const func = document.getElementById('trigFunc').value;
+        const unit = document.getElementById('trigUnit').value;
+        let angle = parseFloat(document.getElementById('trigAngle').value);
+        if(isNaN(angle)) return;
+
+        let radians = unit === 'deg' ? angle * (Math.PI / 180) : angle;
+        let res = 0;
+
+        switch(func) {
+            case 'sin': res = Math.sin(radians); break;
+            case 'cos': res = Math.cos(radians); break;
+            case 'tan': 
+                if (Math.abs(Math.cos(radians)) < 1e-10) { res = "Undefined"; break; }
+                res = Math.tan(radians); 
+                break;
+        }
+        
+        if(typeof res === "number") res = res.toFixed(4);
+        document.getElementById('res-trig').innerText = `${func}(${angle}${unit==='deg'?'°':' rad'}) = ${res}`;
+    }
+
+    function calcDerivative() {
+        let a = parseFloat(document.getElementById('derivA').value);
+        let n = parseFloat(document.getElementById('derivN').value);
+        if(isNaN(a) || isNaN(n)) return;
+
+        let newA = a * n;
+        let newN = n - 1;
+        
+        let res = "";
+        if (n === 0) res = "0";
+        else if (n === 1) res = `${a}`;
+        else if (newN === 1) res = `${newA}x`;
+        else res = `${newA}x^${newN}`;
+
+        document.getElementById('res-deriv').innerText = `d/dx = ${res}`;
+    }
+</script>
+
+</body>
+</html>
