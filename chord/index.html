@@ -43,7 +43,6 @@
   }
 
   button, input { font-family: inherit; }
-
   .hidden { display: none !important; }
 
   /* AUTH SCREEN */
@@ -166,7 +165,8 @@
     align-items: center;
     justify-content: space-between;
   }
-  .add-btn { cursor: pointer; font-size: 16px; }
+  .add-btn { cursor: pointer; font-size: 16px; transition: opacity 0.2s; }
+  .add-btn:hover { opacity: 1 !important; }
 
   .channel-item {
     padding: 8px 12px;
@@ -233,8 +233,21 @@
     gap: 20px;
   }
 
-  .message { display: flex; gap: 16px; }
+  .message { display: flex; gap: 16px; position: relative; }
   .message:hover { background: var(--bg-msg-hover); margin: 0 -20px; padding: 0 20px; }
+  
+  .del-msg {
+    position: absolute;
+    right: 25px;
+    top: 5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    display: none;
+  }
+  .message:hover .del-msg { display: block; }
+  .del-msg:hover { color: var(--red); }
+
   .msg-avatar {
     width: 40px;
     height: 40px;
@@ -374,8 +387,7 @@
         <span id="active-ch-title" class="ch-title">Select a channel</span>
       </header>
 
-      <div class="messages-wrap" id="messages-container">
-        </div>
+      <div class="messages-wrap" id="messages-container"></div>
 
       <div class="typing-indicator" id="typing-box"></div>
       
@@ -403,7 +415,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, set, onChildAdded, onChildChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onValue, set, onChildAdded, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
@@ -420,7 +432,6 @@
     const db = getDatabase(app);
     const auth = getAuth(app);
 
-    // Global handles
     window.db = db;
     window.auth = auth;
     window.fbRef = ref;
@@ -428,6 +439,7 @@
     window.fbOnValue = onValue;
     window.fbSet = set;
     window.fbOnChildAdded = onChildAdded;
+    window.fbOnChildRemoved = onChildRemoved;
     window.fbSignOut = signOut;
     window.fbCreateUser = createUserWithEmailAndPassword;
     window.fbSignIn = signInWithEmailAndPassword;
@@ -435,10 +447,13 @@
 
   <script>
     const AVATAR_COLORS = ['#ff5c5c','#3ddc84','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe'];
+    
+    // Your specific UID set as Admin
+    const ADMIN_UID = "S0mPQ6Ts8bRsFkfRBdnJUUyMEZ43"; 
+    
     let currentUser = null;
     let currentChannelId = null;
     let selectedRegColor = 0;
-    let unsubMessages = null;
 
     // ═══════════════════════════════════════════════════════
     //  AUTH LOGIC
@@ -473,7 +488,6 @@
 
       try {
         const cred = await window.fbSignIn(window.auth, `${user.toLowerCase()}@chorde.com`, pass);
-        // Fetch user profile from DB
         window.fbOnValue(window.fbRef(window.db, 'users/' + cred.user.uid), (snap) => {
           setupApp(snap.val());
         }, { onlyOnce: true });
@@ -507,7 +521,6 @@
         list.innerHTML = '';
         const data = snap.val() || {};
         
-        // If no channels exist, create general
         if (Object.keys(data).length === 0) {
            createChannelRaw('general');
            return;
@@ -550,17 +563,21 @@
       document.getElementById('active-ch-title').innerText = name;
       document.getElementById('messages-container').innerHTML = '';
       
-      // Update UI active state
       document.querySelectorAll('.channel-item').forEach(el => {
         el.classList.toggle('active', el.innerText === name);
       });
 
-      // Listen for messages in this channel
-      if (unsubMessages) unsubMessages();
       const msgRef = window.fbRef(window.db, `messages/${id}`);
       
+      // Listen for New Messages
       window.fbOnChildAdded(msgRef, (snap) => {
-        renderMessage(snap.val());
+        renderMessage(snap.val(), snap.key);
+      });
+
+      // Listen for Deleted Messages
+      window.fbOnChildRemoved(msgRef, (snap) => {
+        const el = document.getElementById(`msg-${snap.key}`);
+        if (el) el.remove();
       });
     }
 
@@ -579,6 +596,7 @@
       const msgData = {
         text: text,
         sender: currentUser.username,
+        senderUid: currentUser.uid, // Storing UID to verify deletion rights
         color: AVATAR_COLORS[currentUser.colorIdx],
         ts: Date.now()
       };
@@ -587,12 +605,17 @@
       input.value = '';
     }
 
-    function renderMessage(m) {
+    function renderMessage(m, id) {
       const container = document.getElementById('messages-container');
       const div = document.createElement('div');
       div.className = 'message';
+      div.id = `msg-${id}`;
       
       const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      
+      // Verification: User is the sender OR user is the Admin
+      const canDelete = (m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID);
+      const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
 
       div.innerHTML = `
         <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
@@ -603,9 +626,20 @@
           </div>
           <div class="msg-text">${escHtml(m.text)}</div>
         </div>
+        ${delBtn}
       `;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
+    }
+
+    async function deleteMessage(msgId) {
+      if (!confirm("Are you sure you want to delete this message?")) return;
+      try {
+        const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`);
+        await window.fbSet(msgRef, null); // Deletes from Firebase
+      } catch (e) {
+        console.error("Delete failed:", e);
+      }
     }
 
     function escHtml(s) {
@@ -617,6 +651,8 @@
     // ═══════════════════════════════════════════════════════
     function buildColorGrid() {
       const grid = document.getElementById('reg-color-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
       AVATAR_COLORS.forEach((c, i) => {
         const s = document.createElement('div');
         s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
@@ -632,24 +668,20 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       buildColorGrid();
-    });
-window.addEventListener('DOMContentLoaded', () => {
-  buildColorGrid();
 
-  // CHECK FOR LOGGED IN USER ON REFRESH
-  setTimeout(() => {
-    if (window.auth) {
-      window.auth.onAuthStateChanged((user) => {
-        if (user) {
-          // If user exists, fetch their specific profile data from DB
-          window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
-            if (snap.exists()) setupApp(snap.val());
-          }, { onlyOnce: true });
+      // Give Firebase time to initialize then check for existing session
+      setTimeout(() => {
+        if (window.auth) {
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
+                if (snap.exists()) setupApp(snap.val());
+              }, { onlyOnce: true });
+            }
+          });
         }
-      });
-    }
-  }, 1000); // Give Firebase a second to initialize
-});
+      }, 1000);
+    });
   </script>
 </body>
 </html>
