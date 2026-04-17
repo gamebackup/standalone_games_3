@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chord — Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deepest: #0b0d12;
+    --bg-dark: #10121a;
+    --bg-mid: #15182280;
+    --bg-panel: #151820;
+    --bg-sidebar: #0f111a;
+    --bg-input: #1e2130;
+    --bg-hover: #1e2235;
+    --bg-active: #252a3d;
+    --bg-msg-hover: #1a1d2a;
+    --accent: #7c6af7;
+    --accent-bright: #9d8fff;
+    --accent-dim: #4a3fa8;
+    --accent-glow: rgba(124,106,247,0.25);
+    --green: #3ddc84;
+    --red: #ff5c5c;
+    --yellow: #f5f543;
+    --text-main: #e0e0e0;
+    --text-dim: #949ba4;
+    --text-muted: #4e5058;
+    --border: rgba(255,255,255,0.06);
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --radius-sm: 4px;
+    --shadow-soft: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg-deepest);
+    color: var(--text-main);
+    font-family: 'Sora', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  button, input { font-family: inherit; }
+
+  .hidden { display: none !important; }
+
+  /* AUTH SCREEN */
+  #auth-screen {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, #1a1d2e 0%, #0b0d12 100%);
+  }
+
+  .auth-card {
+    background: var(--bg-panel);
+    width: 400px;
+    padding: 40px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
+    text-align: center;
+  }
+
+  .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 32px;
+    letter-spacing: -2px;
+    margin-bottom: 30px;
+    color: var(--accent-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .logo-dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
+
+  .auth-form h2 { margin-bottom: 8px; font-weight: 600; }
+  .auth-form p { color: var(--text-dim); margin-bottom: 24px; font-size: 14px; }
+
+  .input-group { text-align: left; margin-bottom: 16px; }
+  .input-group label { display: block; font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; }
+  .input-group input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    color: #fff;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .input-group input:focus { border-color: var(--accent); }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--accent-bright); }
+
+  .auth-toggle { margin-top: 20px; font-size: 13px; color: var(--text-dim); }
+  .auth-toggle span { color: var(--accent-bright); cursor: pointer; }
+
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .color-swatch {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: transform 0.2s;
+  }
+  .color-swatch:hover { transform: scale(1.1); }
+  .color-swatch.selected { border-color: #fff; }
+
+  /* MAIN APP LAYOUT */
+  #chat-screen {
+    display: flex;
+    height: 100vh;
+  }
+
+  .sidebar {
+    width: 260px;
+    background: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+  }
+
+  .sidebar-header {
+    padding: 16px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .channels-list { flex: 1; overflow-y: auto; padding: 12px 8px; }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin: 16px 8px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .add-btn { cursor: pointer; font-size: 16px; }
+
+  .channel-item {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+    font-size: 14px;
+  }
+  .channel-item:hover { background: var(--bg-hover); color: var(--text-main); }
+  .channel-item.active { background: var(--bg-active); color: #fff; }
+  .channel-item::before { content: "#"; opacity: 0.5; font-family: 'Space Mono', monospace; }
+
+  .user-bar {
+    padding: 12px;
+    background: rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .u-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: #fff;
+  }
+  .u-info { flex: 1; overflow: hidden; }
+  .u-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .u-status { font-size: 11px; color: var(--text-dim); }
+
+  /* CHAT AREA */
+  .chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+  }
+
+  .chat-header {
+    height: 60px;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .ch-hash { color: var(--text-dim); font-size: 20px; font-family: 'Space Mono', monospace; }
+  .ch-title { font-weight: 600; }
+
+  .messages-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .message { display: flex; gap: 16px; }
+  .message:hover { background: var(--bg-msg-hover); margin: 0 -20px; padding: 0 20px; }
+  .msg-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .msg-content { flex: 1; min-width: 0; }
+  .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .msg-user { font-weight: 600; font-size: 14px; cursor: pointer; }
+  .msg-user:hover { text-decoration: underline; }
+  .msg-time { color: var(--text-dim); font-size: 11px; }
+  .msg-text { font-size: 14px; line-height: 1.5; color: #dbdee1; word-wrap: break-word; }
+
+  .input-area { padding: 0 20px 24px; }
+  .input-box {
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .input-box input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    padding: 8px 0;
+    font-size: 14px;
+  }
+  .typing-indicator { height: 20px; padding: 0 24px; font-size: 12px; color: var(--text-dim); font-style: italic; }
+
+  /* MODALS */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal {
+    background: var(--bg-panel);
+    width: 440px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+  .modal h3 { margin-bottom: 20px; }
+  .modal-btns { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+  .btn-ghost { background: none; border: none; color: #fff; cursor: pointer; padding: 8px 16px; font-size: 14px; }
+  .btn-action { background: var(--accent); border: none; color: #fff; cursor: pointer; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #35373c; }
+
+</style>
+</head>
+<body>
+
+  <div id="auth-screen">
+    <div class="auth-card">
+      <div class="logo-text"><div class="logo-dot"></div> CHORDE</div>
+      
+      <div id="login-view" class="auth-form">
+        <h2>Welcome back!</h2>
+        <p>We're so excited to see you again!</p>
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="login-user">
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="login-pass">
+        </div>
+        <button class="btn-primary" onclick="tryLogin()">Log In</button>
+        <div class="auth-toggle">Need an account? <span onclick="toggleAuth(false)">Register</span></div>
+      </div>
+
+      <div id="reg-view" class="auth-form hidden">
+        <h2>Create an account</h2>
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="reg-user">
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="reg-pass">
+        </div>
+        <label style="display:block; text-align:left; font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-dim); margin-bottom:12px;">Profile Color</label>
+        <div class="color-grid" id="reg-color-grid"></div>
+        <button class="btn-primary" onclick="tryRegister()">Continue</button>
+        <div class="auth-toggle">Already have an account? <span onclick="toggleAuth(true)">Log In</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="chat-screen" class="hidden">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>CHORDE</span>
+        <div class="logo-dot"></div>
+      </div>
+      
+      <div class="channels-list">
+        <div class="section-label">
+          <span>Text Channels</span>
+          <span class="add-btn" onclick="openCreateChannel()">+</span>
+        </div>
+        <div id="channels-container"></div>
+      </div>
+
+      <div class="user-bar">
+        <div id="my-avatar" class="u-avatar"></div>
+        <div class="u-info">
+          <div id="my-name" class="u-name"></div>
+          <div class="u-status">Online</div>
+        </div>
+        <div class="add-btn" style="opacity:0.5" onclick="logout()">⚙</div>
+      </div>
+    </aside>
+
+    <main class="chat-container">
+      <header class="chat-header">
+        <span class="ch-hash">#</span>
+        <span id="active-ch-title" class="ch-title">Select a channel</span>
+      </header>
+
+      <div class="messages-wrap" id="messages-container">
+        </div>
+
+      <div class="typing-indicator" id="typing-box"></div>
+      
+      <div class="input-area">
+        <div class="input-box">
+          <input type="text" id="chat-input" placeholder="Message..." onkeydown="handleChatKey(event)">
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modal-channel" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Create Channel</h3>
+      <div class="input-group">
+        <label>Channel Name</label>
+        <input type="text" id="new-ch-name" placeholder="new-channel">
+      </div>
+      <div class="modal-btns">
+        <button class="btn-ghost" onclick="closeModals()">Cancel</button>
+        <button class="btn-action" onclick="createChannel()">Create Channel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onValue, set, onChildAdded, onChildChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCwtdcAJtYC6pPUaC6pdEC4Kr9IUX8wifo",
+      authDomain: "chord-91afa.firebaseapp.com",
+      projectId: "chord-91afa",
+      storageBucket: "chord-91afa.firebasestorage.app",
+      messagingSenderId: "21786013225",
+      appId: "1:21786013225:web:773c34b9d4346460c4f638",
+      measurementId: "G-909HM59DQ5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    // Global handles
+    window.db = db;
+    window.auth = auth;
+    window.fbRef = ref;
+    window.fbPush = push;
+    window.fbOnValue = onValue;
+    window.fbSet = set;
+    window.fbOnChildAdded = onChildAdded;
+    window.fbSignOut = signOut;
+    window.fbCreateUser = createUserWithEmailAndPassword;
+    window.fbSignIn = signInWithEmailAndPassword;
+  </script>
+
+  <script>
+    const AVATAR_COLORS = ['#ff5c5c','#3ddc84','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe'];
+    let currentUser = null;
+    let currentChannelId = null;
+    let selectedRegColor = 0;
+    let unsubMessages = null;
+
+    // ═══════════════════════════════════════════════════════
+    //  AUTH LOGIC
+    // ═══════════════════════════════════════════════════════
+    function toggleAuth(isLogin) {
+      document.getElementById('login-view').classList.toggle('hidden', !isLogin);
+      document.getElementById('reg-view').classList.toggle('hidden', isLogin);
+    }
+
+    async function tryRegister() {
+      const user = document.getElementById('reg-user').value.trim();
+      const pass = document.getElementById('reg-pass').value.trim();
+      if(!user || pass.length < 6) return alert("Username required and password min 6 chars.");
+
+      const email = `${user.toLowerCase()}@chorde.com`;
+      try {
+        const cred = await window.fbCreateUser(window.auth, email, pass);
+        const userData = {
+          uid: cred.user.uid,
+          username: user,
+          colorIdx: selectedRegColor
+        };
+        await window.fbSet(window.fbRef(window.db, 'users/' + cred.user.uid), userData);
+        setupApp(userData);
+      } catch (e) { alert(e.message); }
+    }
+
+    async function tryLogin() {
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      if(!user || !pass) return;
+
+      try {
+        const cred = await window.fbSignIn(window.auth, `${user.toLowerCase()}@chorde.com`, pass);
+        // Fetch user profile from DB
+        window.fbOnValue(window.fbRef(window.db, 'users/' + cred.user.uid), (snap) => {
+          setupApp(snap.val());
+        }, { onlyOnce: true });
+      } catch (e) { alert("Login failed. Check credentials."); }
+    }
+
+    function logout() {
+      window.fbSignOut(window.auth).then(() => location.reload());
+    }
+
+    function setupApp(userData) {
+      currentUser = userData;
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('chat-screen').classList.remove('hidden');
+      
+      document.getElementById('my-name').innerText = userData.username;
+      const av = document.getElementById('my-avatar');
+      av.innerText = userData.username[0].toUpperCase();
+      av.style.background = AVATAR_COLORS[userData.colorIdx];
+
+      initChannels();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  CHANNELS
+    // ═══════════════════════════════════════════════════════
+    function initChannels() {
+      const chRef = window.fbRef(window.db, 'channels');
+      window.fbOnValue(chRef, (snap) => {
+        const list = document.getElementById('channels-container');
+        list.innerHTML = '';
+        const data = snap.val() || {};
+        
+        // If no channels exist, create general
+        if (Object.keys(data).length === 0) {
+           createChannelRaw('general');
+           return;
+        }
+
+        Object.keys(data).forEach(id => {
+          const div = document.createElement('div');
+          div.className = 'channel-item' + (id === currentChannelId ? ' active' : '');
+          div.innerText = data[id].name;
+          div.onclick = () => switchChannel(id, data[id].name);
+          list.appendChild(div);
+        });
+
+        if (!currentChannelId) {
+          const first = Object.keys(data)[0];
+          switchChannel(first, data[first].name);
+        }
+      });
+    }
+
+    function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
+    function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
+
+    function createChannel() {
+      const nameInp = document.getElementById('new-ch-name');
+      const rawName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
+      if (!rawName) return;
+      createChannelRaw(rawName);
+      nameInp.value = '';
+      closeModals();
+    }
+
+    function createChannelRaw(name) {
+      const newRef = window.fbPush(window.fbRef(window.db, 'channels'));
+      window.fbSet(newRef, { name: name });
+    }
+
+    function switchChannel(id, name) {
+      currentChannelId = id;
+      document.getElementById('active-ch-title').innerText = name;
+      document.getElementById('messages-container').innerHTML = '';
+      
+      // Update UI active state
+      document.querySelectorAll('.channel-item').forEach(el => {
+        el.classList.toggle('active', el.innerText === name);
+      });
+
+      // Listen for messages in this channel
+      if (unsubMessages) unsubMessages();
+      const msgRef = window.fbRef(window.db, `messages/${id}`);
+      
+      window.fbOnChildAdded(msgRef, (snap) => {
+        renderMessage(snap.val());
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  MESSAGES
+    // ═══════════════════════════════════════════════════════
+    function handleChatKey(e) {
+      if (e.key === 'Enter') sendMessage();
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !currentChannelId) return;
+
+      const msgData = {
+        text: text,
+        sender: currentUser.username,
+        color: AVATAR_COLORS[currentUser.colorIdx],
+        ts: Date.now()
+      };
+
+      window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
+      input.value = '';
+    }
+
+    function renderMessage(m) {
+      const container = document.getElementById('messages-container');
+      const div = document.createElement('div');
+      div.className = 'message';
+      
+      const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      div.innerHTML = `
+        <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+        <div class="msg-content">
+          <div class="msg-header">
+            <span class="msg-user" style="color:${m.color}">${escHtml(m.sender)}</span>
+            <span class="msg-time">${time}</span>
+          </div>
+          <div class="msg-text">${escHtml(m.text)}</div>
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════════
+    function buildColorGrid() {
+      const grid = document.getElementById('reg-color-grid');
+      AVATAR_COLORS.forEach((c, i) => {
+        const s = document.createElement('div');
+        s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
+        s.style.background = c;
+        s.onclick = () => {
+          document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+          s.classList.add('selected');
+          selectedRegColor = i;
+        };
+        grid.appendChild(s);
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      buildColorGrid();
+    });
+window.addEventListener('DOMContentLoaded', () => {
+  buildColorGrid();
+
+  // CHECK FOR LOGGED IN USER ON REFRESH
+  setTimeout(() => {
+    if (window.auth) {
+      window.auth.onAuthStateChanged((user) => {
+        if (user) {
+          // If user exists, fetch their specific profile data from DB
+          window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
+            if (snap.exists()) setupApp(snap.val());
+          }, { onlyOnce: true });
+        }
+      });
+    }
+  }, 1000); // Give Firebase a second to initialize
+});
+  </script>
+</body>
+</html>
