@@ -1,5 +1,4 @@
 export const BANNED_WORDS = [
-[
   "2 girls 1 cup",
   "2g1c",
   "4r5e",
