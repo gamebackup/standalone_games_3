@@ -807,23 +807,18 @@ function setupApp(userData) {
   div.className = 'member-item';
   const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
   
-  // Logic to check for admin
-  const isAdmin = m.uid === ADMIN_UID;
-  const adminClass = isAdmin ? 'admin-pfp-override' : '';
-  const bgStyle = isAdmin ? '' : `background:${m.color}`;
-  const initial = isAdmin ? '' : escHtml(m.username[0].toUpperCase());
+  // Standard logic for everyone, including Dogeloaf
+  const bgStyle = `background:${m.color}`;
+  const initial = m.username[0].toUpperCase();
 
   div.innerHTML = `
-    <div class="member-avatar ${adminClass}" style="${bgStyle}">
-      ${initial}
+    <div class="member-avatar" style="${bgStyle}">
+      ${escHtml(initial)}
     </div>
     <span class="member-name">${escHtml(m.username)}${youTag}</span>
   `;
   container.appendChild(div);
 });
-      });
-    }
-
     // ═══════════════════════════════════════════════════════
     //  TYPING INDICATORS
     // ═══════════════════════════════════════════════════════
