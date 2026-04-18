@@ -414,6 +414,68 @@
     30%            { transform: translateY(-4px); opacity: 1; }
   }
 
+
+  /* CHANNEL DELETE BUTTON — admin only, appears on hover */
+  .channel-item .del-ch {
+    margin-left: auto;
+    opacity: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1;
+    padding: 1px 5px;
+    border-radius: 3px;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .channel-item:hover .del-ch { opacity: 1; }
+  .del-ch:hover { color: var(--red) !important; background: rgba(255,92,92,0.12); }
+
+  /* LOCKED channels (rules not yet accepted) */
+  .channel-item.ch-locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* RULES channel — scroll icon prefix */
+  .channel-item.ch-rules::before { content: "📜"; opacity: 1; font-family: inherit; font-size: 10px; }
+
+  /* RULES GATE BANNER */
+  #rules-gate {
+    margin: 0 20px;
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    font-size: 12px;
+    text-align: center;
+  }
+  #rules-gate.gate-scroll {
+    background: rgba(124,106,247,0.1);
+    border: 1px solid rgba(124,106,247,0.2);
+    color: var(--text-dim);
+  }
+  #rules-gate.gate-accept {
+    background: rgba(61,220,132,0.1);
+    border: 1px solid rgba(61,220,132,0.3);
+    color: var(--text-main);
+  }
+  .btn-accept-rules {
+    display: block; width: 100%;
+    background: var(--green); color: #0b0d12;
+    border: none; border-radius: var(--radius-sm);
+    padding: 8px 20px; margin-top: 8px;
+    font-weight: 700; font-size: 12px;
+    cursor: pointer; transition: opacity 0.2s;
+    font-family: inherit;
+  }
+  .btn-accept-rules:hover { opacity: 0.85; }
+
+  /* READ-ONLY notice inside rules channel for non-admins */
+  .rules-readonly {
+    padding: 6px 20px 14px;
+    font-size: 12px; color: var(--text-muted);
+    text-align: center; font-style: italic;
+  }
+
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
@@ -494,6 +556,8 @@
 
       <div class="messages-wrap" id="messages-container"></div>
 
+      <div id="rules-gate" class="hidden"></div>
+      <div id="rules-readonly" class="rules-readonly hidden">📜 This is the rules channel — members cannot send messages here.</div>
       <div class="typing-indicator" id="typing-box"></div>
       
       <div class="input-area">
@@ -566,7 +630,7 @@
     //   Format: https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js
     // Works in W3Schools TryIt, GitHub Pages, local servers — anywhere.
     (async function loadCensorList() {
-      const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
+      const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
 
       try {
         const res = await fetch(CENSOR_URL);
@@ -617,23 +681,15 @@
     // Your specific UID set as Admin
     const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
     
-    // Returns the inner HTML for any avatar element.
-    // Admin gets the photo; everyone else gets their initial on their color.
-    function avatarInner(uid, initial, color) {
-      if (uid === ADMIN_UID) {
-        return `<img src="${ADMIN_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="admin">`;
-      }
-      return initial;
-    }
-    function avatarStyle(uid, color) {
-      return uid === ADMIN_UID ? 'background:#2b2d3a' : `background:${color}`;
-    }
 
     let currentUser = null;
     let currentChannelId = null;
     let selectedRegColor = 0;
     let typingTimer = null;
     let typingUnsubscribe = null;
+    let rulesAccepted = false;
+    let rulesChannelId = null;
+    let rulesScrollHandler = null;
 
     // ═══════════════════════════════════════════════════════
     //  AUTH LOGIC
@@ -685,12 +741,13 @@
       
       document.getElementById('my-name').innerText = userData.username;
       const av = document.getElementById('my-avatar');
-      av.innerHTML = avatarInner(userData.uid, userData.username[0].toUpperCase(), AVATAR_COLORS[userData.colorIdx]);
-      av.style.cssText += avatarStyle(userData.uid, AVATAR_COLORS[userData.colorIdx]);
+      av.innerText = userData.username[0].toUpperCase();
+      av.style.background = AVATAR_COLORS[userData.colorIdx];
 
       initChannels();
       setupPresence(userData);
       initMemberList();
+      checkRulesStatus();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -702,29 +759,93 @@
         const list = document.getElementById('channels-container');
         list.innerHTML = '';
         const data = snap.val() || {};
-        
+
+        // If no channels exist yet, admin creates rules + general to bootstrap
         if (Object.keys(data).length === 0) {
-           createChannelRaw('general');
-           return;
+          if (currentUser.uid === ADMIN_UID) {
+            createChannelRaw('rules');
+            createChannelRaw('general');
+          }
+          return;
         }
 
+        // Track the rules channel id so the gate logic can reference it
+        rulesChannelId = null;
         Object.keys(data).forEach(id => {
+          if (data[id].name === 'rules') rulesChannelId = id;
+        });
+
+        // Sort: rules always first, everything else alphabetical
+        const sorted = Object.keys(data).sort((a, b) => {
+          if (data[a].name === 'rules') return -1;
+          if (data[b].name === 'rules') return  1;
+          return data[a].name.localeCompare(data[b].name);
+        });
+
+        sorted.forEach(id => {
+          const name    = data[id].name;
+          const isRules = name === 'rules';
+          const isAdmin = currentUser.uid === ADMIN_UID;
+          // Non-admin users are locked out of every channel except rules until accepted
+          const locked  = !isAdmin && !rulesAccepted && !isRules;
+
           const div = document.createElement('div');
-          div.className = 'channel-item' + (id === currentChannelId ? ' active' : '');
-          div.innerText = data[id].name;
-          div.onclick = () => switchChannel(id, data[id].name);
+          div.className = 'channel-item'
+            + (id === currentChannelId ? ' active'    : '')
+            + (isRules                 ? ' ch-rules'  : '')
+            + (locked                  ? ' ch-locked' : '');
+          div.dataset.chId = id; // store id so active toggle works correctly
+
+          // Text node so the × button doesn't contaminate innerText checks
+          div.appendChild(document.createTextNode(name));
+          if (!locked) div.onclick = () => switchChannel(id, name);
+
+          // Admin gets a × delete button on every non-rules channel
+          if (isAdmin && !isRules) {
+            const btn = document.createElement('span');
+            btn.className = 'del-ch';
+            btn.title = 'Delete channel';
+            btn.textContent = '×';
+            btn.onclick = (e) => deleteChannel(id, name, e);
+            div.appendChild(btn);
+          }
+
           list.appendChild(div);
         });
 
+        // Auto-navigate on first load
         if (!currentChannelId) {
-          const first = Object.keys(data)[0];
-          switchChannel(first, data[first].name);
+          if (rulesChannelId && !rulesAccepted && currentUser.uid !== ADMIN_UID) {
+            switchChannel(rulesChannelId, 'rules');
+          } else {
+            switchChannel(sorted[0], data[sorted[0]].name);
+          }
         }
       });
     }
 
     function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
     function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
+
+    async function deleteChannel(channelId, channelName, e) {
+      e.stopPropagation();
+      if (!confirm(`Delete #${channelName} and ALL its messages? This cannot be undone.`)) return;
+      try {
+        await window.fbSet(window.fbRef(window.db, `channels/${channelId}`), null);
+        await window.fbSet(window.fbRef(window.db, `messages/${channelId}`), null);
+        if (currentChannelId === channelId) {
+          currentChannelId = null;
+          document.getElementById('active-ch-title').innerText = 'Select a channel';
+          document.getElementById('messages-container').innerHTML = '';
+          document.getElementById('rules-gate').className = 'hidden';
+          document.getElementById('rules-readonly').classList.add('hidden');
+          document.querySelector('.input-area').classList.remove('hidden');
+        }
+      } catch(err) {
+        alert('Delete failed — check Firebase rules.');
+        console.error(err);
+      }
+    }
 
     function createChannel() {
       const nameInp = document.getElementById('new-ch-name');
@@ -746,7 +867,7 @@
       document.getElementById('messages-container').innerHTML = '';
       
       document.querySelectorAll('.channel-item').forEach(el => {
-        el.classList.toggle('active', el.innerText === name);
+        el.classList.toggle('active', el.dataset.chId === id);
       });
 
       const msgRef = window.fbRef(window.db, `messages/${id}`);
@@ -764,6 +885,100 @@
 
       // Typing indicators — unsubscribe old channel first
       subscribeTyping(id);
+      // Rules gate visibility
+      updateRulesUI(id);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  RULES GATE
+    // ═══════════════════════════════════════════════════════
+
+    // Subscribes to users/{uid}/rulesRead in Firebase so accepted status
+    // persists across sessions and updates live if it changes.
+    function checkRulesStatus() {
+      if (currentUser.uid === ADMIN_UID) { rulesAccepted = true; return; }
+      window.fbOnValue(
+        window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`),
+        (snap) => {
+          const wasAccepted = rulesAccepted;
+          rulesAccepted = snap.val() === true;
+          if (rulesAccepted && !wasAccepted) {
+            // Just accepted — re-render channel list to remove locks, then
+            // navigate away from rules to general/first channel
+            initChannels();
+            if (rulesChannelId) {
+              const chRef = window.fbRef(window.db, 'channels');
+              window.fbOnValue(chRef, (snap2) => {
+                const data = snap2.val() || {};
+                const nonRules = Object.keys(data).filter(id => data[id].name !== 'rules');
+                if (nonRules.length) switchChannel(nonRules[0], data[nonRules[0]].name);
+              }, { onlyOnce: true });
+            }
+          }
+          if (currentChannelId === rulesChannelId) updateRulesUI(currentChannelId);
+        }
+      );
+    }
+
+    // Shows/hides the scroll gate, read-only notice, and input box
+    // depending on which channel is active and whether rules are accepted.
+    function updateRulesUI(channelId) {
+      const gate      = document.getElementById('rules-gate');
+      const readonly  = document.getElementById('rules-readonly');
+      const inputArea = document.querySelector('.input-area');
+      const msgBox    = document.getElementById('messages-container');
+      const isRules   = channelId === rulesChannelId;
+      const isAdmin   = currentUser.uid === ADMIN_UID;
+
+      // Remove any previous scroll listener
+      if (rulesScrollHandler) {
+        msgBox.removeEventListener('scroll', rulesScrollHandler);
+        rulesScrollHandler = null;
+      }
+
+      if (isRules && !isAdmin) {
+        // Non-admin in rules channel: hide input, show read-only notice
+        inputArea.classList.add('hidden');
+        readonly.classList.remove('hidden');
+
+        if (!rulesAccepted) {
+          // Show the scroll-to-bottom banner
+          const setGateState = () => {
+            const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
+            if (atBottom) {
+              gate.className = 'gate-accept';
+              gate.innerHTML = '\u2705 <strong>You\'ve read the rules!</strong><br><button class="btn-accept-rules" onclick="acceptRules()">Accept Rules &amp; Unlock Channels</button>';
+            } else {
+              gate.className = 'gate-scroll';
+              gate.innerHTML = '\uD83D\uDCDC <strong>Read to the bottom to unlock all channels</strong><br><span style="font-size:11px">Scroll down \u2193</span>';
+            }
+          };
+          rulesScrollHandler = setGateState;
+          msgBox.addEventListener('scroll', rulesScrollHandler);
+          // Check immediately in case the rules content is short
+          setTimeout(setGateState, 600);
+        } else {
+          gate.className = 'hidden';
+        }
+      } else {
+        // Normal channel: show input, hide gate
+        gate.className = 'hidden';
+        readonly.classList.add('hidden');
+        inputArea.classList.remove('hidden');
+      }
+    }
+
+    // Writes rulesRead:true to this user's Firebase record.
+    // The checkRulesStatus listener picks it up and does the rest.
+    async function acceptRules() {
+      try {
+        await window.fbSet(
+          window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), true
+        );
+      } catch(err) {
+        console.error('Could not save rules acceptance:', err);
+        alert('Something went wrong — please try again.');
+      }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -832,9 +1047,8 @@
           const div = document.createElement('div');
           div.className = 'member-item';
           const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
-          const isAdmin = m.uid === ADMIN_UID;
           div.innerHTML = `
-            <div class="member-avatar" style="${isAdmin ? 'background:#2b2d3a' : 'background:'+m.color}">${isAdmin ? '<img src="'+ADMIN_AVATAR+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="admin">' : escHtml(m.username[0].toUpperCase())}</div>
+            <div class="member-avatar" style="background:${m.color}">${escHtml(m.username[0].toUpperCase())}</div>
             <span class="member-name">${escHtml(m.username)}${youTag}</span>
           `;
           container.appendChild(div);
@@ -959,7 +1173,7 @@
       const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
 
       div.innerHTML = `
-        <div class="msg-avatar" style="${m.senderUid === ADMIN_UID ? 'background:#2b2d3a' : 'background:'+m.color}">${m.senderUid === ADMIN_UID ? '<img src="'+ADMIN_AVATAR+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="admin">' : m.sender[0].toUpperCase()}</div>
+        <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
         <div class="msg-content">
           <div class="msg-header">
             <span class="msg-user" style="color:${m.color}">${escHtml(m.sender)}</span>
