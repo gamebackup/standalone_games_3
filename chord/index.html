@@ -417,7 +417,14 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #35373c; }
-
+.admin-pfp-override {
+    /* Use the generic silhouette image */
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAA9525XAAAAY1BMVEX///8BAQECAgIDAwMEBAUEBAUFBQUGBgYHBwcICAgJCQkJCQkKCgoLCwsMDAwNDQ0ODg4PDw8QEBARERESEhITExMUFBQVFRUWFhYXFxcYGBgZGRkaGhoeHh4fHx8gICAhISEXG048AAAClklEQVR4nO2byXKbMBAAQSBBIEG4G/f//9Z0K5VjOfWQSg75pntpX7bZGAuXCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsA81zWpS5tPqj7Vb93X9z7p+Wf90F+6qql3NykI9N+q69wU4rD4K9Nn4wHwW4U/hT5G2P4bS96O+C/mS/nC8fAzyI/9P30V7Uf4k33L+W/iR/6fv4q6Xf8kL+RvyXf7wXbwv+ZG/kL8S70u+5OfjV+I/5Ef+/vEq7nr5kX/N3z9exV0pP/L8eN4pP/Iiv5zC8eN5n9V6u//R/u+2bNf+W773449X8T4zL/KXP+R//HjeM6tS+wN/7Xh+Zt5t9gf+5vH8GOW7uE75ke+XvzL+5EeeO+V//Of9//P4E6uR/4H/lXmRu5Ff5kfmbmS945fXp/xI49fXZ/1v//71649f//71649fXv//u5T//zbj/1/P6f/v4f5/H6//84C77v6vA+6S+3+2Aeu/fXU3uuvy53fG88RjYf4789vA88xR/rT6H/OfG88b5kX+765L++X56e9X89vQ8wzzIn97/nK85f67/W40L/Lv7reP59m4I/9y/9V4P3V/164n7p5//993p47nN/mRP3R/7bvcLffv4f74Bq5/ftf9P4f58W//C89L5465v2f36+n656mreX7Pvt//65S/p/v+8X/v95/791+m+X07H/r/W+eP/f7f9X9v3x59+/C8ZfL4p0/v91+X55f+v5znF8fzv4fHvx/e//UvXwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgE/wC5hXG8z3y+P4AAAAAElFTkSuQmCC');
+    background-size: cover;
+    background-position: center;
+    background-color: transparent !important; /* hide default color */
+    color: transparent !important; /* hide default initial letter */
+  }
 </style>
 </head>
 <body>
@@ -611,10 +618,11 @@
   </script>
 
   <script>
-    const AVATAR_COLORS = ['#ff5c5c','#3ddc84','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe'];
+    const AVATAR_COLORS = ['#ff5c5c','#3ddc84','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#3CE649','#8F31EF','#007ED4',"#9ED583","#B95809",'#EA4CCA','#389DF5','#61A08B','#77D043','#730415','#6BC41E','#0A06DF','#A98C68','#B8C46C','#ED6275','#FC8B1A'];
     
     // Your specific UID set as Admin
     const ADMIN_UID = "S0mPQ6Ts8bRsFkfRBdnJUUyMEZ43"; 
+    const ADMIN_AVATAR = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/grayperson.jpg';
     
     let currentUser = null;
     let currentChannelId = null;
@@ -673,13 +681,18 @@
       document.getElementById('my-name').innerText = userData.username;
       const av = document.getElementById('my-avatar');
       av.innerText = userData.username[0].toUpperCase();
-      av.style.background = AVATAR_COLORS[userData.colorIdx];
+
+      // Apply the PFP if the user is the admin
+      if (userData.uid === ADMIN_UID) {
+        av.classList.add('admin-pfp-override');
+      } else {
+        av.style.background = AVATAR_COLORS[userData.colorIdx];
+      }
 
       initChannels();
       setupPresence(userData);
       initMemberList();
     }
-
     // ═══════════════════════════════════════════════════════
     //  CHANNELS
     // ═══════════════════════════════════════════════════════
@@ -819,8 +832,13 @@
           const div = document.createElement('div');
           div.className = 'member-item';
           const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
+         // Check if this member is the admin
+          const isAdmin = m.uid === ADMIN_UID;
+          const avatarClass = isAdmin ? 'member-avatar admin-pfp-override' : 'member-avatar';
+          const avatarStyle = isAdmin ? '' : `style="background:${m.color}"`;
+
           div.innerHTML = `
-            <div class="member-avatar" style="background:${m.color}">${escHtml(m.username[0].toUpperCase())}</div>
+            <div class="${avatarClass}" ${avatarStyle}>${escHtml(m.username[0].toUpperCase())}</div>
             <span class="member-name">${escHtml(m.username)}${youTag}</span>
           `;
           container.appendChild(div);
@@ -995,8 +1013,6 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       buildColorGrid();
-
-      // Give Firebase time to initialize then check for existing session
       setTimeout(() => {
         if (window.auth) {
           window.auth.onAuthStateChanged((user) => {
@@ -1012,3 +1028,4 @@
   </script>
 </body>
 </html>
+adpas:f5)1F5(F\=K(
