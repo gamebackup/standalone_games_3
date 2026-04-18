@@ -662,132 +662,7 @@ function setupApp(userData) {
 
   initChannels();
   setupPresence(userData);
-  initMemberList();
-}
-    // ═══════════════════════════════════════════════════════
-    //  CHANNELS
-    // ═══════════════════════════════════════════════════════
-    function initChannels() {
-      const chRef = window.fbRef(window.db, 'channels');
-      window.fbOnValue(chRef, (snap) => {
-        const list = document.getElementById('channels-container');
-        list.innerHTML = '';
-        const data = snap.val() || {};
-        
-        if (Object.keys(data).length === 0) {
-           createChannelRaw('general');
-           return;
-        }
-
-        Object.keys(data).forEach(id => {
-          const div = document.createElement('div');
-          div.className = 'channel-item' + (id === currentChannelId ? ' active' : '');
-          div.innerText = data[id].name;
-          div.onclick = () => switchChannel(id, data[id].name);
-          list.appendChild(div);
-        });
-
-        if (!currentChannelId) {
-          const first = Object.keys(data)[0];
-          switchChannel(first, data[first].name);
-        }
-      });
-    }
-
-    function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
-    function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
-
-    function createChannel() {
-      const nameInp = document.getElementById('new-ch-name');
-      const rawName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
-      if (!rawName) return;
-      createChannelRaw(rawName);
-      nameInp.value = '';
-      closeModals();
-    }
-
-    function createChannelRaw(name) {
-      const newRef = window.fbPush(window.fbRef(window.db, 'channels'));
-      window.fbSet(newRef, { name: name });
-    }
-
-    function switchChannel(id, name) {
-      currentChannelId = id;
-      document.getElementById('active-ch-title').innerText = name;
-      document.getElementById('messages-container').innerHTML = '';
-      
-      document.querySelectorAll('.channel-item').forEach(el => {
-        el.classList.toggle('active', el.innerText === name);
-      });
-
-      const msgRef = window.fbRef(window.db, `messages/${id}`);
-      
-      // Listen for New Messages
-      window.fbOnChildAdded(msgRef, (snap) => {
-        renderMessage(snap.val(), snap.key);
-      });
-
-      // Listen for Deleted Messages
-      window.fbOnChildRemoved(msgRef, (snap) => {
-        const el = document.getElementById(`msg-${snap.key}`);
-        if (el) el.remove();
-      });
-
-      // Typing indicators — unsubscribe old channel first
-      subscribeTyping(id);
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  MARKDOWN
-    // ═══════════════════════════════════════════════════════
-    // Applied AFTER escHtml so user input is already safe.
-    // Process longest/greedy patterns first (code blocks before inline code,
-    // bold+italic before bold-only, etc.)
-    function parseMarkdown(html) {
-      // Code blocks  ```...```
-      html = html.replace(/```([\s\S]*?)```/g, (_, c) =>
-        `<pre><code>${c.trim()}</code></pre>`);
-      // Inline code  `...`
-      html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-      // Bold + italic  ***...***
-      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      // Bold  **...**
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      // Italic  *...*
-      html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-      // Underline  __...__
-      html = html.replace(/__([^_\n]+)__/g, '<u>$1</u>');
-      // Strikethrough  ~~...~~
-      html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
-      // Blockquote  > ...  (escHtml turns > into &gt;)
-      html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
-      return html;
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  PRESENCE  (who is online)
-    // ═══════════════════════════════════════════════════════
-    function setupPresence(userData) {
-  const myStatusRef = window.fbRef(window.db, 'presence/' + userData.uid);
-  const connectedRef = window.fbRef(window.db, '.info/connected');
-
-  window.fbOnValue(connectedRef, (snap) => {
-    if (snap.val() === true) {
-      // When I disconnect, remove me from the list automatically
-      window.fbOnDisconnect(myStatusRef).remove(); 
-      
-      // Set me as online now
-      window.fbSet(myStatusRef, {
-        username: userData.username,
-        color: AVATAR_COLORS[userData.colorIdx],
-        uid: userData.uid,
-        lastSeen: Date.now()
-      });
-    }
-  });
-}
-
-    function initMemberList() {
+function initMemberList() {
       const presRef = window.fbRef(window.db, 'presence');
       window.fbOnValue(presRef, (snap) => {
         const data = snap.val() || {};
@@ -802,34 +677,35 @@ function setupApp(userData) {
 
         const container = document.getElementById('members-container');
         container.innerHTML = '';
-       members.forEach(m => {
-  const div = document.createElement('div');
-  div.className = 'member-item';
-  const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
-  
-  // Standard logic for everyone, including Dogeloaf
-  const bgStyle = `background:${m.color}`;
-  const initial = m.username[0].toUpperCase();
+        members.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'member-item';
+          const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
+          
+          // Standard logic for everyone, including Dogeloaf
+          const bgStyle = `background:${m.color}`;
+          const initial = m.username[0].toUpperCase();
 
-  div.innerHTML = `
-    <div class="member-avatar" style="${bgStyle}">
-      ${escHtml(initial)}
-    </div>
-    <span class="member-name">${escHtml(m.username)}${youTag}</span>
-  `;
-  container.appendChild(div);
-});
+          div.innerHTML = `
+            <div class="member-avatar" style="${bgStyle}">
+              ${escHtml(initial)}
+            </div>
+            <span class="member-name">${escHtml(m.username)}${youTag}</span>
+          `;
+          container.appendChild(div);
+        });
+      });
+    }
+
     // ═══════════════════════════════════════════════════════
     //  TYPING INDICATORS
     // ═══════════════════════════════════════════════════════
     function handleTypingInput() {
       if (!currentChannelId || !currentUser) return;
-      // Write / refresh our typing record
       window.fbSet(
         window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
-        { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
+        { uid: currentUser.uid, username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
       );
-      // Auto-clear after 3 s of no keypresses
       clearTimeout(typingTimer);
       typingTimer = setTimeout(clearTyping, 3000);
     }
@@ -844,13 +720,13 @@ function setupApp(userData) {
     }
 
     function subscribeTyping(channelId) {
-      if (typingUnsubscribe) typingUnsubscribe();   // detach previous listener
+      if (typingUnsubscribe) typingUnsubscribe();
       const ref = window.fbRef(window.db, `typing/${channelId}`);
       typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-        const data   = snap.val() || {};
+        const data = snap.val() || {};
         const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
-        const box    = document.getElementById('typing-box');
-        const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+        const box = document.getElementById('typing-box');
+        const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
 
         if (others.length === 0) {
           box.innerHTML = '';
@@ -867,9 +743,6 @@ function setupApp(userData) {
     // ═══════════════════════════════════════════════════════
     //  CENSORING
     // ═══════════════════════════════════════════════════════
-
-    // Full censor pass — always runs regardless of what was just typed.
-    // Called by sendMessage() so nothing slips through on submit.
     function censorFull() {
       if (!window.censorRegex) return;
       const input = document.getElementById('chat-input');
@@ -882,14 +755,10 @@ function setupApp(userData) {
       }
     }
 
-    // Live censor — only fires after a word is FINISHED (space, punctuation,
-    // emoji, etc.). If the cursor is still inside a word (last char is \w)
-    // we do nothing, so letters never get replaced mid-typing.
     function applyCensorInput() {
       if (!window.censorRegex) return;
       const input = document.getElementById('chat-input');
       const lastChar = input.value[input.selectionStart - 1];
-      // Still mid-word — skip until the user finishes it
       if (lastChar && /\w/.test(lastChar)) return;
       censorFull();
     }
@@ -903,9 +772,6 @@ function setupApp(userData) {
 
     function sendMessage() {
       const input = document.getElementById('chat-input');
-      // Safety-net pass: always do a full censor before sending,
-      // catches anything typed without a trailing space (e.g. word right
-      // before hitting Enter) and pasted text.
       censorFull();
       const text = input.value.trim();
       if (!text || !currentChannelId) return;
@@ -913,7 +779,7 @@ function setupApp(userData) {
       const msgData = {
         text: text,
         sender: currentUser.username,
-        senderUid: currentUser.uid, // Storing UID to verify deletion rights
+        senderUid: currentUser.uid,
         color: AVATAR_COLORS[currentUser.colorIdx],
         ts: Date.now()
       };
@@ -930,8 +796,6 @@ function setupApp(userData) {
       div.id = `msg-${id}`;
       
       const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      
-      // Verification: User is the sender OR user is the Admin
       const canDelete = m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID;
       const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
 
@@ -954,7 +818,7 @@ function setupApp(userData) {
       if (!confirm("Are you sure you want to delete this message?")) return;
       try {
         const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`);
-        await window.fbSet(msgRef, null); // Deletes from Firebase
+        await window.fbSet(msgRef, null);
       } catch (e) {
         console.error("Delete failed:", e);
       }
@@ -1001,4 +865,3 @@ function setupApp(userData) {
   </script>
 </body>
 </html>
-adpas:f5)1F5(F\=K(
