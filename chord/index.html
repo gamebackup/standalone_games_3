@@ -779,21 +779,24 @@ function setupApp(userData) {
     //  PRESENCE  (who is online)
     // ═══════════════════════════════════════════════════════
     function setupPresence(userData) {
-      // Firebase's .info/connected is true while the socket is open.
-      // We use onDisconnect() to auto-remove the presence record the
-      // moment the browser tab closes or the connection drops.
-      const connRef = window.fbRef(window.db, '.info/connected');
-      window.fbOnValue(connRef, (snap) => {
-        if (snap.val() !== true) return;
-        const presRef = window.fbRef(window.db, `presence/${userData.uid}`);
-        window.fbOnDisconnect(presRef).remove();
-        window.fbSet(presRef, {
-          uid:      userData.uid,
-          username: userData.username,
-          color:    AVATAR_COLORS[userData.colorIdx]
-        });
+  const myStatusRef = window.fbRef(window.db, 'presence/' + userData.uid);
+  const connectedRef = window.fbRef(window.db, '.info/connected');
+
+  window.fbOnValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      // When I disconnect, remove me from the list automatically
+      window.fbOnDisconnect(myStatusRef).remove(); 
+      
+      // Set me as online now
+      window.fbSet(myStatusRef, {
+        username: userData.username,
+        color: AVATAR_COLORS[userData.colorIdx],
+        uid: userData.uid,
+        lastSeen: Date.now()
       });
     }
+  });
+}
 
     function initMemberList() {
       const presRef = window.fbRef(window.db, 'presence');
