@@ -2742,7 +2742,6 @@ export const BANNED_WORDS = [
 "analannie",
 "analsex",
 "angie",
-"angry",
 "anus",
 "arab",
 "arabs",
