@@ -566,42 +566,24 @@
   </script>
 
   <script>
-    // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
-    // Fetches censor-list.js from jsDelivr (reliable CORS + CDN).
-    // To use: push censor-list.js to your GitHub repo, then set the URL below.
-    //   Format: https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js
-    // Works in W3Schools TryIt, GitHub Pages, local servers — anywhere.
     (async function loadCensorList() {
-      const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js';
+      const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
 
       try {
         const res = await fetch(CENSOR_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
-
-        // Pull the array literal out of the JS file and parse it as JSON.
-        // The file uses double-quoted strings so JSON.parse handles it cleanly.
         const match = text.match(/\[([\s\S]*)\]/);
         if (!match) throw new Error('Could not find word array in censor list');
         const words = JSON.parse('[' + match[1] + ']');
-
-        // Sort longest-first so longer variants ("a s shole") are matched
-        // before shorter overlapping ones ("a s s").
         const sorted = [...words].sort((a, b) => b.length - a.length);
-
         const parts = sorted.map(word => {
           if (word.includes('*')) {
-            // Glob-style wildcards in the list (e.g. "*fuck*", "b*tch"):
-            // escape each segment individually, then join with \w* so they
-            // match any word characters in place of the asterisk.
             return word
               .split('*')
               .map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
               .join('\\w*');
           }
-          // Regular entry — escape special chars, then add \b word boundaries
-          // only where the word starts/ends with a word character (so entries
-          // like "@$$" don't get a boundary that would never match).
           const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const lb = /^\w/.test(word) ? '\\b' : '';
           const rb = /\w$/.test(word)  ? '\\b' : '';
