@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
+  /* ... (your existing CSS – unchanged) ... */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -274,10 +275,10 @@
     border-radius: var(--radius-md);
     padding: 10px 16px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 12px;
   }
-  .input-box input {
+  .input-box textarea {
     flex: 1;
     background: none;
     border: none;
@@ -285,7 +286,13 @@
     color: #fff;
     padding: 8px 0;
     font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    overflow-y: auto;
+    max-height: 150px;
+    line-height: 1.4;
   }
+  
   .typing-indicator { height: 20px; padding: 0 24px; font-size: 12px; color: var(--text-dim); font-style: italic; }
 
   /* MODALS */
@@ -573,7 +580,7 @@
       
       <div class="input-area">
         <div class="input-box">
-          <input type="text" id="chat-input" placeholder="Message..." onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput()">
+          <textarea id="chat-input" placeholder="Message..." rows="1" onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput(); autoResizeTextarea(this)"></textarea>
         </div>
       </div>
     </main>
@@ -635,6 +642,11 @@
   </script>
 
   <script>
+    function autoResizeTextarea(textarea) {
+     textarea.style.height = 'auto';
+     textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+    }
+    
     // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
     (async function loadCensorList() {
       const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
@@ -1097,24 +1109,37 @@
     // ═══════════════════════════════════════════════════════
     //  MESSAGES
     // ═══════════════════════════════════════════════════════
-    function handleChatKey(e) { if (e.key === 'Enter') sendMessage(); }
-
-    function sendMessage() {
-      const input = document.getElementById('chat-input');
-      censorFull();
-      const text = input.value.trim();
-      if (!text || !currentChannelId) return;
-      const msgData = {
-        text: text,
-        sender: currentUser.username,
-        senderUid: currentUser.uid,
-        color: AVATAR_COLORS[currentUser.colorIdx],
-        ts: Date.now()
-      };
-      window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
-      input.value = '';
-      clearTyping();
+    function handleChatKey(e) { 
+        if (e.key === 'Enter') {
+            if (e.shiftKey) {
+                return;
+            } else {
+              e.preventDefault();
+              sendMessage();
+            }
+        }
     }
+
+   function sendMessage() {
+  const input = document.getElementById('chat-input');
+  censorFull();
+  let text = input.value;
+  // Replace excessive newlines (more than 2) with double newline, and trim
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  if (!text || !currentChannelId) return;
+  
+  const msgData = {
+    text: text,
+    sender: currentUser.username,
+    senderUid: currentUser.uid,
+    color: AVATAR_COLORS[currentUser.colorIdx],
+    ts: Date.now()
+  };
+  window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
+  input.value = '';
+  input.style.height = 'auto'; // reset height
+  clearTyping();
+}
 
     function renderMessage(m, id) {
       const container = document.getElementById('messages-container');
@@ -1131,7 +1156,7 @@
             <span class="msg-user" style="color:${m.color}">${escHtml(m.sender)}</span>
             <span class="msg-time">${time}</span>
           </div>
-          <div class="msg-text">${parseMarkdown(escHtml(m.text))}</div>
+          <div class="msg-text">${parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'))}</div>
         </div>
         ${delBtn}
       `;
@@ -1172,6 +1197,8 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+    const chatInput = document.getElementById('chat-input');
+    chatInput.addEventListener('paste', () => setTimeout(() => autoResizeTextarea(chatInput), 10));
       buildColorGrid();
       setTimeout(() => {
         if (window.auth) {
