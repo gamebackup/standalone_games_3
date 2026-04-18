@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chorde — x3e Chat</title>
+<title>Chorde — x3e chat</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -417,7 +417,7 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #35373c; }
-  }
+
 </style>
 </head>
 <body>
@@ -559,24 +559,42 @@
   </script>
 
   <script>
+    // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
+    // Fetches censor-list.js from jsDelivr (reliable CORS + CDN).
+    // To use: push censor-list.js to your GitHub repo, then set the URL below.
+    //   Format: https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js
+    // Works in W3Schools TryIt, GitHub Pages, local servers — anywhere.
     (async function loadCensorList() {
-      const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
+      const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js';
 
       try {
         const res = await fetch(CENSOR_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
+
+        // Pull the array literal out of the JS file and parse it as JSON.
+        // The file uses double-quoted strings so JSON.parse handles it cleanly.
         const match = text.match(/\[([\s\S]*)\]/);
         if (!match) throw new Error('Could not find word array in censor list');
         const words = JSON.parse('[' + match[1] + ']');
+
+        // Sort longest-first so longer variants ("a s shole") are matched
+        // before shorter overlapping ones ("a s s").
         const sorted = [...words].sort((a, b) => b.length - a.length);
+
         const parts = sorted.map(word => {
           if (word.includes('*')) {
+            // Glob-style wildcards in the list (e.g. "*fuck*", "b*tch"):
+            // escape each segment individually, then join with \w* so they
+            // match any word characters in place of the asterisk.
             return word
               .split('*')
               .map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
               .join('\\w*');
           }
+          // Regular entry — escape special chars, then add \b word boundaries
+          // only where the word starts/ends with a word character (so entries
+          // like "@$$" don't get a boundary that would never match).
           const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const lb = /^\w/.test(word) ? '\\b' : '';
           const rb = /\w$/.test(word)  ? '\\b' : '';
@@ -593,10 +611,24 @@
   </script>
 
   <script>
-    const AVATAR_COLORS = ['#ff5c5c','#3ddc84','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#3CE649','#8F31EF','#007ED4',"#9ED583","#B95809",'#EA4CCA','#389DF5','#61A08B','#77D043','#730415','#6BC41E','#0A06DF','#A98C68','#B8C46C','#ED6275','#FC8B1A'];
+    const AVATAR_COLORS = ['#ff5c5c','#3ddc84','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe'];
     
-    const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1"; 
+    // Your specific UID set as Admin
+    const ADMIN_UID = "S0mPQ6Ts8bRsFkfRBdnJUUyMEZ43";
+    const ADMIN_AVATAR = "data:image/jpeg;base64,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"; 
     
+    // Returns the inner HTML for any avatar element.
+    // Admin gets the photo; everyone else gets their initial on their color.
+    function avatarInner(uid, initial, color) {
+      if (uid === ADMIN_UID) {
+        return `<img src="${ADMIN_AVATAR}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="admin">`;
+      }
+      return initial;
+    }
+    function avatarStyle(uid, color) {
+      return uid === ADMIN_UID ? 'background:#2b2d3a' : `background:${color}`;
+    }
+
     let currentUser = null;
     let currentChannelId = null;
     let selectedRegColor = 0;
@@ -646,23 +678,142 @@
       window.fbSignOut(window.auth).then(() => location.reload());
     }
 
-function setupApp(userData) {
-  currentUser = userData;
-  document.getElementById('auth-screen').classList.add('hidden');
-  document.getElementById('chat-screen').classList.remove('hidden');
-  
-  document.getElementById('my-name').innerText = userData.username;
-  const av = document.getElementById('my-avatar');
-  
-  // Restore the initial and the background color
-  av.innerText = userData.username[0].toUpperCase();
-  av.style.background = AVATAR_COLORS[userData.colorIdx];
-  // Remove the class just in case it's still hanging around in the DOM
-  av.classList.remove('admin-pfp-override');
+    function setupApp(userData) {
+      currentUser = userData;
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('chat-screen').classList.remove('hidden');
+      
+      document.getElementById('my-name').innerText = userData.username;
+      const av = document.getElementById('my-avatar');
+      av.innerHTML = avatarInner(userData.uid, userData.username[0].toUpperCase(), AVATAR_COLORS[userData.colorIdx]);
+      av.style.cssText += avatarStyle(userData.uid, AVATAR_COLORS[userData.colorIdx]);
 
-  initChannels();
-  setupPresence(userData);
-function initMemberList() {
+      initChannels();
+      setupPresence(userData);
+      initMemberList();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  CHANNELS
+    // ═══════════════════════════════════════════════════════
+    function initChannels() {
+      const chRef = window.fbRef(window.db, 'channels');
+      window.fbOnValue(chRef, (snap) => {
+        const list = document.getElementById('channels-container');
+        list.innerHTML = '';
+        const data = snap.val() || {};
+        
+        if (Object.keys(data).length === 0) {
+           createChannelRaw('general');
+           return;
+        }
+
+        Object.keys(data).forEach(id => {
+          const div = document.createElement('div');
+          div.className = 'channel-item' + (id === currentChannelId ? ' active' : '');
+          div.innerText = data[id].name;
+          div.onclick = () => switchChannel(id, data[id].name);
+          list.appendChild(div);
+        });
+
+        if (!currentChannelId) {
+          const first = Object.keys(data)[0];
+          switchChannel(first, data[first].name);
+        }
+      });
+    }
+
+    function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
+    function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
+
+    function createChannel() {
+      const nameInp = document.getElementById('new-ch-name');
+      const rawName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
+      if (!rawName) return;
+      createChannelRaw(rawName);
+      nameInp.value = '';
+      closeModals();
+    }
+
+    function createChannelRaw(name) {
+      const newRef = window.fbPush(window.fbRef(window.db, 'channels'));
+      window.fbSet(newRef, { name: name });
+    }
+
+    function switchChannel(id, name) {
+      currentChannelId = id;
+      document.getElementById('active-ch-title').innerText = name;
+      document.getElementById('messages-container').innerHTML = '';
+      
+      document.querySelectorAll('.channel-item').forEach(el => {
+        el.classList.toggle('active', el.innerText === name);
+      });
+
+      const msgRef = window.fbRef(window.db, `messages/${id}`);
+      
+      // Listen for New Messages
+      window.fbOnChildAdded(msgRef, (snap) => {
+        renderMessage(snap.val(), snap.key);
+      });
+
+      // Listen for Deleted Messages
+      window.fbOnChildRemoved(msgRef, (snap) => {
+        const el = document.getElementById(`msg-${snap.key}`);
+        if (el) el.remove();
+      });
+
+      // Typing indicators — unsubscribe old channel first
+      subscribeTyping(id);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  MARKDOWN
+    // ═══════════════════════════════════════════════════════
+    // Applied AFTER escHtml so user input is already safe.
+    // Process longest/greedy patterns first (code blocks before inline code,
+    // bold+italic before bold-only, etc.)
+    function parseMarkdown(html) {
+      // Code blocks  ```...```
+      html = html.replace(/```([\s\S]*?)```/g, (_, c) =>
+        `<pre><code>${c.trim()}</code></pre>`);
+      // Inline code  `...`
+      html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+      // Bold + italic  ***...***
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      // Bold  **...**
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Italic  *...*
+      html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+      // Underline  __...__
+      html = html.replace(/__([^_\n]+)__/g, '<u>$1</u>');
+      // Strikethrough  ~~...~~
+      html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+      // Blockquote  > ...  (escHtml turns > into &gt;)
+      html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+      return html;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  PRESENCE  (who is online)
+    // ═══════════════════════════════════════════════════════
+    function setupPresence(userData) {
+      // Firebase's .info/connected is true while the socket is open.
+      // We use onDisconnect() to auto-remove the presence record the
+      // moment the browser tab closes or the connection drops.
+      const connRef = window.fbRef(window.db, '.info/connected');
+      window.fbOnValue(connRef, (snap) => {
+        if (snap.val() !== true) return;
+        const presRef = window.fbRef(window.db, `presence/${userData.uid}`);
+        window.fbOnDisconnect(presRef).remove();
+        window.fbSet(presRef, {
+          uid:      userData.uid,
+          username: userData.username,
+          color:    AVATAR_COLORS[userData.colorIdx]
+        });
+      });
+    }
+
+    function initMemberList() {
       const presRef = window.fbRef(window.db, 'presence');
       window.fbOnValue(presRef, (snap) => {
         const data = snap.val() || {};
@@ -681,15 +832,9 @@ function initMemberList() {
           const div = document.createElement('div');
           div.className = 'member-item';
           const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
-          
-          // Standard logic for everyone, including Dogeloaf
-          const bgStyle = `background:${m.color}`;
-          const initial = m.username[0].toUpperCase();
-
+          const isAdmin = m.uid === ADMIN_UID;
           div.innerHTML = `
-            <div class="member-avatar" style="${bgStyle}">
-              ${escHtml(initial)}
-            </div>
+            <div class="member-avatar" style="${isAdmin ? 'background:#2b2d3a' : 'background:'+m.color}">${isAdmin ? '<img src="'+ADMIN_AVATAR+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="admin">' : escHtml(m.username[0].toUpperCase())}</div>
             <span class="member-name">${escHtml(m.username)}${youTag}</span>
           `;
           container.appendChild(div);
@@ -702,10 +847,12 @@ function initMemberList() {
     // ═══════════════════════════════════════════════════════
     function handleTypingInput() {
       if (!currentChannelId || !currentUser) return;
+      // Write / refresh our typing record
       window.fbSet(
         window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
-        { uid: currentUser.uid, username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
+        { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
       );
+      // Auto-clear after 3 s of no keypresses
       clearTimeout(typingTimer);
       typingTimer = setTimeout(clearTyping, 3000);
     }
@@ -720,13 +867,13 @@ function initMemberList() {
     }
 
     function subscribeTyping(channelId) {
-      if (typingUnsubscribe) typingUnsubscribe();
+      if (typingUnsubscribe) typingUnsubscribe();   // detach previous listener
       const ref = window.fbRef(window.db, `typing/${channelId}`);
       typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-        const data = snap.val() || {};
+        const data   = snap.val() || {};
         const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
-        const box = document.getElementById('typing-box');
-        const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+        const box    = document.getElementById('typing-box');
+        const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
 
         if (others.length === 0) {
           box.innerHTML = '';
@@ -743,6 +890,9 @@ function initMemberList() {
     // ═══════════════════════════════════════════════════════
     //  CENSORING
     // ═══════════════════════════════════════════════════════
+
+    // Full censor pass — always runs regardless of what was just typed.
+    // Called by sendMessage() so nothing slips through on submit.
     function censorFull() {
       if (!window.censorRegex) return;
       const input = document.getElementById('chat-input');
@@ -755,10 +905,14 @@ function initMemberList() {
       }
     }
 
+    // Live censor — only fires after a word is FINISHED (space, punctuation,
+    // emoji, etc.). If the cursor is still inside a word (last char is \w)
+    // we do nothing, so letters never get replaced mid-typing.
     function applyCensorInput() {
       if (!window.censorRegex) return;
       const input = document.getElementById('chat-input');
       const lastChar = input.value[input.selectionStart - 1];
+      // Still mid-word — skip until the user finishes it
       if (lastChar && /\w/.test(lastChar)) return;
       censorFull();
     }
@@ -772,6 +926,9 @@ function initMemberList() {
 
     function sendMessage() {
       const input = document.getElementById('chat-input');
+      // Safety-net pass: always do a full censor before sending,
+      // catches anything typed without a trailing space (e.g. word right
+      // before hitting Enter) and pasted text.
       censorFull();
       const text = input.value.trim();
       if (!text || !currentChannelId) return;
@@ -779,7 +936,7 @@ function initMemberList() {
       const msgData = {
         text: text,
         sender: currentUser.username,
-        senderUid: currentUser.uid,
+        senderUid: currentUser.uid, // Storing UID to verify deletion rights
         color: AVATAR_COLORS[currentUser.colorIdx],
         ts: Date.now()
       };
@@ -796,11 +953,13 @@ function initMemberList() {
       div.id = `msg-${id}`;
       
       const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      const canDelete = m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID;
+      
+      // Verification: User is the sender OR user is the Admin
+      const canDelete = (m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID);
       const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
 
       div.innerHTML = `
-        <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+        <div class="msg-avatar" style="${m.senderUid === ADMIN_UID ? 'background:#2b2d3a' : 'background:'+m.color}">${m.senderUid === ADMIN_UID ? '<img src="'+ADMIN_AVATAR+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="admin">' : m.sender[0].toUpperCase()}</div>
         <div class="msg-content">
           <div class="msg-header">
             <span class="msg-user" style="color:${m.color}">${escHtml(m.sender)}</span>
@@ -818,7 +977,7 @@ function initMemberList() {
       if (!confirm("Are you sure you want to delete this message?")) return;
       try {
         const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`);
-        await window.fbSet(msgRef, null);
+        await window.fbSet(msgRef, null); // Deletes from Firebase
       } catch (e) {
         console.error("Delete failed:", e);
       }
@@ -850,6 +1009,8 @@ function initMemberList() {
 
     window.addEventListener('DOMContentLoaded', () => {
       buildColorGrid();
+
+      // Give Firebase time to initialize then check for existing session
       setTimeout(() => {
         if (window.auth) {
           window.auth.onAuthStateChanged((user) => {
