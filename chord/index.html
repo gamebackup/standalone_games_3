@@ -945,7 +945,7 @@ function setupApp(userData) {
       const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
       
       // Verification: User is the sender OR user is the Admin
-      const canDelete = (m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID);
+      const canDelete = m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID;
       const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
 
       div.innerHTML = `
