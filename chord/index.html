@@ -320,6 +320,16 @@
     flex-direction: column;
     overflow: hidden;
   }
+  .spoiler {
+  background-color: black;
+  color: black;
+  cursor: pointer;
+}
+
+.spoiler:hover {
+  background-color: #ccc;
+  color: black;
+}
   .member-list-header {
     padding: 16px;
     height: 60px;
@@ -1005,6 +1015,8 @@
       html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
       // Blockquote  > ...  (escHtml turns > into &gt;)
       html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+      // Spoiler Text ||...||
+      html = html.replace(/\|\|([\s\S]+?)\|\|/g, '<span class="spoiler">$1</span>');
       return html;
     }
 
