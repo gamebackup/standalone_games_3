@@ -653,15 +653,12 @@ function setupApp(userData) {
   
   document.getElementById('my-name').innerText = userData.username;
   const av = document.getElementById('my-avatar');
+  
+  // Restore the initial and the background color
   av.innerText = userData.username[0].toUpperCase();
-
-  // ADD THIS BLOCK:
-  if (userData.uid === ADMIN_UID) {
-    av.classList.add('admin-pfp-override');
-  } else {
-    av.classList.remove('admin-pfp-override');
-    av.style.background = AVATAR_COLORS[userData.colorIdx];
-  }
+  av.style.background = AVATAR_COLORS[userData.colorIdx];
+  // Remove the class just in case it's still hanging around in the DOM
+  av.classList.remove('admin-pfp-override');
 
   initChannels();
   setupPresence(userData);
