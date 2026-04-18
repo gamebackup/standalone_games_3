@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
+  /* ... (your existing CSS – unchanged) ... */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -490,7 +491,6 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #35373c; }
-
 </style>
 </head>
 <body>
@@ -566,7 +566,9 @@
 
       <div class="messages-wrap" id="messages-container"></div>
 
-      <div id="rules-gate" class="hidden"></div>
+      <div id="rules-gate" class="hidden">
+        <!-- content put here by updateRulesUI -->
+      </div>
       <div id="rules-readonly" class="rules-readonly hidden">📜 This is the rules channel — members cannot send messages here.</div>
       <div class="typing-indicator" id="typing-box"></div>
       
@@ -635,50 +637,27 @@
 
   <script>
     // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
-    // Fetches censor-list.js from jsDelivr (reliable CORS + CDN).
-    // To use: push censor-list.js to your GitHub repo, then set the URL below.
-    //   Format: https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js
-    // Works in W3Schools TryIt, GitHub Pages, local servers — anywhere.
     (async function loadCensorList() {
       const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
-
       try {
         const res = await fetch(CENSOR_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
-
-        // Pull the array literal out of the JS file and parse it as JSON.
-        // The file uses double-quoted strings so JSON.parse handles it cleanly.
         const match = text.match(/\[([\s\S]*)\]/);
         if (!match) throw new Error('Could not find word array in censor list');
         const words = JSON.parse('[' + match[1] + ']');
-
-        // Sort longest-first so longer variants ("a s shole") are matched
-        // before shorter overlapping ones ("a s s").
         const sorted = [...words].sort((a, b) => b.length - a.length);
-
         const parts = sorted.map(word => {
           if (word.includes('*')) {
-            // Glob-style wildcards in the list (e.g. "*fuck*", "b*tch"):
-            // escape each segment individually, then join with \w* so they
-            // match any word characters in place of the asterisk.
-            return word
-              .split('*')
-              .map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-              .join('\\w*');
+            return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
           }
-          // Regular entry — escape special chars, then add \b word boundaries
-          // only where the word starts/ends with a word character (so entries
-          // like "@$$" don't get a boundary that would never match).
           const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const lb = /^\w/.test(word) ? '\\b' : '';
           const rb = /\w$/.test(word)  ? '\\b' : '';
           return lb + esc + rb;
         });
-
         window.censorRegex = new RegExp(parts.join('|'), 'gi');
         console.log(`Chorde: censor list loaded (${words.length} entries)`);
-
       } catch (err) {
         console.warn('Chorde: censor list failed to load —', err.message);
       }
@@ -688,10 +667,8 @@
   <script>
     const AVATAR_COLORS = ['#ff5c5c','#d7ae0c','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#f9f871','#0cd733','#b39cd0','#00c9a7','#ff6f91','#2a628f','#87007a','#005347','#688f62','#0095ff','#a2af9f','#00be6f','#50424f','#7676a1','#c64800','#ff1697'];
     
-    // Your specific UID set as Admin
     const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
     
-
     let currentUser = null;
     let currentChannelId = null;
     let selectedRegColor = 0;
@@ -713,15 +690,10 @@
       const user = document.getElementById('reg-user').value.trim();
       const pass = document.getElementById('reg-pass').value.trim();
       if(!user || pass.length < 6) return alert("Username required and password min 6 chars.");
-
       const email = `${user.toLowerCase()}@chorde.com`;
       try {
         const cred = await window.fbCreateUser(window.auth, email, pass);
-        const userData = {
-          uid: cred.user.uid,
-          username: user,
-          colorIdx: selectedRegColor
-        };
+        const userData = { uid: cred.user.uid, username: user, colorIdx: selectedRegColor };
         await window.fbSet(window.fbRef(window.db, 'users/' + cred.user.uid), userData);
         setupApp(userData);
       } catch (e) { alert(e.message); }
@@ -731,7 +703,6 @@
       const user = document.getElementById('login-user').value.trim();
       const pass = document.getElementById('login-pass').value.trim();
       if(!user || !pass) return;
-
       try {
         const cred = await window.fbSignIn(window.auth, `${user.toLowerCase()}@chorde.com`, pass);
         window.fbOnValue(window.fbRef(window.db, 'users/' + cred.user.uid), (snap) => {
@@ -748,12 +719,10 @@
       currentUser = userData;
       document.getElementById('auth-screen').classList.add('hidden');
       document.getElementById('chat-screen').classList.remove('hidden');
-      
       document.getElementById('my-name').innerText = userData.username;
       const av = document.getElementById('my-avatar');
       av.innerText = userData.username[0].toUpperCase();
       av.style.background = AVATAR_COLORS[userData.colorIdx];
-
       initChannels();
       setupPresence(userData);
       initMemberList();
@@ -770,7 +739,6 @@
         list.innerHTML = '';
         const data = snap.val() || {};
 
-        // If no channels exist yet, admin creates rules + general to bootstrap
         if (Object.keys(data).length === 0) {
           if (currentUser.uid === ADMIN_UID) {
             createChannelRaw('rules');
@@ -779,13 +747,11 @@
           return;
         }
 
-        // Track the rules channel id so the gate logic can reference it
         rulesChannelId = null;
         Object.keys(data).forEach(id => {
           if (data[id].name === 'rules') rulesChannelId = id;
         });
 
-        // Sort: rules always first, everything else alphabetical
         const sorted = Object.keys(data).sort((a, b) => {
           if (data[a].name === 'rules') return -1;
           if (data[b].name === 'rules') return  1;
@@ -796,7 +762,6 @@
           const name    = data[id].name;
           const isRules = name === 'rules';
           const isAdmin = currentUser.uid === ADMIN_UID;
-          // Non-admin users are locked out of every channel except rules until accepted
           const locked  = !isAdmin && !rulesAccepted && !isRules;
 
           const div = document.createElement('div');
@@ -804,13 +769,11 @@
             + (id === currentChannelId ? ' active'    : '')
             + (isRules                 ? ' ch-rules'  : '')
             + (locked                  ? ' ch-locked' : '');
-          div.dataset.chId = id; // store id so active toggle works correctly
-
-          // Text node so the × button doesn't contaminate innerText checks
+          div.dataset.chId = id;
+          
           div.appendChild(document.createTextNode(name));
           if (!locked) div.onclick = () => switchChannel(id, name);
 
-          // Admin gets a × delete button on every non-rules channel
           if (isAdmin && !isRules) {
             const btn = document.createElement('span');
             btn.className = 'del-ch';
@@ -819,11 +782,9 @@
             btn.onclick = (e) => deleteChannel(id, name, e);
             div.appendChild(btn);
           }
-
           list.appendChild(div);
         });
 
-        // Auto-navigate on first load
         if (!currentChannelId) {
           if (rulesChannelId && !rulesAccepted && currentUser.uid !== ADMIN_UID) {
             switchChannel(rulesChannelId, 'rules');
@@ -851,17 +812,35 @@
           document.getElementById('rules-readonly').classList.add('hidden');
           document.querySelector('.input-area').classList.remove('hidden');
         }
-      } catch(err) {
-        alert('Delete failed — check Firebase rules.');
-        console.error(err);
-      }
+      } catch(err) { alert('Delete failed — check Firebase rules.'); console.error(err); }
     }
 
     function createChannel() {
       const nameInp = document.getElementById('new-ch-name');
-      const rawName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
-      if (!rawName) return;
-      createChannelRaw(rawName);
+      const baseName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
+      if (!baseName) return;
+
+      // Query existing channels once to check for duplicates
+      const chRef = window.fbRef(window.db, 'channels');
+      window.fbOnValue(chRef, (snap) => {
+        const data = snap.val() || {};
+        
+        // Extract all current channel names into an array
+        const existingNames = Object.values(data).map(ch => ch.name);
+        
+        let finalName = baseName;
+        let counter = 2;
+
+        // Keep incrementing the number until we find a name that isn't taken
+        while (existingNames.includes(finalName)) {
+          finalName = `${baseName}-${counter}`;
+          counter++;
+        }
+
+        // Create the channel with the guaranteed unique name
+        createChannelRaw(finalName);
+      }, { onlyOnce: true });
+
       nameInp.value = '';
       closeModals();
     }
@@ -875,36 +854,22 @@
       currentChannelId = id;
       document.getElementById('active-ch-title').innerText = name;
       document.getElementById('messages-container').innerHTML = '';
-      
       document.querySelectorAll('.channel-item').forEach(el => {
         el.classList.toggle('active', el.dataset.chId === id);
       });
-
       const msgRef = window.fbRef(window.db, `messages/${id}`);
-      
-      // Listen for New Messages
-      window.fbOnChildAdded(msgRef, (snap) => {
-        renderMessage(snap.val(), snap.key);
-      });
-
-      // Listen for Deleted Messages
+      window.fbOnChildAdded(msgRef, (snap) => { renderMessage(snap.val(), snap.key); });
       window.fbOnChildRemoved(msgRef, (snap) => {
         const el = document.getElementById(`msg-${snap.key}`);
         if (el) el.remove();
       });
-
-      // Typing indicators — unsubscribe old channel first
       subscribeTyping(id);
-      // Rules gate visibility
       updateRulesUI(id);
     }
 
     // ═══════════════════════════════════════════════════════
     //  RULES GATE
     // ═══════════════════════════════════════════════════════
-
-    // Subscribes to users/{uid}/rulesRead in Firebase so accepted status
-    // persists across sessions and updates live if it changes.
     function checkRulesStatus() {
       if (currentUser.uid === ADMIN_UID) { rulesAccepted = true; return; }
       window.fbOnValue(
@@ -913,8 +878,6 @@
           const wasAccepted = rulesAccepted;
           rulesAccepted = snap.val() === true;
           if (rulesAccepted && !wasAccepted) {
-            // Just accepted — re-render channel list to remove locks, then
-            // navigate away from rules to general/first channel
             initChannels();
             if (rulesChannelId) {
               const chRef = window.fbRef(window.db, 'channels');
@@ -930,8 +893,6 @@
       );
     }
 
-    // Shows/hides the scroll gate, read-only notice, and input box
-    // depending on which channel is active and whether rules are accepted.
     function updateRulesUI(channelId) {
       const gate      = document.getElementById('rules-gate');
       const readonly  = document.getElementById('rules-readonly');
@@ -940,51 +901,77 @@
       const isRules   = channelId === rulesChannelId;
       const isAdmin   = currentUser.uid === ADMIN_UID;
 
-      // Remove any previous scroll listener
       if (rulesScrollHandler) {
         msgBox.removeEventListener('scroll', rulesScrollHandler);
         rulesScrollHandler = null;
       }
 
       if (isRules && !isAdmin) {
-        // Non-admin in rules channel: hide input, show read-only notice
         inputArea.classList.add('hidden');
         readonly.classList.remove('hidden');
 
         if (!rulesAccepted) {
-          // Show the scroll-to-bottom banner
+          gate.className = 'gate-scroll';
+          gate.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div>📜 <strong>Read to the bottom to unlock channels</strong><br>
+              <span style="font-size:11px">Scroll down ↓</span></div>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; opacity:0.6;" id="rules-checkbox-label">
+                <input type="checkbox" id="rules-checkbox" disabled>
+                <span>I have read and understood the rules</span>
+              </label>
+              <button id="btn-accept-rules" class="btn-accept-rules" disabled>Accept & Unlock</button>
+            </div>
+          `;
+
+          const checkbox = document.getElementById('rules-checkbox');
+          const label    = document.getElementById('rules-checkbox-label');
+          const btn      = document.getElementById('btn-accept-rules');
+
           const setGateState = () => {
             const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
             if (atBottom) {
               gate.className = 'gate-accept';
-              gate.innerHTML = '\u2705 <strong>You\'ve read the rules!</strong><br><button class="btn-accept-rules" onclick="acceptRules()">Accept Rules &amp; Unlock Channels</button>';
+              checkbox.disabled = false;
+              label.style.opacity = '1';
+              gate.querySelector('div:first-child').innerHTML = `
+                ✅ <strong>You've reached the end!</strong><br>
+                <span style="font-size:11px">Please confirm you've read the rules</span>
+              `;
             } else {
               gate.className = 'gate-scroll';
-              gate.innerHTML = '\uD83D\uDCDC <strong>Read to the bottom to unlock all channels</strong><br><span style="font-size:11px">Scroll down \u2193</span>';
+              checkbox.disabled = true;
+              label.style.opacity = '0.6';
+              gate.querySelector('div:first-child').innerHTML = `
+                📜 <strong>Read to the bottom to unlock channels</strong><br>
+                <span style="font-size:11px">Scroll down ↓</span>
+              `;
             }
+            btn.disabled = !(checkbox.checked && atBottom);
           };
+
+          checkbox.addEventListener('change', () => {
+            const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
+            btn.disabled = !(checkbox.checked && atBottom);
+          });
+
           rulesScrollHandler = setGateState;
           msgBox.addEventListener('scroll', rulesScrollHandler);
-          // Check immediately in case the rules content is short
           setTimeout(setGateState, 600);
+          btn.onclick = acceptRules;
         } else {
           gate.className = 'hidden';
         }
       } else {
-        // Normal channel: show input, hide gate
         gate.className = 'hidden';
         readonly.classList.add('hidden');
         inputArea.classList.remove('hidden');
       }
     }
 
-    // Writes rulesRead:true to this user's Firebase record.
-    // The checkRulesStatus listener picks it up and does the rest.
     async function acceptRules() {
       try {
-        await window.fbSet(
-          window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), true
-        );
+        await window.fbSet(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), true);
       } catch(err) {
         console.error('Could not save rules acceptance:', err);
         alert('Something went wrong — please try again.');
@@ -994,48 +981,32 @@
     // ═══════════════════════════════════════════════════════
     //  MARKDOWN
     // ═══════════════════════════════════════════════════════
-    // Applied AFTER escHtml so user input is already safe.
-    // Process longest/greedy patterns first (code blocks before inline code,
-    // bold+italic before bold-only, etc.)
     function parseMarkdown(html) {
-      // Code blocks  ```...```
-      html = html.replace(/```([\s\S]*?)```/g, (_, c) =>
-        `<pre><code>${c.trim()}</code></pre>`);
-      // Inline code  `...`
+      html = html.replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`);
       html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-      // Bold + italic  ***...***
       html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      // Bold  **...**
       html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      // Italic  *...*
       html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-      // Underline  __...__
       html = html.replace(/__([^_\n]+)__/g, '<u>$1</u>');
-      // Strikethrough  ~~...~~
       html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
-      // Blockquote  > ...  (escHtml turns > into &gt;)
       html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
-      // Spoiler Text ||...||
       html = html.replace(/\|\|([\s\S]+?)\|\|/g, '<span class="spoiler">$1</span>');
       return html;
     }
 
     // ═══════════════════════════════════════════════════════
-    //  PRESENCE  (who is online)
+    //  PRESENCE
     // ═══════════════════════════════════════════════════════
     function setupPresence(userData) {
-      // Firebase's .info/connected is true while the socket is open.
-      // We use onDisconnect() to auto-remove the presence record the
-      // moment the browser tab closes or the connection drops.
       const connRef = window.fbRef(window.db, '.info/connected');
       window.fbOnValue(connRef, (snap) => {
         if (snap.val() !== true) return;
         const presRef = window.fbRef(window.db, `presence/${userData.uid}`);
         window.fbOnDisconnect(presRef).remove();
         window.fbSet(presRef, {
-          uid:      userData.uid,
+          uid: userData.uid,
           username: userData.username,
-          color:    AVATAR_COLORS[userData.colorIdx]
+          color: AVATAR_COLORS[userData.colorIdx]
         });
       });
     }
@@ -1045,14 +1016,11 @@
       window.fbOnValue(presRef, (snap) => {
         const data = snap.val() || {};
         const members = Object.values(data).sort((a, b) => {
-          // Current user always floats to top
           if (a.uid === currentUser.uid) return -1;
           if (b.uid === currentUser.uid) return 1;
           return a.username.localeCompare(b.username);
         });
-
         document.getElementById('online-count').innerText = members.length;
-
         const container = document.getElementById('members-container');
         container.innerHTML = '';
         members.forEach(m => {
@@ -1073,12 +1041,10 @@
     // ═══════════════════════════════════════════════════════
     function handleTypingInput() {
       if (!currentChannelId || !currentUser) return;
-      // Write / refresh our typing record
       window.fbSet(
         window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
         { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
       );
-      // Auto-clear after 3 s of no keypresses
       clearTimeout(typingTimer);
       typingTimer = setTimeout(clearTyping, 3000);
     }
@@ -1086,39 +1052,27 @@
     function clearTyping() {
       clearTimeout(typingTimer);
       if (!currentChannelId || !currentUser) return;
-      window.fbSet(
-        window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
-        null
-      );
+      window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
     }
 
     function subscribeTyping(channelId) {
-      if (typingUnsubscribe) typingUnsubscribe();   // detach previous listener
+      if (typingUnsubscribe) typingUnsubscribe();
       const ref = window.fbRef(window.db, `typing/${channelId}`);
       typingUnsubscribe = window.fbOnValue(ref, (snap) => {
         const data   = snap.val() || {};
         const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
         const box    = document.getElementById('typing-box');
         const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-
-        if (others.length === 0) {
-          box.innerHTML = '';
-        } else if (others.length === 1) {
-          box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
-        } else if (others.length === 2) {
-          box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
-        } else {
-          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
-        }
+        if (others.length === 0) box.innerHTML = '';
+        else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+        else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+        else box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
       });
     }
 
     // ═══════════════════════════════════════════════════════
     //  CENSORING
     // ═══════════════════════════════════════════════════════
-
-    // Full censor pass — always runs regardless of what was just typed.
-    // Called by sendMessage() so nothing slips through on submit.
     function censorFull() {
       if (!window.censorRegex) return;
       const input = document.getElementById('chat-input');
@@ -1131,14 +1085,10 @@
       }
     }
 
-    // Live censor — only fires after a word is FINISHED (space, punctuation,
-    // emoji, etc.). If the cursor is still inside a word (last char is \w)
-    // we do nothing, so letters never get replaced mid-typing.
     function applyCensorInput() {
       if (!window.censorRegex) return;
       const input = document.getElementById('chat-input');
       const lastChar = input.value[input.selectionStart - 1];
-      // Still mid-word — skip until the user finishes it
       if (lastChar && /\w/.test(lastChar)) return;
       censorFull();
     }
@@ -1146,27 +1096,20 @@
     // ═══════════════════════════════════════════════════════
     //  MESSAGES
     // ═══════════════════════════════════════════════════════
-    function handleChatKey(e) {
-      if (e.key === 'Enter') sendMessage();
-    }
+    function handleChatKey(e) { if (e.key === 'Enter') sendMessage(); }
 
     function sendMessage() {
       const input = document.getElementById('chat-input');
-      // Safety-net pass: always do a full censor before sending,
-      // catches anything typed without a trailing space (e.g. word right
-      // before hitting Enter) and pasted text.
       censorFull();
       const text = input.value.trim();
       if (!text || !currentChannelId) return;
-
       const msgData = {
         text: text,
         sender: currentUser.username,
-        senderUid: currentUser.uid, // Storing UID to verify deletion rights
+        senderUid: currentUser.uid,
         color: AVATAR_COLORS[currentUser.colorIdx],
         ts: Date.now()
       };
-
       window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
       input.value = '';
       clearTyping();
@@ -1177,13 +1120,9 @@
       const div = document.createElement('div');
       div.className = 'message';
       div.id = `msg-${id}`;
-      
       const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      
-      // Verification: User is the sender OR user is the Admin
       const canDelete = (m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID);
       const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
-
       div.innerHTML = `
         <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
         <div class="msg-content">
@@ -1203,10 +1142,8 @@
       if (!confirm("Are you sure you want to delete this message?")) return;
       try {
         const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`);
-        await window.fbSet(msgRef, null); // Deletes from Firebase
-      } catch (e) {
-        console.error("Delete failed:", e);
-      }
+        await window.fbSet(msgRef, null);
+      } catch (e) { console.error("Delete failed:", e); }
     }
 
     function escHtml(s) {
@@ -1235,8 +1172,6 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       buildColorGrid();
-
-      // Give Firebase time to initialize then check for existing session
       setTimeout(() => {
         if (window.auth) {
           window.auth.onAuthStateChanged((user) => {
