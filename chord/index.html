@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  /* ... (your existing CSS – unchanged) ... */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -914,7 +913,7 @@
           gate.className = 'gate-scroll';
           gate.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:10px;">
-              <div>📜 <strong>Read to the bottom to unlock channels</strong><br>
+              <div id="rules-msg">📜 <strong>Read to the bottom to access server</strong><br>
               <span style="font-size:11px">Scroll down ↓</span></div>
               <label style="display:flex; align-items:center; gap:8px; cursor:pointer; opacity:0.6;" id="rules-checkbox-label">
                 <input type="checkbox" id="rules-checkbox" disabled>
@@ -930,11 +929,13 @@
 
           const setGateState = () => {
             const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
+            const rulesMsg = document.getElementById('rules-msg'); // Target the specific text div
+
             if (atBottom) {
               gate.className = 'gate-accept';
               checkbox.disabled = false;
               label.style.opacity = '1';
-              gate.querySelector('div:first-child').innerHTML = `
+              rulesMsg.innerHTML = `
                 ✅ <strong>You've reached the end!</strong><br>
                 <span style="font-size:11px">Please confirm you've read the rules</span>
               `;
@@ -942,7 +943,7 @@
               gate.className = 'gate-scroll';
               checkbox.disabled = true;
               label.style.opacity = '0.6';
-              gate.querySelector('div:first-child').innerHTML = `
+              rulesMsg.innerHTML = `
                 📜 <strong>Read to the bottom to unlock channels</strong><br>
                 <span style="font-size:11px">Scroll down ↓</span>
               `;
