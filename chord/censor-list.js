@@ -3757,7 +3757,6 @@ export const BANNED_WORDS = [
 "ra8s",
 "rabbi",
 "racial",
-"racist",
 "radical",
 "radicals",
 "raghead",
