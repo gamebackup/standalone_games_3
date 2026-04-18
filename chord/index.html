@@ -309,6 +309,110 @@
   .btn-ghost { background: none; border: none; color: #fff; cursor: pointer; padding: 8px 16px; font-size: 14px; }
   .btn-action { background: var(--accent); border: none; color: #fff; cursor: pointer; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; }
 
+
+  /* MEMBER LIST */
+  .member-list {
+    width: 220px;
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .member-list-header {
+    padding: 16px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-dim);
+    gap: 6px;
+  }
+  .online-pip {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--green);
+    flex-shrink: 0;
+  }
+  .members-scroll { flex: 1; overflow-y: auto; padding: 12px 8px; }
+  .member-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    cursor: default;
+    transition: background 0.15s;
+  }
+  .member-item:hover { background: var(--bg-hover); }
+  .member-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 11px; color: #fff;
+    flex-shrink: 0;
+  }
+  .member-name { font-size: 13px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .member-item:hover .member-name { color: var(--text-main); }
+  .you-tag { font-size: 10px; color: var(--text-muted); }
+
+  /* MARKDOWN */
+  .msg-text strong { color: #fff; font-weight: 700; }
+  .msg-text em { font-style: italic; }
+  .msg-text u  { text-decoration: underline; }
+  .msg-text del { text-decoration: line-through; opacity: 0.6; }
+  .msg-text code {
+    background: #1e2030;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: #e06c75;
+  }
+  .msg-text pre {
+    background: #1a1d2e;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin: 6px 0;
+    overflow-x: auto;
+  }
+  .msg-text pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #abb2bf;
+    font-size: 13px;
+  }
+  .msg-text blockquote {
+    border-left: 4px solid var(--accent-dim);
+    padding-left: 12px;
+    margin: 4px 0;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* TYPING DOTS ANIMATION */
+  .typing-indicator { height: 24px; padding: 0 24px 4px; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+  .typing-dots { display: inline-flex; gap: 3px; align-items: center; }
+  .typing-dots span {
+    width: 5px; height: 5px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30%            { transform: translateY(-4px); opacity: 1; }
+  }
+
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
@@ -393,10 +497,18 @@
       
       <div class="input-area">
         <div class="input-box">
-          <input type="text" id="chat-input" placeholder="Message..." onkeydown="handleChatKey(event)">
+          <input type="text" id="chat-input" placeholder="Message..." onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput()">
         </div>
       </div>
     </main>
+
+    <aside class="member-list">
+      <div class="member-list-header">
+        <div class="online-pip"></div>
+        <span id="online-count">0</span>&nbsp;Online
+      </div>
+      <div class="members-scroll" id="members-container"></div>
+    </aside>
   </div>
 
   <div id="modal-channel" class="modal-overlay hidden">
@@ -415,7 +527,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, set, onChildAdded, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onValue, set, onChildAdded, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
@@ -443,6 +555,59 @@
     window.fbSignOut = signOut;
     window.fbCreateUser = createUserWithEmailAndPassword;
     window.fbSignIn = signInWithEmailAndPassword;
+    window.fbOnDisconnect = onDisconnect;
+  </script>
+
+  <script>
+    // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
+    // Fetches censor-list.js from jsDelivr (reliable CORS + CDN).
+    // To use: push censor-list.js to your GitHub repo, then set the URL below.
+    //   Format: https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js
+    // Works in W3Schools TryIt, GitHub Pages, local servers — anywhere.
+    (async function loadCensorList() {
+      const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main/censor-list.js';
+
+      try {
+        const res = await fetch(CENSOR_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+
+        // Pull the array literal out of the JS file and parse it as JSON.
+        // The file uses double-quoted strings so JSON.parse handles it cleanly.
+        const match = text.match(/\[([\s\S]*)\]/);
+        if (!match) throw new Error('Could not find word array in censor list');
+        const words = JSON.parse('[' + match[1] + ']');
+
+        // Sort longest-first so longer variants ("a s shole") are matched
+        // before shorter overlapping ones ("a s s").
+        const sorted = [...words].sort((a, b) => b.length - a.length);
+
+        const parts = sorted.map(word => {
+          if (word.includes('*')) {
+            // Glob-style wildcards in the list (e.g. "*fuck*", "b*tch"):
+            // escape each segment individually, then join with \w* so they
+            // match any word characters in place of the asterisk.
+            return word
+              .split('*')
+              .map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+              .join('\\w*');
+          }
+          // Regular entry — escape special chars, then add \b word boundaries
+          // only where the word starts/ends with a word character (so entries
+          // like "@$$" don't get a boundary that would never match).
+          const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const lb = /^\w/.test(word) ? '\\b' : '';
+          const rb = /\w$/.test(word)  ? '\\b' : '';
+          return lb + esc + rb;
+        });
+
+        window.censorRegex = new RegExp(parts.join('|'), 'gi');
+        console.log(`Chorde: censor list loaded (${words.length} entries)`);
+
+      } catch (err) {
+        console.warn('Chorde: censor list failed to load —', err.message);
+      }
+    })();
   </script>
 
   <script>
@@ -454,6 +619,8 @@
     let currentUser = null;
     let currentChannelId = null;
     let selectedRegColor = 0;
+    let typingTimer = null;
+    let typingUnsubscribe = null;
 
     // ═══════════════════════════════════════════════════════
     //  AUTH LOGIC
@@ -509,6 +676,8 @@
       av.style.background = AVATAR_COLORS[userData.colorIdx];
 
       initChannels();
+      setupPresence(userData);
+      initMemberList();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -579,6 +748,159 @@
         const el = document.getElementById(`msg-${snap.key}`);
         if (el) el.remove();
       });
+
+      // Typing indicators — unsubscribe old channel first
+      subscribeTyping(id);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  MARKDOWN
+    // ═══════════════════════════════════════════════════════
+    // Applied AFTER escHtml so user input is already safe.
+    // Process longest/greedy patterns first (code blocks before inline code,
+    // bold+italic before bold-only, etc.)
+    function parseMarkdown(html) {
+      // Code blocks  ```...```
+      html = html.replace(/```([\s\S]*?)```/g, (_, c) =>
+        `<pre><code>${c.trim()}</code></pre>`);
+      // Inline code  `...`
+      html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+      // Bold + italic  ***...***
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      // Bold  **...**
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Italic  *...*
+      html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+      // Underline  __...__
+      html = html.replace(/__([^_\n]+)__/g, '<u>$1</u>');
+      // Strikethrough  ~~...~~
+      html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+      // Blockquote  > ...  (escHtml turns > into &gt;)
+      html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+      return html;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  PRESENCE  (who is online)
+    // ═══════════════════════════════════════════════════════
+    function setupPresence(userData) {
+      // Firebase's .info/connected is true while the socket is open.
+      // We use onDisconnect() to auto-remove the presence record the
+      // moment the browser tab closes or the connection drops.
+      const connRef = window.fbRef(window.db, '.info/connected');
+      window.fbOnValue(connRef, (snap) => {
+        if (snap.val() !== true) return;
+        const presRef = window.fbRef(window.db, `presence/${userData.uid}`);
+        window.fbOnDisconnect(presRef).remove();
+        window.fbSet(presRef, {
+          uid:      userData.uid,
+          username: userData.username,
+          color:    AVATAR_COLORS[userData.colorIdx]
+        });
+      });
+    }
+
+    function initMemberList() {
+      const presRef = window.fbRef(window.db, 'presence');
+      window.fbOnValue(presRef, (snap) => {
+        const data = snap.val() || {};
+        const members = Object.values(data).sort((a, b) => {
+          // Current user always floats to top
+          if (a.uid === currentUser.uid) return -1;
+          if (b.uid === currentUser.uid) return 1;
+          return a.username.localeCompare(b.username);
+        });
+
+        document.getElementById('online-count').innerText = members.length;
+
+        const container = document.getElementById('members-container');
+        container.innerHTML = '';
+        members.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'member-item';
+          const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
+          div.innerHTML = `
+            <div class="member-avatar" style="background:${m.color}">${escHtml(m.username[0].toUpperCase())}</div>
+            <span class="member-name">${escHtml(m.username)}${youTag}</span>
+          `;
+          container.appendChild(div);
+        });
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  TYPING INDICATORS
+    // ═══════════════════════════════════════════════════════
+    function handleTypingInput() {
+      if (!currentChannelId || !currentUser) return;
+      // Write / refresh our typing record
+      window.fbSet(
+        window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
+        { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
+      );
+      // Auto-clear after 3 s of no keypresses
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(clearTyping, 3000);
+    }
+
+    function clearTyping() {
+      clearTimeout(typingTimer);
+      if (!currentChannelId || !currentUser) return;
+      window.fbSet(
+        window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
+        null
+      );
+    }
+
+    function subscribeTyping(channelId) {
+      if (typingUnsubscribe) typingUnsubscribe();   // detach previous listener
+      const ref = window.fbRef(window.db, `typing/${channelId}`);
+      typingUnsubscribe = window.fbOnValue(ref, (snap) => {
+        const data   = snap.val() || {};
+        const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
+        const box    = document.getElementById('typing-box');
+        const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+
+        if (others.length === 0) {
+          box.innerHTML = '';
+        } else if (others.length === 1) {
+          box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+        } else if (others.length === 2) {
+          box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+        } else {
+          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  CENSORING
+    // ═══════════════════════════════════════════════════════
+
+    // Full censor pass — always runs regardless of what was just typed.
+    // Called by sendMessage() so nothing slips through on submit.
+    function censorFull() {
+      if (!window.censorRegex) return;
+      const input = document.getElementById('chat-input');
+      const pos = input.selectionStart;
+      window.censorRegex.lastIndex = 0;
+      const censored = input.value.replace(window.censorRegex, m => '*'.repeat(m.length));
+      if (censored !== input.value) {
+        input.value = censored;
+        input.setSelectionRange(pos, pos);
+      }
+    }
+
+    // Live censor — only fires after a word is FINISHED (space, punctuation,
+    // emoji, etc.). If the cursor is still inside a word (last char is \w)
+    // we do nothing, so letters never get replaced mid-typing.
+    function applyCensorInput() {
+      if (!window.censorRegex) return;
+      const input = document.getElementById('chat-input');
+      const lastChar = input.value[input.selectionStart - 1];
+      // Still mid-word — skip until the user finishes it
+      if (lastChar && /\w/.test(lastChar)) return;
+      censorFull();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -590,6 +912,10 @@
 
     function sendMessage() {
       const input = document.getElementById('chat-input');
+      // Safety-net pass: always do a full censor before sending,
+      // catches anything typed without a trailing space (e.g. word right
+      // before hitting Enter) and pasted text.
+      censorFull();
       const text = input.value.trim();
       if (!text || !currentChannelId) return;
 
@@ -603,6 +929,7 @@
 
       window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
       input.value = '';
+      clearTyping();
     }
 
     function renderMessage(m, id) {
@@ -624,7 +951,7 @@
             <span class="msg-user" style="color:${m.color}">${escHtml(m.sender)}</span>
             <span class="msg-time">${time}</span>
           </div>
-          <div class="msg-text">${escHtml(m.text)}</div>
+          <div class="msg-text">${parseMarkdown(escHtml(m.text))}</div>
         </div>
         ${delBtn}
       `;
