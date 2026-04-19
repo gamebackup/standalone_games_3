@@ -852,17 +852,22 @@
   }
 
   function setupApp(userData) {
-    currentUser = userData;
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('chat-screen').classList.remove('hidden');
-    document.getElementById('my-name').innerText = userData.username;
-    const av = document.getElementById('my-avatar');
-    av.innerText = userData.username[0].toUpperCase();
-    av.style.background = AVATAR_COLORS[userData.colorIdx];
-    initChannels();
-    setupPresence(userData);
-    initMemberList();
-    checkRulesStatus();
+  if (!userData.createdAt) {
+  userData.createdAt = Date.now();
+  window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
+  }
+  currentUser = userData;
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('chat-screen').classList.remove('hidden');
+  document.getElementById('my-name').innerText = userData.username;
+  const av = document.getElementById('my-avatar');
+  av.innerText = userData.username[0].toUpperCase();
+  av.style.background = AVATAR_COLORS[userData.colorIdx];
+  initChannels();
+  setupPresence(userData);
+  initMemberList();
+  checkRulesStatus();
+}
   }
 
   // ═══════════════════════════════════════════════════════
