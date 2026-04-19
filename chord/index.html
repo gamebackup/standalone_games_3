@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  /* ========== ALL CSS (unchanged except removed HTML from .input-box) ========== */
+  /* ========== ALL CSS (unchanged) ========== */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -738,7 +738,7 @@
 </script>
 
 <script>
-  // ========== ALL JAVASCRIPT (WITH FIXES) ==========
+  // ========== ALL JAVASCRIPT (FULLY CORRECTED) ==========
   
   function autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
@@ -1183,7 +1183,7 @@
       { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
     );
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(clearTyping, 3000);
+    typingTimer = setTimeout(clearTyping, 5000);
   }
 
   function clearTyping() {
