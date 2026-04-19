@@ -688,6 +688,8 @@
     let rulesAccepted = false;
     let rulesChannelId = null;
     let rulesScrollHandler = null;
+    let messagesAddedUnsubscribe = null;
+    let messagesRemovedUnsubscribe = null;
 
     // ═══════════════════════════════════════════════════════
     //  AUTH LOGIC
@@ -861,22 +863,40 @@
       window.fbSet(newRef, { name: name });
     }
 
-    function switchChannel(id, name) {
-      currentChannelId = id;
-      document.getElementById('active-ch-title').innerText = name;
-      document.getElementById('messages-container').innerHTML = '';
-      document.querySelectorAll('.channel-item').forEach(el => {
-        el.classList.toggle('active', el.dataset.chId === id);
-      });
-      const msgRef = window.fbRef(window.db, `messages/${id}`);
-      window.fbOnChildAdded(msgRef, (snap) => { renderMessage(snap.val(), snap.key); });
-      window.fbOnChildRemoved(msgRef, (snap) => {
-        const el = document.getElementById(`msg-${snap.key}`);
-        if (el) el.remove();
-      });
-      subscribeTyping(id);
-      updateRulesUI(id);
-    }
+   function switchChannel(id, name) {
+  currentChannelId = id;
+  document.getElementById('active-ch-title').innerText = name;
+  document.getElementById('messages-container').innerHTML = '';
+  
+  document.querySelectorAll('.channel-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.chId === id);
+  });
+
+  if (messagesAddedUnsubscribe) {
+    messagesAddedUnsubscribe();
+    messagesAddedUnsubscribe = null;
+  }
+  if (messagesRemovedUnsubscribe) {
+    messagesRemovedUnsubscribe();
+    messagesRemovedUnsubscribe = null;
+  }
+
+  const msgRef = window.fbRef(window.db, `messages/${id}`);
+  
+  // Listen for New Messages
+  messagesAddedUnsubscribe = window.fbOnChildAdded(msgRef, (snap) => {
+    renderMessage(snap.val(), snap.key);
+  });
+
+  // Listen for Deleted Messages
+  messagesRemovedUnsubscribe = window.fbOnChildRemoved(msgRef, (snap) => {
+    const el = document.getElementById(`msg-${snap.key}`);
+    if (el) el.remove();
+  });
+
+  subscribeTyping(id);
+  updateRulesUI(id);
+}
 
     // ═══════════════════════════════════════════════════════
     //  RULES GATE
