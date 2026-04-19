@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
+  /* ========== ALL EXISTING CSS (unchanged) ========== */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -567,6 +568,11 @@
     margin-bottom: 20px;
   }
 
+  /* ========== NEW: GROUPED MESSAGE STYLES ========== */
+  .msg-grouped-line {
+    margin-top: 2px;
+  }
+
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
@@ -737,7 +743,16 @@
 </script>
 
 <script>
-  // ========== ALL JAVASCRIPT (FULLY CORRECTED) ==========
+  // ========== GROUPING LOGIC ==========
+  const GROUP_TIME_MS = 300000; // 5 minutes
+
+  function shouldGroupMessages(prevMsg, currentMsg) {
+    if (!prevMsg || !currentMsg) return false;
+    if (prevMsg.senderUid !== currentMsg.senderUid) return false;
+    return (currentMsg.ts - prevMsg.ts) <= GROUP_TIME_MS;
+  }
+  
+  // ========== EXISTING CODE (with grouping modifications) ==========
   
   function autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
@@ -852,22 +867,22 @@
   }
 
   function setupApp(userData) {
-  if (!userData.createdAt) {
-    userData.createdAt = Date.now();
-    window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
+    if (!userData.createdAt) {
+      userData.createdAt = Date.now();
+      window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
+    }
+    currentUser = userData;
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('chat-screen').classList.remove('hidden');
+    document.getElementById('my-name').innerText = userData.username;
+    const av = document.getElementById('my-avatar');
+    av.innerText = userData.username[0].toUpperCase();
+    av.style.background = AVATAR_COLORS[userData.colorIdx];
+    initChannels();
+    setupPresence(userData);
+    initMemberList();
+    checkRulesStatus();
   }
-  currentUser = userData;
-  document.getElementById('auth-screen').classList.add('hidden');
-  document.getElementById('chat-screen').classList.remove('hidden');
-  document.getElementById('my-name').innerText = userData.username;
-  const av = document.getElementById('my-avatar');
-  av.innerText = userData.username[0].toUpperCase();
-  av.style.background = AVATAR_COLORS[userData.colorIdx];
-  initChannels();
-  setupPresence(userData);
-  initMemberList();
-  checkRulesStatus();
-}
 
   // ═══════════════════════════════════════════════════════
   //  CHANNELS
@@ -1000,6 +1015,7 @@
       if (el) el.remove();
     });
     messagesChangedUnsubscribe = window.fbOnChildChanged(msgRef, (snap) => {
+      // For simplicity, we'll just replace the element. Grouping will still work for new messages.
       const el = document.getElementById(`msg-${snap.key}`);
       if (el) {
         const newEl = renderMessageElement(snap.val(), snap.key);
@@ -1234,7 +1250,7 @@
   }
 
   // ═══════════════════════════════════════════════════════
-  //  MESSAGES (WITH EDITING)
+  //  MESSAGES (WITH GROUPING & EDITING)
   // ═══════════════════════════════════════════════════════
   function handleChatKey(e) { 
     if (e.key === 'Enter') {
@@ -1282,6 +1298,8 @@
     const div = document.createElement('div');
     div.className = 'message';
     div.id = `msg-${id}`;
+    div.dataset.msgSender = m.senderUid;
+    div.dataset.msgTs = m.ts;
     const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     const isOwnMessage = (m.senderUid === currentUser.uid);
     const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
@@ -1307,6 +1325,33 @@
 
   function renderMessage(m, id) {
     const container = document.getElementById('messages-container');
+    
+    // Get the last message element in the container
+    const lastMsgEl = container.lastElementChild;
+    let lastMsgData = null;
+    if (lastMsgEl && lastMsgEl.dataset.msgSender && lastMsgEl.dataset.msgTs) {
+      lastMsgData = {
+        senderUid: lastMsgEl.dataset.msgSender,
+        ts: parseInt(lastMsgEl.dataset.msgTs)
+      };
+    }
+
+    // Check if we should group with the previous message
+    if (shouldGroupMessages(lastMsgData, m)) {
+      const textContainer = lastMsgEl.querySelector('.msg-text');
+      if (textContainer) {
+        const newLine = document.createElement('div');
+        newLine.className = 'msg-grouped-line';
+        newLine.innerHTML = parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'));
+        textContainer.appendChild(newLine);
+      }
+      // Update the timestamp of the grouped block to the newer message
+      lastMsgEl.dataset.msgTs = m.ts;
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
+
+    // Not grouping: create a new full message element
     const div = renderMessageElement(m, id);
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
