@@ -853,8 +853,8 @@
 
   function setupApp(userData) {
   if (!userData.createdAt) {
-  userData.createdAt = Date.now();
-  window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
+    userData.createdAt = Date.now();
+    window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
   }
   currentUser = userData;
   document.getElementById('auth-screen').classList.add('hidden');
