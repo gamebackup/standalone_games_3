@@ -1117,7 +1117,7 @@
         });
         rulesScrollHandler = setGateState;
         msgBox.addEventListener('scroll', rulesScrollHandler);
-        setTimeout(setGateState, 600);
+        setTimeout(setGateState, 800);
         btn.onclick = acceptRules;
       } else {
         gate.className = 'hidden';
@@ -1330,9 +1330,11 @@
     return div;
   }
 
+ // AFTER
   function renderMessage(m, id) {
     const container = document.getElementById('messages-container');
-    
+    const lockToTop = (currentChannelId === rulesChannelId) && !rulesAccepted && (currentUser.uid !== ADMIN_UID);
+
     // Get the last message element in the container
     const lastMsgEl = container.lastElementChild;
     let lastMsgData = null;
@@ -1354,14 +1356,14 @@
       }
       // Update the timestamp of the grouped block to the newer message
       lastMsgEl.dataset.msgTs = m.ts;
-      container.scrollTop = container.scrollHeight;
+      if (!lockToTop) container.scrollTop = container.scrollHeight;
       return;
     }
 
     // Not grouping: create a new full message element
     const div = renderMessageElement(m, id);
     container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
+    if (!lockToTop) container.scrollTop = container.scrollHeight;
   }
 
   async function deleteMessage(msgId) {
