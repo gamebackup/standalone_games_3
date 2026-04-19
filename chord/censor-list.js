@@ -2945,7 +2945,6 @@ export const BANNED_WORDS = [
 "itch",
 "jade",
 "japanese",
-"jeez",
 "jesus",
 "jesuschrist",
 "jew",
