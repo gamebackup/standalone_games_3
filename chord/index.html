@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  /* ========== ALL EXISTING CSS (unchanged) ========== */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -629,8 +628,8 @@
     <div class="channels-list">
       <div class="section-label">
         <span>Text Channels</span>
-        <span class="add-btn" onclick="openCreateChannel()">+</span>
-      </div>
+          <span id="create-channel-btn" class="add-btn" onclick="openCreateChannel()">+</span>      
+        </div>
       <div id="channels-container"></div>
     </div>
 
@@ -882,6 +881,11 @@
     setupPresence(userData);
     initMemberList();
     checkRulesStatus();
+    // Show/hide create channel button based on admin status
+    const createBtn = document.getElementById('create-channel-btn');
+    if (createBtn) {
+    createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
+    }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -1123,6 +1127,9 @@
       readonly.classList.add('hidden');
       inputArea.classList.remove('hidden');
     }
+    if (isRules && !isAdmin && !rulesAccepted) {
+  msgBox.scrollTop = 0;
+}
   }
 
   async function acceptRules() {
