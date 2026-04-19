@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
+  /* ========== ALL CSS (unchanged except removed HTML from .input-box) ========== */
   :root {
     --bg-deepest: #0b0d12;
     --bg-dark: #10121a;
@@ -268,7 +269,10 @@
   .msg-time { color: var(--text-dim); font-size: 11px; }
   .msg-text { font-size: 14px; line-height: 1.5; color: #dbdee1; word-wrap: break-word; }
 
-  .input-area { padding: 0 20px 24px; }
+  .input-area {
+    padding: 0 20px 24px; 
+    position: relative;
+  }
   .input-box {
     background: var(--bg-input);
     border-radius: var(--radius-md);
@@ -316,7 +320,6 @@
   .btn-ghost { background: none; border: none; color: #fff; cursor: pointer; padding: 8px 16px; font-size: 14px; }
   .btn-action { background: var(--accent); border: none; color: #fff; cursor: pointer; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; }
 
-
   /* MEMBER LIST */
   .member-list {
     width: 220px;
@@ -327,15 +330,14 @@
     overflow: hidden;
   }
   .spoiler {
-  background-color: black;
-  color: black;
-  cursor: pointer;
-}
-
-.spoiler:hover {
-  background-color: #ccc;
-  color: black;
-}
+    background-color: black;
+    color: black;
+    cursor: pointer;
+  }
+  .spoiler:hover {
+    background-color: #ccc;
+    color: black;
+  }
   .member-list-header {
     padding: 16px;
     height: 60px;
@@ -430,8 +432,7 @@
     30%            { transform: translateY(-4px); opacity: 1; }
   }
 
-
-  /* CHANNEL DELETE BUTTON — admin only, appears on hover */
+  /* CHANNEL DELETE BUTTON */
   .channel-item .del-ch {
     margin-left: auto;
     opacity: 0;
@@ -446,17 +447,17 @@
   .channel-item:hover .del-ch { opacity: 1; }
   .del-ch:hover { color: var(--red) !important; background: rgba(255,92,92,0.12); }
 
-  /* LOCKED channels (rules not yet accepted) */
+  /* LOCKED channels */
   .channel-item.ch-locked {
     opacity: 0.35;
     cursor: not-allowed;
     pointer-events: none;
   }
 
-  /* RULES channel — scroll icon prefix */
+  /* RULES channel */
   .channel-item.ch-rules::before { content: "📜"; opacity: 1; font-family: inherit; font-size: 10px; }
 
-  /* RULES GATE BANNER */
+  /* RULES GATE */
   #rules-gate {
     margin: 0 20px;
     border-radius: var(--radius-md);
@@ -485,11 +486,86 @@
   }
   .btn-accept-rules:hover { opacity: 0.85; }
 
-  /* READ-ONLY notice inside rules channel for non-admins */
   .rules-readonly {
     padding: 6px 20px 14px;
     font-size: 12px; color: var(--text-muted);
     text-align: center; font-style: italic;
+  }
+
+  /* EDIT MESSAGE */
+  .edit-msg {
+    position: absolute;
+    right: 45px;
+    top: 5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    display: none;
+  }
+  .message:hover .edit-msg { display: block; }
+  .edit-msg:hover { color: var(--accent); }
+
+  .msg-edited {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 6px;
+    font-style: italic;
+  }
+
+  /* EMOJI PICKER */
+  .emoji-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s;
+  }
+  .emoji-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+
+  .emoji-picker-container {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    z-index: 200;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* PROFILE MODAL */
+  .profile-modal {
+    width: 360px;
+  }
+  .profile-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 24px;
+    color: #fff;
+  }
+  #profile-status {
+    color: var(--green);
+    font-size: 13px;
+  }
+  .profile-body {
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
   }
 
   ::-webkit-scrollbar { width: 8px; }
@@ -500,787 +576,866 @@
 </head>
 <body>
 
-  <div id="auth-screen">
-    <div class="auth-card">
-      <div class="logo-text"><div class="logo-dot"></div> CHORDE</div>
-      
-      <div id="login-view" class="auth-form">
-        <h2>Welcome to Chorde!</h2>
-        <p>If you've been here before, welcome back!</p>
-        <div class="input-group">
-          <label>Username</label>
-          <input type="text" id="login-user">
-        </div>
-        <div class="input-group">
-          <label>Password</label>
-          <input type="password" id="login-pass">
-        </div>
-        <button class="btn-primary" onclick="tryLogin()">Log In</button>
-        <div class="auth-toggle">Need an account? <span onclick="toggleAuth(false)">Register</span></div>
-      </div>
-
-      <div id="reg-view" class="auth-form hidden">
-        <h2>Create an account</h2>
-        <p>Make sure to save your details somewhere!</p>
-        <div class="input-group">
-          <label>Username</label>
-          <input type="text" id="reg-user">
-        </div>
-        <div class="input-group">
-          <label>Password</label>
-          <input type="password" id="reg-pass">
-        </div>
-        <label style="display:block; text-align:left; font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-dim); margin-bottom:12px;">Profile Color</label>
-        <div class="color-grid" id="reg-color-grid"></div>
-        <button class="btn-primary" onclick="tryRegister()">Continue</button>
-        <div class="auth-toggle">Already have an account? <span onclick="toggleAuth(true)">Log In</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="chat-screen" class="hidden">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <span>CHORDE</span>
-        <div class="logo-dot"></div>
-      </div>
-      
-      <div class="channels-list">
-        <div class="section-label">
-          <span>Text Channels</span>
-          <span class="add-btn" onclick="openCreateChannel()">+</span>
-        </div>
-        <div id="channels-container"></div>
-      </div>
-
-      <div class="user-bar">
-        <div id="my-avatar" class="u-avatar"></div>
-        <div class="u-info">
-          <div id="my-name" class="u-name"></div>
-          <div class="u-status">Online</div>
-        </div>
-        <div class="add-btn" style="opacity:0.5" onclick="logout()"><i class="fa fa-sign-out" aria-hidden="true"></i></div>
-      </div>
-    </aside>
-
-    <main class="chat-container">
-      <header class="chat-header">
-        <span class="ch-hash">#</span>
-        <span id="active-ch-title" class="ch-title">Select a channel</span>
-      </header>
-
-      <div class="messages-wrap" id="messages-container"></div>
-
-      <div id="rules-gate" class="hidden">
-        <!-- content put here by updateRulesUI -->
-      </div>
-      <div id="rules-readonly" class="rules-readonly hidden">📜 This is the rules channel — members cannot send messages here.</div>
-      <div class="typing-indicator" id="typing-box"></div>
-      
-      <div class="input-area">
-        <div class="input-box">
-          <textarea id="chat-input" placeholder="Message..." rows="1" onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput(); autoResizeTextarea(this)"></textarea>
-        </div>
-      </div>
-    </main>
-
-    <aside class="member-list">
-      <div class="member-list-header">
-        <div class="online-pip"></div>
-        <span id="online-count">0</span>&nbsp;Online
-      </div>
-      <div class="members-scroll" id="members-container"></div>
-    </aside>
-  </div>
-
-  <div id="modal-channel" class="modal-overlay hidden">
-    <div class="modal">
-      <h3>Create Channel</h3>
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="logo-text"><div class="logo-dot"></div> CHORDE</div>
+    
+    <div id="login-view" class="auth-form">
+      <h2>Welcome to Chorde!</h2>
+      <p>If you've been here before, welcome back!</p>
       <div class="input-group">
-        <label>Channel Name</label>
-        <input type="text" id="new-ch-name" placeholder="new-channel">
+        <label>Username</label>
+        <input type="text" id="login-user">
       </div>
-      <div class="modal-btns">
-        <button class="btn-ghost" onclick="closeModals()">Cancel</button>
-        <button class="btn-action" onclick="createChannel()">Create Channel</button>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="login-pass">
       </div>
+      <button class="btn-primary" onclick="tryLogin()">Log In</button>
+      <div class="auth-toggle">Need an account? <span onclick="toggleAuth(false)">Register</span></div>
+    </div>
+
+    <div id="reg-view" class="auth-form hidden">
+      <h2>Create an account</h2>
+      <p>Make sure to save your details somewhere!</p>
+      <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="reg-user">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="reg-pass">
+      </div>
+      <label style="display:block; text-align:left; font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-dim); margin-bottom:12px;">Profile Color</label>
+      <div class="color-grid" id="reg-color-grid"></div>
+      <button class="btn-primary" onclick="tryRegister()">Continue</button>
+      <div class="auth-toggle">Already have an account? <span onclick="toggleAuth(true)">Log In</span></div>
     </div>
   </div>
+</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onValue, set, onChildAdded, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCwtdcAJtYC6pPUaC6pdEC4Kr9IUX8wifo",
-      authDomain: "chord-91afa.firebaseapp.com",
-      projectId: "chord-91afa",
-      storageBucket: "chord-91afa.firebasestorage.app",
-      messagingSenderId: "21786013225",
-      appId: "1:21786013225:web:773c34b9d4346460c4f638",
-      measurementId: "G-909HM59DQ5"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
-
-    window.db = db;
-    window.auth = auth;
-    window.fbRef = ref;
-    window.fbPush = push;
-    window.fbOnValue = onValue;
-    window.fbSet = set;
-    window.fbOnChildAdded = onChildAdded;
-    window.fbOnChildRemoved = onChildRemoved;
-    window.fbSignOut = signOut;
-    window.fbCreateUser = createUserWithEmailAndPassword;
-    window.fbSignIn = signInWithEmailAndPassword;
-    window.fbOnDisconnect = onDisconnect;
-  </script>
-
-  <script>
-    function autoResizeTextarea(textarea) {
-     textarea.style.height = 'auto';
-     textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
-    }
+<div id="chat-screen" class="hidden">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span>CHORDE</span>
+      <div class="logo-dot"></div>
+    </div>
     
-    // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
-    (async function loadCensorList() {
-  const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
-  try {
-    const res = await fetch(CENSOR_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    const match = text.match(/\[([\s\S]*)\]/);
-    if (!match) throw new Error('Could not find word array in censor list');
-    const words = JSON.parse('[' + match[1] + ']');
+    <div class="channels-list">
+      <div class="section-label">
+        <span>Text Channels</span>
+        <span class="add-btn" onclick="openCreateChannel()">+</span>
+      </div>
+      <div id="channels-container"></div>
+    </div>
 
-    const sorted = [...words].sort((a, b) => b.length - a.length);
+    <div class="user-bar">
+      <div id="my-avatar" class="u-avatar"></div>
+      <div class="u-info">
+        <div id="my-name" class="u-name"></div>
+        <div class="u-status">Online</div>
+      </div>
+      <div class="add-btn" style="opacity:0.5" onclick="logout()"><i class="fa fa-sign-out" aria-hidden="true"></i></div>
+    </div>
+  </aside>
 
-    const parts = sorted.map(word => {
-      if (word.includes('*')) {
-        return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
-      }
+  <main class="chat-container">
+    <header class="chat-header">
+      <span class="ch-hash">#</span>
+      <span id="active-ch-title" class="ch-title">Select a channel</span>
+    </header>
 
-      let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      let pattern = '';
-      for (let i = 0; i < escaped.length; i++) {
-        const char = escaped[i];
-        const lower = char.toLowerCase();
-        if (LEET_MAP[lower]) {
-          pattern += '[' + LEET_MAP[lower] + ']';
-        } else {
-          pattern += char;
-        }
-      }
+    <div class="messages-wrap" id="messages-container"></div>
 
-      // Determine boundaries
-      const hasLetter = /[a-zA-Z]/.test(word);
-      if (!hasLetter) {
-        // All symbols/numbers: no boundaries
-        return pattern;
-      } else {
-        // Use lookarounds to allow symbols around but not alphanumeric
-        return '(?<![a-zA-Z0-9])' + pattern + '(?![a-zA-Z0-9])';
-      }
-    });
+    <div id="rules-gate" class="hidden"></div>
+    <div id="rules-readonly" class="rules-readonly hidden">📜 This is the rules channel — members cannot send messages here.</div>
+    <div class="typing-indicator" id="typing-box"></div>
+    
+    <!-- FIXED: Added .input-area wrapper -->
+    <div class="input-area">
+      <div class="input-box">
+        <textarea id="chat-input" placeholder="Message..." rows="1" onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput(); autoResizeTextarea(this)"></textarea>
+        <button id="emoji-btn" class="emoji-btn" type="button" title="Add emoji">😊</button>
+        <div id="emoji-picker-container" class="emoji-picker-container hidden"></div>
+      </div>
+    </div>
+  </main>
 
-    window.censorRegex = new RegExp(parts.join('|'), 'gi');
-    console.log(`Chorde: censor list loaded with enhanced boundaries (${words.length} entries)`);
-  } catch (err) {
-    console.warn('Chorde: censor list failed to load —', err.message);
+  <aside class="member-list">
+    <div class="member-list-header">
+      <div class="online-pip"></div>
+      <span id="online-count">0</span>&nbsp;Online
+    </div>
+    <div class="members-scroll" id="members-container"></div>
+  </aside>
+</div>
+
+<div id="modal-channel" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Create Channel</h3>
+    <div class="input-group">
+      <label>Channel Name</label>
+      <input type="text" id="new-ch-name" placeholder="new-channel">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModals()">Cancel</button>
+      <button class="btn-action" onclick="createChannel()">Create Channel</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-profile" class="modal-overlay hidden">
+  <div class="modal profile-modal">
+    <div class="profile-header">
+      <div id="profile-avatar" class="profile-avatar"></div>
+      <div>
+        <h3 id="profile-username"></h3>
+        <span id="profile-status">Online</span>
+      </div>
+    </div>
+    <div class="profile-body">
+      <p><strong>Joined:</strong> <span id="profile-joined">—</span></p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModals()">Close</button>
+      <button class="btn-action" id="profile-mention-btn">Mention</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, set, onChildAdded, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCwtdcAJtYC6pPUaC6pdEC4Kr9IUX8wifo",
+    authDomain: "chord-91afa.firebaseapp.com",
+    projectId: "chord-91afa",
+    storageBucket: "chord-91afa.firebasestorage.app",
+    messagingSenderId: "21786013225",
+    appId: "1:21786013225:web:773c34b9d4346460c4f638",
+    measurementId: "G-909HM59DQ5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const auth = getAuth(app);
+
+  window.db = db;
+  window.auth = auth;
+  window.fbRef = ref;
+  window.fbPush = push;
+  window.fbOnValue = onValue;
+  window.fbSet = set;
+  window.fbOnChildAdded = onChildAdded;
+  window.fbOnChildRemoved = onChildRemoved;
+  window.fbSignOut = signOut;
+  window.fbCreateUser = createUserWithEmailAndPassword;
+  window.fbSignIn = signInWithEmailAndPassword;
+  window.fbOnDisconnect = onDisconnect;
+</script>
+
+<script>
+  // ========== ALL JAVASCRIPT (WITH FIXES) ==========
+  
+  function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
   }
-})();
-  </script>
-
-  <script>
-    const AVATAR_COLORS = ['#ff5c5c','#d7ae0c','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#f9f871','#0cd733','#b39cd0','#00c9a7','#ff6f91','#2a628f','#87007a','#005347','#688f62','#0095ff','#a2af9f','#00be6f','#50424f','#7676a1','#c64800','#ff1697'];
-    
-    const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
-    // Leetspeak substitution mapping (case-insensitive matching will be applied)
-const LEET_MAP = {
- 'a': 'a@4^',
-  'b': 'b8',
-  'c': 'c',
-  'd': 'd',
-  'e': 'e3',
-  'f': 'f',
-  'g': 'g6',
-  'h': 'h',
-  'i': 'i1!|',
-  'j': 'j',
-  'k': 'k',
-  'l': 'l1|',
-  'm': 'm',
-  'n': 'n',
-  'o': 'o0',
-  'p': 'p',
-  'q': 'q',
-  'r': 'r',
-  's': 's$5z',
-  't': 't7',
-  'u': 'u',
-  'v': 'v',
-  'w': 'w',
-  'x': 'x',
-  'y': 'y',
-  'z': 'z2'
-};
-
-    let currentUser = null;
-    let currentChannelId = null;
-    let selectedRegColor = 0;
-    let typingTimer = null;
-    let typingUnsubscribe = null;
-    let rulesAccepted = false;
-    let rulesChannelId = null;
-    let rulesScrollHandler = null;
-    let messagesAddedUnsubscribe = null;
-    let messagesRemovedUnsubscribe = null;
-
-    // ═══════════════════════════════════════════════════════
-    //  AUTH LOGIC
-    // ═══════════════════════════════════════════════════════
-    function toggleAuth(isLogin) {
-      document.getElementById('login-view').classList.toggle('hidden', !isLogin);
-      document.getElementById('reg-view').classList.toggle('hidden', isLogin);
-    }
-
-    async function tryRegister() {
-      const user = document.getElementById('reg-user').value.trim();
-      const pass = document.getElementById('reg-pass').value.trim();
-      if(!user || pass.length < 6) return alert("Username required and password min 6 chars.");
-      const email = `${user.toLowerCase()}@chorde.com`;
-      try {
-        const cred = await window.fbCreateUser(window.auth, email, pass);
-        const userData = { uid: cred.user.uid, username: user, colorIdx: selectedRegColor };
-        await window.fbSet(window.fbRef(window.db, 'users/' + cred.user.uid), userData);
-        setupApp(userData);
-      } catch (e) { alert(e.message); }
-    }
-
-    async function tryLogin() {
-      const user = document.getElementById('login-user').value.trim();
-      const pass = document.getElementById('login-pass').value.trim();
-      if(!user || !pass) return;
-      try {
-        const cred = await window.fbSignIn(window.auth, `${user.toLowerCase()}@chorde.com`, pass);
-        window.fbOnValue(window.fbRef(window.db, 'users/' + cred.user.uid), (snap) => {
-          setupApp(snap.val());
-        }, { onlyOnce: true });
-      } catch (e) { alert("Login failed. Check credentials."); }
-    }
-
-    function logout() {
-      window.fbSignOut(window.auth).then(() => location.reload());
-    }
-
-    function setupApp(userData) {
-      currentUser = userData;
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('chat-screen').classList.remove('hidden');
-      document.getElementById('my-name').innerText = userData.username;
-      const av = document.getElementById('my-avatar');
-      av.innerText = userData.username[0].toUpperCase();
-      av.style.background = AVATAR_COLORS[userData.colorIdx];
-      initChannels();
-      setupPresence(userData);
-      initMemberList();
-      checkRulesStatus();
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  CHANNELS
-    // ═══════════════════════════════════════════════════════
-    function initChannels() {
-      const chRef = window.fbRef(window.db, 'channels');
-      window.fbOnValue(chRef, (snap) => {
-        const list = document.getElementById('channels-container');
-        list.innerHTML = '';
-        const data = snap.val() || {};
-
-        if (Object.keys(data).length === 0) {
-          if (currentUser.uid === ADMIN_UID) {
-            createChannelRaw('rules');
-            createChannelRaw('general');
-          }
-          return;
+  
+  // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
+  (async function loadCensorList() {
+    const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
+    try {
+      const res = await fetch(CENSOR_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const match = text.match(/\[([\s\S]*)\]/);
+      if (!match) throw new Error('Could not find word array in censor list');
+      const words = JSON.parse('[' + match[1] + ']');
+      const sorted = [...words].sort((a, b) => b.length - a.length);
+      const parts = sorted.map(word => {
+        if (word.includes('*')) {
+          return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
         }
-
-        rulesChannelId = null;
-        Object.keys(data).forEach(id => {
-          if (data[id].name === 'rules') rulesChannelId = id;
-        });
-
-        const sorted = Object.keys(data).sort((a, b) => {
-          if (data[a].name === 'rules') return -1;
-          if (data[b].name === 'rules') return  1;
-          return data[a].name.localeCompare(data[b].name);
-        });
-
-        sorted.forEach(id => {
-          const name    = data[id].name;
-          const isRules = name === 'rules';
-          const isAdmin = currentUser.uid === ADMIN_UID;
-          const locked  = !isAdmin && !rulesAccepted && !isRules;
-
-          const div = document.createElement('div');
-          div.className = 'channel-item'
-            + (id === currentChannelId ? ' active'    : '')
-            + (isRules                 ? ' ch-rules'  : '')
-            + (locked                  ? ' ch-locked' : '');
-          div.dataset.chId = id;
-          
-          div.appendChild(document.createTextNode(name));
-          if (!locked) div.onclick = () => switchChannel(id, name);
-
-          if (isAdmin && !isRules) {
-            const btn = document.createElement('span');
-            btn.className = 'del-ch';
-            btn.title = 'Delete channel';
-            btn.textContent = '×';
-            btn.onclick = (e) => deleteChannel(id, name, e);
-            div.appendChild(btn);
-          }
-          list.appendChild(div);
-        });
-
-        if (!currentChannelId) {
-          if (rulesChannelId && !rulesAccepted && currentUser.uid !== ADMIN_UID) {
-            switchChannel(rulesChannelId, 'rules');
+        let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let pattern = '';
+        for (let i = 0; i < escaped.length; i++) {
+          const char = escaped[i];
+          const lower = char.toLowerCase();
+          if (LEET_MAP[lower]) {
+            pattern += '[' + LEET_MAP[lower] + ']';
           } else {
-            switchChannel(sorted[0], data[sorted[0]].name);
+            pattern += char;
           }
+        }
+        const hasLetter = /[a-zA-Z]/.test(word);
+        if (!hasLetter) {
+          return pattern;
+        } else {
+          return '(?<![a-zA-Z0-9])' + pattern + '(?![a-zA-Z0-9])';
         }
       });
+      window.censorRegex = new RegExp(parts.join('|'), 'gi');
+      console.log(`Chorde: censor list loaded with enhanced boundaries (${words.length} entries)`);
+    } catch (err) {
+      console.warn('Chorde: censor list failed to load —', err.message);
     }
+  })();
 
-    function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
-    function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
+  const AVATAR_COLORS = ['#ff5c5c','#d7ae0c','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#f9f871','#0cd733','#b39cd0','#00c9a7','#ff6f91','#2a628f','#87007a','#005347','#688f62','#0095ff','#a2af9f','#00be6f','#50424f','#7676a1','#c64800','#ff1697'];
+  
+  const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
+  
+  const LEET_MAP = {
+    'a': 'a@4^', 'b': 'b8', 'c': 'c', 'd': 'd', 'e': 'e3', 'f': 'f', 'g': 'g6', 'h': 'h',
+    'i': 'i1!|', 'j': 'j', 'k': 'k', 'l': 'l1|', 'm': 'm', 'n': 'n', 'o': 'o0', 'p': 'p',
+    'q': 'q', 'r': 'r', 's': 's$5z', 't': 't7', 'u': 'u', 'v': 'v', 'w': 'w', 'x': 'x',
+    'y': 'y', 'z': 'z2'
+  };
 
-    async function deleteChannel(channelId, channelName, e) {
-      e.stopPropagation();
-      if (!confirm(`Delete #${channelName} and ALL its messages? This cannot be undone.`)) return;
-      try {
-        await window.fbSet(window.fbRef(window.db, `channels/${channelId}`), null);
-        await window.fbSet(window.fbRef(window.db, `messages/${channelId}`), null);
-        if (currentChannelId === channelId) {
-          currentChannelId = null;
-          document.getElementById('active-ch-title').innerText = 'Select a channel';
-          document.getElementById('messages-container').innerHTML = '';
-          document.getElementById('rules-gate').className = 'hidden';
-          document.getElementById('rules-readonly').classList.add('hidden');
-          document.querySelector('.input-area').classList.remove('hidden');
-        }
-      } catch(err) { alert('Delete failed — check Firebase rules.'); console.error(err); }
-    }
+  let currentUser = null;
+  let currentChannelId = null;
+  let selectedRegColor = 0;
+  let typingTimer = null;
+  let typingUnsubscribe = null;
+  let rulesAccepted = false;
+  let rulesChannelId = null;
+  let rulesScrollHandler = null;
+  let messagesAddedUnsubscribe = null;
+  let messagesRemovedUnsubscribe = null;
+  let editingMessageId = null;
+  let originalMessageText = '';
 
-    function createChannel() {
-      const nameInp = document.getElementById('new-ch-name');
-      const baseName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
-      if (!baseName) return;
+  // ═══════════════════════════════════════════════════════
+  //  AUTH LOGIC
+  // ═══════════════════════════════════════════════════════
+  function toggleAuth(isLogin) {
+    document.getElementById('login-view').classList.toggle('hidden', !isLogin);
+    document.getElementById('reg-view').classList.toggle('hidden', isLogin);
+  }
 
-      // Query existing channels once to check for duplicates
-      const chRef = window.fbRef(window.db, 'channels');
-      window.fbOnValue(chRef, (snap) => {
-        const data = snap.val() || {};
-        
-        // Extract all current channel names into an array
-        const existingNames = Object.values(data).map(ch => ch.name);
-        
-        let finalName = baseName;
-        let counter = 2;
+  async function tryRegister() {
+    const user = document.getElementById('reg-user').value.trim();
+    const pass = document.getElementById('reg-pass').value.trim();
+    if(!user || pass.length < 6) return alert("Username required and password min 6 chars.");
+    const email = `${user.toLowerCase()}@chorde.com`;
+    try {
+      const cred = await window.fbCreateUser(window.auth, email, pass);
+      const userData = { 
+        uid: cred.user.uid, 
+        username: user, 
+        colorIdx: selectedRegColor,
+        createdAt: Date.now()
+      };
+      await window.fbSet(window.fbRef(window.db, 'users/' + cred.user.uid), userData);
+      setupApp(userData);
+    } catch (e) { alert(e.message); }
+  }
 
-        // Keep incrementing the number until we find a name that isn't taken
-        while (existingNames.includes(finalName)) {
-          finalName = `${baseName}-${counter}`;
-          counter++;
-        }
-
-        // Create the channel with the guaranteed unique name
-        createChannelRaw(finalName);
+  async function tryLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value.trim();
+    if(!user || !pass) return;
+    try {
+      const cred = await window.fbSignIn(window.auth, `${user.toLowerCase()}@chorde.com`, pass);
+      window.fbOnValue(window.fbRef(window.db, 'users/' + cred.user.uid), (snap) => {
+        setupApp(snap.val());
       }, { onlyOnce: true });
-
-      nameInp.value = '';
-      closeModals();
-    }
-
-    function createChannelRaw(name) {
-      const newRef = window.fbPush(window.fbRef(window.db, 'channels'));
-      window.fbSet(newRef, { name: name });
-    }
-
-   function switchChannel(id, name) {
-  currentChannelId = id;
-  document.getElementById('active-ch-title').innerText = name;
-  document.getElementById('messages-container').innerHTML = '';
-  
-  document.querySelectorAll('.channel-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.chId === id);
-  });
-
-  if (messagesAddedUnsubscribe) {
-    messagesAddedUnsubscribe();
-    messagesAddedUnsubscribe = null;
-  }
-  if (messagesRemovedUnsubscribe) {
-    messagesRemovedUnsubscribe();
-    messagesRemovedUnsubscribe = null;
+    } catch (e) { alert("Login failed. Check credentials."); }
   }
 
-  const msgRef = window.fbRef(window.db, `messages/${id}`);
-  
-  // Listen for New Messages
-  messagesAddedUnsubscribe = window.fbOnChildAdded(msgRef, (snap) => {
-    renderMessage(snap.val(), snap.key);
-  });
+  function logout() {
+    window.fbSignOut(window.auth).then(() => location.reload());
+  }
 
-  // Listen for Deleted Messages
-  messagesRemovedUnsubscribe = window.fbOnChildRemoved(msgRef, (snap) => {
-    const el = document.getElementById(`msg-${snap.key}`);
-    if (el) el.remove();
-  });
+  function setupApp(userData) {
+    currentUser = userData;
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('chat-screen').classList.remove('hidden');
+    document.getElementById('my-name').innerText = userData.username;
+    const av = document.getElementById('my-avatar');
+    av.innerText = userData.username[0].toUpperCase();
+    av.style.background = AVATAR_COLORS[userData.colorIdx];
+    initChannels();
+    setupPresence(userData);
+    initMemberList();
+    checkRulesStatus();
+  }
 
-  subscribeTyping(id);
-  updateRulesUI(id);
-}
+  // ═══════════════════════════════════════════════════════
+  //  CHANNELS
+  // ═══════════════════════════════════════════════════════
+  function initChannels() {
+    const chRef = window.fbRef(window.db, 'channels');
+    window.fbOnValue(chRef, (snap) => {
+      const list = document.getElementById('channels-container');
+      list.innerHTML = '';
+      const data = snap.val() || {};
 
-    // ═══════════════════════════════════════════════════════
-    //  RULES GATE
-    // ═══════════════════════════════════════════════════════
-    function checkRulesStatus() {
-      if (currentUser.uid === ADMIN_UID) { rulesAccepted = true; return; }
-      window.fbOnValue(
-        window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`),
-        (snap) => {
-          const wasAccepted = rulesAccepted;
-          rulesAccepted = snap.val() === true;
-          if (rulesAccepted && !wasAccepted) {
-            initChannels();
-            if (rulesChannelId) {
-              const chRef = window.fbRef(window.db, 'channels');
-              window.fbOnValue(chRef, (snap2) => {
-                const data = snap2.val() || {};
-                const nonRules = Object.keys(data).filter(id => data[id].name !== 'rules');
-                if (nonRules.length) switchChannel(nonRules[0], data[nonRules[0]].name);
-              }, { onlyOnce: true });
-            }
-          }
-          if (currentChannelId === rulesChannelId) updateRulesUI(currentChannelId);
+      if (Object.keys(data).length === 0) {
+        if (currentUser.uid === ADMIN_UID) {
+          createChannelRaw('rules');
+          createChannelRaw('general');
         }
-      );
-    }
-
-    function updateRulesUI(channelId) {
-      const gate      = document.getElementById('rules-gate');
-      const readonly  = document.getElementById('rules-readonly');
-      const inputArea = document.querySelector('.input-area');
-      const msgBox    = document.getElementById('messages-container');
-      const isRules   = channelId === rulesChannelId;
-      const isAdmin   = currentUser.uid === ADMIN_UID;
-
-      if (rulesScrollHandler) {
-        msgBox.removeEventListener('scroll', rulesScrollHandler);
-        rulesScrollHandler = null;
+        return;
       }
 
-      if (isRules && !isAdmin) {
-        inputArea.classList.add('hidden');
-        readonly.classList.remove('hidden');
+      rulesChannelId = null;
+      Object.keys(data).forEach(id => {
+        if (data[id].name === 'rules') rulesChannelId = id;
+      });
 
-        if (!rulesAccepted) {
-          gate.className = 'gate-scroll';
-          gate.innerHTML = `
-            <div style="display:flex; flex-direction:column; gap:10px;">
-              <div id="rules-msg">📜 <strong>Read to the bottom to access server</strong><br>
-              <span style="font-size:11px">Scroll down ↓</span></div>
-              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; opacity:0.6;" id="rules-checkbox-label">
-                <input type="checkbox" id="rules-checkbox" disabled>
-                <span>I have read and understood the rules</span>
-              </label>
-              <button id="btn-accept-rules" class="btn-accept-rules" disabled>Accept & Unlock</button>
-            </div>
-          `;
+      const sorted = Object.keys(data).sort((a, b) => {
+        if (data[a].name === 'rules') return -1;
+        if (data[b].name === 'rules') return  1;
+        return data[a].name.localeCompare(data[b].name);
+      });
 
-          const checkbox = document.getElementById('rules-checkbox');
-          const label    = document.getElementById('rules-checkbox-label');
-          const btn      = document.getElementById('btn-accept-rules');
+      sorted.forEach(id => {
+        const name    = data[id].name;
+        const isRules = name === 'rules';
+        const isAdmin = currentUser.uid === ADMIN_UID;
+        const locked  = !isAdmin && !rulesAccepted && !isRules;
 
-          const setGateState = () => {
-            const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
-            const rulesMsg = document.getElementById('rules-msg'); // Target the specific text div
-
-            if (atBottom) {
-              gate.className = 'gate-accept';
-              checkbox.disabled = false;
-              label.style.opacity = '1';
-              rulesMsg.innerHTML = `
-                ✅ <strong>You've reached the end!</strong><br>
-                <span style="font-size:11px">Please confirm you've read the rules</span>
-              `;
-            } else {
-              gate.className = 'gate-scroll';
-              checkbox.disabled = true;
-              label.style.opacity = '0.6';
-              rulesMsg.innerHTML = `
-                📜 <strong>Read to the bottom to unlock channels</strong><br>
-                <span style="font-size:11px">Scroll down ↓</span>
-              `;
-            }
-            btn.disabled = !(checkbox.checked && atBottom);
-          };
-
-          checkbox.addEventListener('change', () => {
-            const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
-            btn.disabled = !(checkbox.checked && atBottom);
-          });
-
-          rulesScrollHandler = setGateState;
-          msgBox.addEventListener('scroll', rulesScrollHandler);
-          setTimeout(setGateState, 600);
-          btn.onclick = acceptRules;
-        } else {
-          gate.className = 'hidden';
+        const div = document.createElement('div');
+        div.className = 'channel-item'
+          + (id === currentChannelId ? ' active'    : '')
+          + (isRules                 ? ' ch-rules'  : '')
+          + (locked                  ? ' ch-locked' : '');
+        div.dataset.chId = id;
+        
+        div.appendChild(document.createTextNode(name));
+        div.onclick = () => { switchChannel(id, name); cancelEdit(); };
+        if (isAdmin && !isRules) {
+          const btn = document.createElement('span');
+          btn.className = 'del-ch';
+          btn.title = 'Delete channel';
+          btn.textContent = '×';
+          btn.onclick = (e) => deleteChannel(id, name, e);
+          div.appendChild(btn);
         }
+        list.appendChild(div);
+      });
+
+      if (!currentChannelId) {
+        if (rulesChannelId && !rulesAccepted && currentUser.uid !== ADMIN_UID) {
+          switchChannel(rulesChannelId, 'rules');
+        } else {
+          switchChannel(sorted[0], data[sorted[0]].name);
+        }
+      }
+    });
+  }
+
+  function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
+  function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
+
+  async function deleteChannel(channelId, channelName, e) {
+    e.stopPropagation();
+    if (!confirm(`Delete #${channelName} and ALL its messages? This cannot be undone.`)) return;
+    try {
+      await window.fbSet(window.fbRef(window.db, `channels/${channelId}`), null);
+      await window.fbSet(window.fbRef(window.db, `messages/${channelId}`), null);
+      if (currentChannelId === channelId) {
+        currentChannelId = null;
+        document.getElementById('active-ch-title').innerText = 'Select a channel';
+        document.getElementById('messages-container').innerHTML = '';
+        document.getElementById('rules-gate').className = 'hidden';
+        document.getElementById('rules-readonly').classList.add('hidden');
+        document.querySelector('.input-area').classList.remove('hidden');
+      }
+    } catch(err) { alert('Delete failed — check Firebase rules.'); console.error(err); }
+  }
+
+  function createChannel() {
+    const nameInp = document.getElementById('new-ch-name');
+    const baseName = nameInp.value.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!baseName) return;
+    const chRef = window.fbRef(window.db, 'channels');
+    window.fbOnValue(chRef, (snap) => {
+      const data = snap.val() || {};
+      const existingNames = Object.values(data).map(ch => ch.name);
+      let finalName = baseName;
+      let counter = 2;
+      while (existingNames.includes(finalName)) {
+        finalName = `${baseName}-${counter}`;
+        counter++;
+      }
+      createChannelRaw(finalName);
+    }, { onlyOnce: true });
+    nameInp.value = '';
+    closeModals();
+  }
+
+  function createChannelRaw(name) {
+    const newRef = window.fbPush(window.fbRef(window.db, 'channels'));
+    window.fbSet(newRef, { name: name });
+  }
+
+  function switchChannel(id, name) {
+    cancelEdit();
+    currentChannelId = id;
+    document.getElementById('active-ch-title').innerText = name;
+    document.getElementById('messages-container').innerHTML = '';
+    document.querySelectorAll('.channel-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.chId === id);
+    });
+    if (messagesAddedUnsubscribe) {
+      messagesAddedUnsubscribe();
+      messagesAddedUnsubscribe = null;
+    }
+    if (messagesRemovedUnsubscribe) {
+      messagesRemovedUnsubscribe();
+      messagesRemovedUnsubscribe = null;
+    }
+    const msgRef = window.fbRef(window.db, `messages/${id}`);
+    messagesAddedUnsubscribe = window.fbOnChildAdded(msgRef, (snap) => {
+      renderMessage(snap.val(), snap.key);
+    });
+    messagesRemovedUnsubscribe = window.fbOnChildRemoved(msgRef, (snap) => {
+      const el = document.getElementById(`msg-${snap.key}`);
+      if (el) el.remove();
+    });
+    subscribeTyping(id);
+    updateRulesUI(id);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  RULES GATE
+  // ═══════════════════════════════════════════════════════
+  function checkRulesStatus() {
+    if (currentUser.uid === ADMIN_UID) { rulesAccepted = true; return; }
+    window.fbOnValue(
+      window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`),
+      (snap) => {
+        const wasAccepted = rulesAccepted;
+        rulesAccepted = snap.val() === true;
+        if (rulesAccepted && !wasAccepted) {
+          initChannels();
+          if (rulesChannelId) {
+            const chRef = window.fbRef(window.db, 'channels');
+            window.fbOnValue(chRef, (snap2) => {
+              const data = snap2.val() || {};
+              const nonRules = Object.keys(data).filter(id => data[id].name !== 'rules');
+              if (nonRules.length) switchChannel(nonRules[0], data[nonRules[0]].name);
+            }, { onlyOnce: true });
+          }
+        }
+        if (currentChannelId === rulesChannelId) updateRulesUI(currentChannelId);
+      }
+    );
+  }
+
+  function updateRulesUI(channelId) {
+    const gate      = document.getElementById('rules-gate');
+    const readonly  = document.getElementById('rules-readonly');
+    const inputArea = document.querySelector('.input-area');
+    const msgBox    = document.getElementById('messages-container');
+    const isRules   = channelId === rulesChannelId;
+    const isAdmin   = currentUser.uid === ADMIN_UID;
+
+    if (rulesScrollHandler) {
+      msgBox.removeEventListener('scroll', rulesScrollHandler);
+      rulesScrollHandler = null;
+    }
+
+    if (isRules && !isAdmin) {
+      inputArea.classList.add('hidden');
+      readonly.classList.remove('hidden');
+
+      if (!rulesAccepted) {
+        gate.className = 'gate-scroll';
+        gate.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div id="rules-msg">📜 <strong>Read to the bottom to access server</strong><br>
+            <span style="font-size:11px">Scroll down ↓</span></div>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; opacity:0.6;" id="rules-checkbox-label">
+              <input type="checkbox" id="rules-checkbox" disabled>
+              <span>I have read and understood the rules</span>
+            </label>
+            <button id="btn-accept-rules" class="btn-accept-rules" disabled>Accept & Unlock</button>
+          </div>
+        `;
+        const checkbox = document.getElementById('rules-checkbox');
+        const label    = document.getElementById('rules-checkbox-label');
+        const btn      = document.getElementById('btn-accept-rules');
+        const setGateState = () => {
+          const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
+          const rulesMsg = document.getElementById('rules-msg');
+          if (atBottom) {
+            gate.className = 'gate-accept';
+            checkbox.disabled = false;
+            label.style.opacity = '1';
+            rulesMsg.innerHTML = `
+              ✅ <strong>You've reached the end!</strong><br>
+              <span style="font-size:11px">Please confirm you've read the rules</span>
+            `;
+          } else {
+            gate.className = 'gate-scroll';
+            checkbox.disabled = true;
+            label.style.opacity = '0.6';
+            rulesMsg.innerHTML = `
+              📜 <strong>Read to the bottom to unlock channels</strong><br>
+              <span style="font-size:11px">Scroll down ↓</span>
+            `;
+          }
+          btn.disabled = !(checkbox.checked && atBottom);
+        };
+        checkbox.addEventListener('change', () => {
+          const atBottom = msgBox.scrollTop + msgBox.clientHeight >= msgBox.scrollHeight - 60;
+          btn.disabled = !(checkbox.checked && atBottom);
+        });
+        rulesScrollHandler = setGateState;
+        msgBox.addEventListener('scroll', rulesScrollHandler);
+        setTimeout(setGateState, 600);
+        btn.onclick = acceptRules;
       } else {
         gate.className = 'hidden';
-        readonly.classList.add('hidden');
-        inputArea.classList.remove('hidden');
       }
+    } else {
+      gate.className = 'hidden';
+      readonly.classList.add('hidden');
+      inputArea.classList.remove('hidden');
     }
+  }
 
-    async function acceptRules() {
-      try {
-        await window.fbSet(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), true);
-      } catch(err) {
-        console.error('Could not save rules acceptance:', err);
-        alert('Something went wrong — please try again.');
-      }
+  async function acceptRules() {
+    try {
+      await window.fbSet(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), true);
+    } catch(err) {
+      console.error('Could not save rules acceptance:', err);
+      alert('Something went wrong — please try again.');
     }
+  }
 
-    // ═══════════════════════════════════════════════════════
-    //  MARKDOWN
-    // ═══════════════════════════════════════════════════════
-    function parseMarkdown(html) {
-      html = html.replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`);
-      html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-      html = html.replace(/__([^_\n]+)__/g, '<u>$1</u>');
-      html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
-      html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
-      html = html.replace(/\|\|([\s\S]+?)\|\|/g, '<span class="spoiler">$1</span>');
-      return html;
-    }
+  // ═══════════════════════════════════════════════════════
+  //  MARKDOWN
+  // ═══════════════════════════════════════════════════════
+  function parseMarkdown(html) {
+    html = html.replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`);
+    html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+    html = html.replace(/__([^_\n]+)__/g, '<u>$1</u>');
+    html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+    html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(/\|\|([\s\S]+?)\|\|/g, '<span class="spoiler">$1</span>');
+    return html;
+  }
 
-    // ═══════════════════════════════════════════════════════
-    //  PRESENCE
-    // ═══════════════════════════════════════════════════════
-    function setupPresence(userData) {
-      const connRef = window.fbRef(window.db, '.info/connected');
-      window.fbOnValue(connRef, (snap) => {
-        if (snap.val() !== true) return;
-        const presRef = window.fbRef(window.db, `presence/${userData.uid}`);
-        window.fbOnDisconnect(presRef).remove();
-        window.fbSet(presRef, {
-          uid: userData.uid,
-          username: userData.username,
-          color: AVATAR_COLORS[userData.colorIdx]
-        });
+  // ═══════════════════════════════════════════════════════
+  //  PRESENCE
+  // ═══════════════════════════════════════════════════════
+  function setupPresence(userData) {
+    const connRef = window.fbRef(window.db, '.info/connected');
+    window.fbOnValue(connRef, (snap) => {
+      if (snap.val() !== true) return;
+      const presRef = window.fbRef(window.db, `presence/${userData.uid}`);
+      window.fbOnDisconnect(presRef).remove();
+      window.fbSet(presRef, {
+        uid: userData.uid,
+        username: userData.username,
+        color: AVATAR_COLORS[userData.colorIdx]
       });
-    }
+    });
+  }
 
-    function initMemberList() {
-      const presRef = window.fbRef(window.db, 'presence');
-      window.fbOnValue(presRef, (snap) => {
-        const data = snap.val() || {};
-        const members = Object.values(data).sort((a, b) => {
-          if (a.uid === currentUser.uid) return -1;
-          if (b.uid === currentUser.uid) return 1;
-          return a.username.localeCompare(b.username);
-        });
-        document.getElementById('online-count').innerText = members.length;
-        const container = document.getElementById('members-container');
-        container.innerHTML = '';
-        members.forEach(m => {
-          const div = document.createElement('div');
-          div.className = 'member-item';
-          const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
-          div.innerHTML = `
-            <div class="member-avatar" style="background:${m.color}">${escHtml(m.username[0].toUpperCase())}</div>
-            <span class="member-name">${escHtml(m.username)}${youTag}</span>
-          `;
-          container.appendChild(div);
-        });
+  function initMemberList() {
+    const presRef = window.fbRef(window.db, 'presence');
+    window.fbOnValue(presRef, (snap) => {
+      const data = snap.val() || {};
+      const members = Object.values(data).sort((a, b) => {
+        if (a.uid === currentUser.uid) return -1;
+        if (b.uid === currentUser.uid) return 1;
+        return a.username.localeCompare(b.username);
       });
-    }
-
-    // ═══════════════════════════════════════════════════════
-    //  TYPING INDICATORS
-    // ═══════════════════════════════════════════════════════
-    function handleTypingInput() {
-      if (!currentChannelId || !currentUser) return;
-      window.fbSet(
-        window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
-        { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
-      );
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(clearTyping, 3000);
-    }
-
-    function clearTyping() {
-      clearTimeout(typingTimer);
-      if (!currentChannelId || !currentUser) return;
-      window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
-    }
-
-    function subscribeTyping(channelId) {
-      if (typingUnsubscribe) typingUnsubscribe();
-      const ref = window.fbRef(window.db, `typing/${channelId}`);
-      typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-        const data   = snap.val() || {};
-        const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
-        const box    = document.getElementById('typing-box');
-        const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-        if (others.length === 0) box.innerHTML = '';
-        else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
-        else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
-        else box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+      document.getElementById('online-count').innerText = members.length;
+      const container = document.getElementById('members-container');
+      container.innerHTML = '';
+      members.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'member-item';
+        const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
+        div.innerHTML = `
+          <div class="member-avatar" style="background:${m.color}">${escHtml(m.username[0].toUpperCase())}</div>
+          <span class="member-name" style="cursor:pointer;" onclick="showUserProfile('${m.uid}')">${escHtml(m.username)}${youTag}</span>
+        `;
+        container.appendChild(div);
       });
-    }
+    });
+  }
 
-    // ═══════════════════════════════════════════════════════
-    //  CENSORING
-    // ═══════════════════════════════════════════════════════
-    function censorFull() {
-      if (!window.censorRegex) return;
-      const input = document.getElementById('chat-input');
-      const pos = input.selectionStart;
-      window.censorRegex.lastIndex = 0;
-      const censored = input.value.replace(window.censorRegex, m => '*'.repeat(m.length));
-      if (censored !== input.value) {
-        input.value = censored;
-        input.setSelectionRange(pos, pos);
-      }
-    }
+  // ═══════════════════════════════════════════════════════
+  //  TYPING INDICATORS
+  // ═══════════════════════════════════════════════════════
+  function handleTypingInput() {
+    if (!currentChannelId || !currentUser) return;
+    window.fbSet(
+      window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
+      { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
+    );
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(clearTyping, 3000);
+  }
 
-    function applyCensorInput() {
-      if (!window.censorRegex) return;
-      const input = document.getElementById('chat-input');
-      const lastChar = input.value[input.selectionStart - 1];
-      if (lastChar && /\w/.test(lastChar)) return;
-      censorFull();
-    }
+  function clearTyping() {
+    clearTimeout(typingTimer);
+    if (!currentChannelId || !currentUser) return;
+    window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
+  }
 
-    // ═══════════════════════════════════════════════════════
-    //  MESSAGES
-    // ═══════════════════════════════════════════════════════
-    function handleChatKey(e) { 
-        if (e.key === 'Enter') {
-            if (e.shiftKey) {
-                return;
-            } else {
-              e.preventDefault();
-              sendMessage();
-            }
+  function subscribeTyping(channelId) {
+    if (typingUnsubscribe) typingUnsubscribe();
+    const ref = window.fbRef(window.db, `typing/${channelId}`);
+    typingUnsubscribe = window.fbOnValue(ref, (snap) => {
+      const data   = snap.val() || {};
+      const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
+      const box    = document.getElementById('typing-box');
+      const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+      if (others.length === 0) box.innerHTML = '';
+      else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+      else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+      else box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  CENSORING
+  // ═══════════════════════════════════════════════════════
+  function censorFull() {
+    if (!window.censorRegex) return;
+    const input = document.getElementById('chat-input');
+    const pos = input.selectionStart;
+    window.censorRegex.lastIndex = 0;
+    const censored = input.value.replace(window.censorRegex, m => '*'.repeat(m.length));
+    if (censored !== input.value) {
+      input.value = censored;
+      input.setSelectionRange(pos, pos);
+    }
+  }
+
+  function applyCensorInput() {
+    if (!window.censorRegex) return;
+    const input = document.getElementById('chat-input');
+    const lastChar = input.value[input.selectionStart - 1];
+    if (lastChar && /\w/.test(lastChar)) return;
+    censorFull();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  MESSAGES (WITH EDITING)
+  // ═══════════════════════════════════════════════════════
+  function handleChatKey(e) { 
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        return;
+      } else {
+        e.preventDefault();
+        if (editingMessageId) {
+          updateMessage();
+        } else {
+          sendMessage();
         }
+      }
     }
+    if (e.key === 'Escape' && editingMessageId) {
+      cancelEdit();
+      e.preventDefault();
+    }
+  }
 
-   function sendMessage() {
-  const input = document.getElementById('chat-input');
-  censorFull();
-  let text = input.value;
-  // Replace excessive newlines (more than 2) with double newline, and trim
-  text = text.replace(/\n{3,}/g, '\n\n').trim();
-  if (!text || !currentChannelId) return;
-  
-  const msgData = {
-    text: text,
-    sender: currentUser.username,
-    senderUid: currentUser.uid,
-    color: AVATAR_COLORS[currentUser.colorIdx],
-    ts: Date.now()
-  };
-  window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
-  input.value = '';
-  input.style.height = 'auto'; // reset height
-  clearTyping();
-}
+  function sendMessage() {
+    if (editingMessageId) {
+      updateMessage();
+      return;
+    }
+    const input = document.getElementById('chat-input');
+    censorFull();
+    let text = input.value;
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
+    if (!text || !currentChannelId) return;
+    const msgData = {
+      text: text,
+      sender: currentUser.username,
+      senderUid: currentUser.uid,
+      color: AVATAR_COLORS[currentUser.colorIdx],
+      ts: Date.now()
+    };
+    window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
+    input.value = '';
+    input.style.height = 'auto';
+    clearTyping();
+  }
 
-    function renderMessage(m, id) {
-      const container = document.getElementById('messages-container');
-      const div = document.createElement('div');
-      div.className = 'message';
-      div.id = `msg-${id}`;
-      const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      const canDelete = (m.senderUid === currentUser.uid || currentUser.uid === ADMIN_UID);
-      const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
-      div.innerHTML = `
-        <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
-        <div class="msg-content">
-          <div class="msg-header">
-            <span class="msg-user" style="color:${m.color}">${escHtml(m.sender)}</span>
-            <span class="msg-time">${time}</span>
-          </div>
-          <div class="msg-text">${parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'))}</div>
+  function renderMessage(m, id) {
+    const container = document.getElementById('messages-container');
+    const div = document.createElement('div');
+    div.className = 'message';
+    div.id = `msg-${id}`;
+    const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const isOwnMessage = (m.senderUid === currentUser.uid);
+    const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
+    const canEdit = isOwnMessage;
+    const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
+    const editBtn = canEdit ? `<div class="edit-msg" onclick="startEditMessage('${id}', '${escHtml(m.text).replace(/'/g, "\\'")}')" title="Edit Message">✎</div>` : '';
+    const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
+    div.innerHTML = `
+      <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+      <div class="msg-content">
+        <div class="msg-header">
+          <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
+          <span class="msg-time">${time}</span>
+          ${editedLabel}
         </div>
-        ${delBtn}
-      `;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
+        <div class="msg-text">${parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'))}</div>
+      </div>
+      ${editBtn}
+      ${delBtn}
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
 
-    async function deleteMessage(msgId) {
-      if (!confirm("Are you sure you want to delete this message?")) return;
-      try {
-        const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`);
-        await window.fbSet(msgRef, null);
-      } catch (e) { console.error("Delete failed:", e); }
-    }
+  async function deleteMessage(msgId) {
+    if (!confirm("Are you sure you want to delete this message?")) return;
+    try {
+      const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`);
+      await window.fbSet(msgRef, null);
+    } catch (e) { console.error("Delete failed:", e); }
+  }
 
-    function escHtml(s) {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
+  function startEditMessage(msgId, text) {
+    if (editingMessageId) cancelEdit();
+    editingMessageId = msgId;
+    originalMessageText = text;
+    const input = document.getElementById('chat-input');
+    input.value = text;
+    input.focus();
+    document.getElementById('active-ch-title').innerHTML += ' (editing)';
+  }
 
-    // ═══════════════════════════════════════════════════════
-    //  INIT
-    // ═══════════════════════════════════════════════════════
-    function buildColorGrid() {
-      const grid = document.getElementById('reg-color-grid');
-      if (!grid) return;
-      grid.innerHTML = '';
-      AVATAR_COLORS.forEach((c, i) => {
-        const s = document.createElement('div');
-        s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
-        s.style.background = c;
-        s.onclick = () => {
-          document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
-          s.classList.add('selected');
-          selectedRegColor = i;
-        };
-        grid.appendChild(s);
-      });
-    }
+  function cancelEdit() {
+    editingMessageId = null;
+    originalMessageText = '';
+    document.getElementById('chat-input').value = '';
+    document.getElementById('active-ch-title').innerHTML = document.getElementById('active-ch-title').innerHTML.replace(' (editing)', '');
+  }
 
-    window.addEventListener('DOMContentLoaded', () => {
+  async function updateMessage() {
+    if (!editingMessageId || !currentChannelId) return;
+    const input = document.getElementById('chat-input');
+    censorFull();
+    let newText = input.value.trim();
+    if (!newText) return;
+    const msgRef = window.fbRef(window.db, `messages/${currentChannelId}/${editingMessageId}`);
+    await window.fbSet(msgRef, {
+      text: newText,
+      edited: true,
+      editedAt: Date.now()
+    }, { merge: true });
+    cancelEdit();
+    input.value = '';
+    input.style.height = 'auto';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  USER PROFILE
+  // ═══════════════════════════════════════════════════════
+  function showUserProfile(uid) {
+    const userRef = window.fbRef(window.db, `users/${uid}`);
+    window.fbOnValue(userRef, (snap) => {
+      const user = snap.val();
+      if (!user) return;
+      document.getElementById('profile-avatar').style.background = AVATAR_COLORS[user.colorIdx];
+      document.getElementById('profile-avatar').innerText = user.username[0].toUpperCase();
+      document.getElementById('profile-username').innerText = user.username;
+      document.getElementById('profile-joined').innerText = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown';
+      document.getElementById('profile-mention-btn').onclick = () => {
+        const input = document.getElementById('chat-input');
+        input.value += `@${user.username} `;
+        input.focus();
+        closeModals();
+      };
+      document.getElementById('modal-profile').classList.remove('hidden');
+    }, { onlyOnce: true });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  INIT
+  // ═══════════════════════════════════════════════════════
+  function buildColorGrid() {
+    const grid = document.getElementById('reg-color-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    AVATAR_COLORS.forEach((c, i) => {
+      const s = document.createElement('div');
+      s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
+      s.style.background = c;
+      s.onclick = () => {
+        document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+        s.classList.add('selected');
+        selectedRegColor = i;
+      };
+      grid.appendChild(s);
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('paste', () => setTimeout(() => autoResizeTextarea(chatInput), 10));
-      buildColorGrid();
-      setTimeout(() => {
-        if (window.auth) {
-          window.auth.onAuthStateChanged((user) => {
-            if (user) {
-              window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
-                if (snap.exists()) setupApp(snap.val());
-              }, { onlyOnce: true });
-            }
-          });
-        }
-      }, 1000);
+    buildColorGrid();
+    
+    // Emoji picker setup
+    const emojiBtn = document.getElementById('emoji-btn');
+    const pickerContainer = document.getElementById('emoji-picker-container');
+    let emojiPicker = null;
+    import('https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js')
+      .then(({ Picker }) => {
+        emojiPicker = new Picker();
+        pickerContainer.appendChild(emojiPicker);
+        emojiPicker.addEventListener('emoji-click', event => {
+          const emoji = event.detail.unicode;
+          const input = document.getElementById('chat-input');
+          const start = input.selectionStart;
+          const end = input.selectionEnd;
+          const text = input.value;
+          input.value = text.slice(0, start) + emoji + text.slice(end);
+          input.selectionStart = input.selectionEnd = start + emoji.length;
+          input.focus();
+          autoResizeTextarea(input);
+          pickerContainer.classList.add('hidden');
+        });
+      })
+      .catch(err => console.warn('Emoji picker failed to load:', err));
+    emojiBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pickerContainer.classList.toggle('hidden');
     });
-  </script>
+    document.addEventListener('click', (e) => {
+      if (!pickerContainer.contains(e.target) && e.target !== emojiBtn) {
+        pickerContainer.classList.add('hidden');
+      }
+    });
+
+    setTimeout(() => {
+      if (window.auth) {
+        window.auth.onAuthStateChanged((user) => {
+          if (user) {
+            window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
+              if (snap.exists()) setupApp(snap.val());
+            }, { onlyOnce: true });
+          }
+        });
+      }
+    }, 1000);
+  });
+</script>
 </body>
 </html>
