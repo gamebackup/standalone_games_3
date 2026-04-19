@@ -649,37 +649,94 @@
     
     // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
     (async function loadCensorList() {
-      const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
-      try {
-        const res = await fetch(CENSOR_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        const match = text.match(/\[([\s\S]*)\]/);
-        if (!match) throw new Error('Could not find word array in censor list');
-        const words = JSON.parse('[' + match[1] + ']');
-        const sorted = [...words].sort((a, b) => b.length - a.length);
-        const parts = sorted.map(word => {
-          if (word.includes('*')) {
-            return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
-          }
-          const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const lb = /^\w/.test(word) ? '\\b' : '';
-          const rb = /\w$/.test(word)  ? '\\b' : '';
-          return lb + esc + rb;
-        });
-        window.censorRegex = new RegExp(parts.join('|'), 'gi');
-        console.log(`Chorde: censor list loaded (${words.length} entries)`);
-      } catch (err) {
-        console.warn('Chorde: censor list failed to load —', err.message);
+  const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
+  try {
+    const res = await fetch(CENSOR_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const match = text.match(/\[([\s\S]*)\]/);
+    if (!match) throw new Error('Could not find word array in censor list');
+    const words = JSON.parse('[' + match[1] + ']');
+
+    // Sort longest-first to prevent partial matches overriding longer ones
+    const sorted = [...words].sort((a, b) => b.length - a.length);
+
+    const parts = sorted.map(word => {
+      // If the word already contains wildcards (*), handle as before
+      if (word.includes('*')) {
+        return word
+          .split('*')
+          .map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+          .join('\\w*');
       }
-    })();
+
+      // Escape regex special characters except those we'll handle with character classes
+      let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Replace each letter with its leetspeak character class
+      // Only apply to alphabetic characters (a-z, A-Z)
+      let pattern = '';
+      for (let i = 0; i < escaped.length; i++) {
+        const char = escaped[i];
+        const lower = char.toLowerCase();
+        if (LEET_MAP[lower]) {
+          pattern += '[' + LEET_MAP[lower] + ']';
+        } else {
+          // Keep non-letters (spaces, hyphens, etc.) as literal matches
+          pattern += char;
+        }
+      }
+
+      // Add word boundaries only if the original word starts/ends with a word character
+      const lb = /^\w/.test(word) ? '\\b' : '';
+      const rb = /\w$/.test(word)  ? '\\b' : '';
+
+      return lb + pattern + rb;
+    });
+
+    window.censorRegex = new RegExp(parts.join('|'), 'gi');
+    console.log(`Chorde: censor list loaded with leetspeak variants (${words.length} entries)`);
+
+  } catch (err) {
+    console.warn('Chorde: censor list failed to load —', err.message);
+  }
+})();
   </script>
 
   <script>
     const AVATAR_COLORS = ['#ff5c5c','#d7ae0c','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#f9f871','#0cd733','#b39cd0','#00c9a7','#ff6f91','#2a628f','#87007a','#005347','#688f62','#0095ff','#a2af9f','#00be6f','#50424f','#7676a1','#c64800','#ff1697'];
     
     const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
-    
+    // Leetspeak substitution mapping (case-insensitive matching will be applied)
+const LEET_MAP = {
+  'a': 'a@4',
+  'b': 'b8',
+  'c': 'c',
+  'd': 'd',
+  'e': 'e3',
+  'f': 'f',
+  'g': 'g6',
+  'h': 'h',
+  'i': 'i1!|',
+  'j': 'j',
+  'k': 'k',
+  'l': 'l1|',
+  'm': 'm',
+  'n': 'n',
+  'o': 'o0',
+  'p': 'p',
+  'q': 'q',
+  'r': 'r',
+  's': 's$5',
+  't': 't7',
+  'u': 'u',
+  'v': 'v',
+  'w': 'w',
+  'x': 'x',
+  'y': 'y',
+  'z': 'z2'
+};
+
     let currentUser = null;
     let currentChannelId = null;
     let selectedRegColor = 0;
