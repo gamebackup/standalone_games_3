@@ -1183,7 +1183,7 @@
       { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
     );
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(clearTyping, 5000);
+    typingTimer = setTimeout(clearTyping, 1250);
   }
 
   function clearTyping() {
