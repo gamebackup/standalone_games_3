@@ -658,23 +658,14 @@
     if (!match) throw new Error('Could not find word array in censor list');
     const words = JSON.parse('[' + match[1] + ']');
 
-    // Sort longest-first to prevent partial matches overriding longer ones
     const sorted = [...words].sort((a, b) => b.length - a.length);
 
     const parts = sorted.map(word => {
-      // If the word already contains wildcards (*), handle as before
       if (word.includes('*')) {
-        return word
-          .split('*')
-          .map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-          .join('\\w*');
+        return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
       }
 
-      // Escape regex special characters except those we'll handle with character classes
       let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-      // Replace each letter with its leetspeak character class
-      // Only apply to alphabetic characters (a-z, A-Z)
       let pattern = '';
       for (let i = 0; i < escaped.length; i++) {
         const char = escaped[i];
@@ -682,21 +673,23 @@
         if (LEET_MAP[lower]) {
           pattern += '[' + LEET_MAP[lower] + ']';
         } else {
-          // Keep non-letters (spaces, hyphens, etc.) as literal matches
           pattern += char;
         }
       }
 
-      // Add word boundaries only if the original word starts/ends with a word character
-      const lb = /^\w/.test(word) ? '\\b' : '';
-      const rb = /\w$/.test(word)  ? '\\b' : '';
-
-      return lb + pattern + rb;
+      // Determine boundaries
+      const hasLetter = /[a-zA-Z]/.test(word);
+      if (!hasLetter) {
+        // All symbols/numbers: no boundaries
+        return pattern;
+      } else {
+        // Use lookarounds to allow symbols around but not alphanumeric
+        return '(?<![a-zA-Z0-9])' + pattern + '(?![a-zA-Z0-9])';
+      }
     });
 
     window.censorRegex = new RegExp(parts.join('|'), 'gi');
-    console.log(`Chorde: censor list loaded with leetspeak variants (${words.length} entries)`);
-
+    console.log(`Chorde: censor list loaded with enhanced boundaries (${words.length} entries)`);
   } catch (err) {
     console.warn('Chorde: censor list failed to load —', err.message);
   }
@@ -709,7 +702,7 @@
     const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
     // Leetspeak substitution mapping (case-insensitive matching will be applied)
 const LEET_MAP = {
-  'a': 'a@4',
+ 'a': 'a@4^',
   'b': 'b8',
   'c': 'c',
   'd': 'd',
@@ -727,7 +720,7 @@ const LEET_MAP = {
   'p': 'p',
   'q': 'q',
   'r': 'r',
-  's': 's$5',
+  's': 's$5z',
   't': 't7',
   'u': 'u',
   'v': 'v',
