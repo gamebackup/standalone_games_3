@@ -649,7 +649,7 @@
     
     // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
     (async function loadCensorList() {
-      const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
+      const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
       try {
         const res = await fetch(CENSOR_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
