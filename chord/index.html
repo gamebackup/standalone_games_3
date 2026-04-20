@@ -862,6 +862,9 @@
   }
 
   function logout() {
+    if (currentUser) {
+      window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}`), null);
+    }
     window.fbSignOut(window.auth).then(() => location.reload());
   }
 
@@ -877,17 +880,25 @@
     const av = document.getElementById('my-avatar');
     av.innerText = userData.username[0].toUpperCase();
     av.style.background = AVATAR_COLORS[userData.colorIdx];
-    initChannels();
     setupPresence(userData);
     initMemberList();
-    checkRulesStatus();
-    // Show/hide create channel button based on admin status
     const createBtn = document.getElementById('create-channel-btn');
     if (createBtn) {
-    createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
+      createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
+    }
+    // Read rulesRead FIRST so rulesAccepted is correct before initChannels runs
+    if (currentUser.uid === ADMIN_UID) {
+      rulesAccepted = true;
+      initChannels();
+      checkRulesStatus();
+    } else {
+      window.fbOnValue(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), (snap) => {
+        rulesAccepted = snap.val() === true;
+        initChannels();
+        checkRulesStatus();
+      }, { onlyOnce: true });
     }
   }
-
   // ═══════════════════════════════════════════════════════
   //  CHANNELS
   // ═══════════════════════════════════════════════════════
