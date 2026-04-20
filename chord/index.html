@@ -618,6 +618,65 @@
   text-transform: uppercase;
   font-weight: 700;
 }
+  /* REPLY BUTTON */
+.reply-msg {
+  position: absolute;
+  right: 85px;
+  top: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  display: none;
+}
+.message:hover .reply-msg { display: block; }
+.reply-msg:hover { color: var(--accent); }
+
+/* REPLY PREVIEW BAR (above input) */
+.reply-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  margin: 0 20px 6px;
+  background: var(--bg-input);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.reply-bar-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.reply-bar-name { color: var(--accent-bright); font-weight: 600; margin-right: 6px; }
+.reply-bar-cancel {
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.reply-bar-cancel:hover { color: var(--red); }
+
+.msg-reply-quote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  background: var(--bg-input);
+  border-left: 3px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.msg-reply-quote:hover { background: var(--bg-hover); }
+.msg-reply-quote-name { color: var(--accent-bright); font-weight: 600; flex-shrink: 0; }
 .message:hover .react-msg { display: block; }
 .react-msg:hover { color: var(--accent); }
   ::-webkit-scrollbar { width: 8px; }
@@ -703,6 +762,12 @@
     <div id="rules-gate" class="hidden"></div>
     <div id="rules-readonly" class="rules-readonly hidden">📜 This is the rules channel — members cannot send messages here.</div>
     <div class="typing-indicator" id="typing-box"></div>
+
+    <div id="reply-bar" class="reply-bar hidden">
+      ↩ Replying to <span class="reply-bar-name"></span>
+      <span class="reply-bar-text"></span>
+      <span class="reply-bar-cancel" onclick="cancelReply()">×</span>
+    </div>
     
     <div class="input-area">
       <div class="input-box">
@@ -876,6 +941,7 @@
   let editingMessageId = null;
   let originalMessageText = '';
   let reactingToMessageId = null;
+  let replyingTo = null; 
 
   // ═══════════════════════════════════════════════════════
   //  AUTH LOGIC
@@ -1375,19 +1441,28 @@ function createMemberElement(member) {
   }
 
   function subscribeTyping(channelId) {
-    if (typingUnsubscribe) typingUnsubscribe();
-    const ref = window.fbRef(window.db, `typing/${channelId}`);
-    typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-      const data   = snap.val() || {};
-      const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
-      const box    = document.getElementById('typing-box');
-      const dots   = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-      if (others.length === 0) box.innerHTML = '';
-      else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
-      else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
-      else box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
-    });
-  }
+  if (typingUnsubscribe) typingUnsubscribe();
+  let lastTypingKey = '';
+  const ref = window.fbRef(window.db, `typing/${channelId}`);
+  typingUnsubscribe = window.fbOnValue(ref, (snap) => {
+    const data   = snap.val() || {};
+    const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
+    
+    // Build a stable key representing who is currently typing
+    const typingKey = others.map(t => t.username).sort().join(',');
+    
+    // Only re-render if the set of typers changed
+    if (typingKey === lastTypingKey) return;
+    lastTypingKey = typingKey;
+
+    const box  = document.getElementById('typing-box');
+    const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+    if (others.length === 0)      box.innerHTML = '';
+    else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+    else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+    else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+  });
+}
 
   // ═══════════════════════════════════════════════════════
   //  CENSORING
@@ -1428,43 +1503,45 @@ function createMemberElement(member) {
         }
       }
     }
-    if (e.key === 'Escape' && editingMessageId) {
-      cancelEdit();
+    if (e.key === 'Escape') {
+      if (editingMessageId) cancelEdit();
+      if (replyingTo) cancelReply();
       e.preventDefault();
     }
   }
 
-  function sendMessage() {
-  if (editingMessageId) {
-    updateMessage();
-    return;
-  }
+ function sendMessage() {
+  if (editingMessageId) { updateMessage(); return; }
   const input = document.getElementById('chat-input');
   censorFull();
   let text = input.value;
   text = text.replace(/\n{3,}/g, '\n\n').trim();
   if (!text || !currentChannelId) return;
 
-  // Extract mentions: @username (letters, numbers, underscores)
   const mentionRegex = /@(\w+)/g;
   const mentions = [];
   let match;
-  while ((match = mentionRegex.exec(text)) !== null) {
-    mentions.push(match[1]); // store just the username without @
-  }
+  while ((match = mentionRegex.exec(text)) !== null) mentions.push(match[1]);
 
   const msgData = {
-    text: text,
+    text,
     sender: currentUser.username,
     senderUid: currentUser.uid,
     color: AVATAR_COLORS[currentUser.colorIdx],
     ts: Date.now(),
-    mentions: mentions.length > 0 ? mentions : null
+    mentions: mentions.length > 0 ? mentions : null,
+    replyTo: replyingTo ? {
+      id: replyingTo.id,
+      sender: replyingTo.sender,
+      text: replyingTo.text.substring(0, 100)
+    } : null
   };
+
   window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
   input.value = '';
   input.style.height = 'auto';
   clearTyping();
+  cancelReply();
 }
 
   function renderMessageElement(m, id, isGrouped = false) {
@@ -1481,21 +1558,28 @@ function createMemberElement(member) {
   const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   const isOwnMessage = m.senderUid === currentUser.uid;
   const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
-  const delBtn   = canDelete  ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete">×</div>` : '';
-  const editBtn  = isOwnMessage ? `<div class="edit-msg" onclick="startEditMessage('${id}')" title="Edit">✎</div>` : '';
-  const reactBtn = `<div class="react-msg" onclick="openReactionPicker(event,'${id}')" title="React">😀</div>`;
-  const editedLabel  = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
+  const delBtn      = canDelete   ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete">×</div>` : '';
+  const editBtn     = isOwnMessage ? `<div class="edit-msg" onclick="startEditMessage('${id}')" title="Edit">✎</div>` : '';
+  const reactBtn    = `<div class="react-msg" onclick="openReactionPicker(event,'${id}')" title="React">😀</div>`;
+  const replyBtn    = `<div class="reply-msg" onclick="startReply('${id}', '${escHtml(m.sender)}', '${escHtml(m.text).replace(/'/g, "\\'").replace(/\n/g, ' ')}')" title="Reply">↩</div>`;
+  const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
   const reactionsHtml = m.reactions ? renderReactionsBar(id, m.reactions) : '';
   const textHtml = parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'));
+  const replyQuoteHtml = m.replyTo ? `
+    <div class="msg-reply-quote" onclick="document.getElementById('msg-${m.replyTo.id}')?.scrollIntoView({behavior:'smooth',block:'center'})">
+      <span class="msg-reply-quote-name">${escHtml(m.replyTo.sender)}</span>
+      <span>${escHtml(m.replyTo.text.replace(/\n/g, ' ')).substring(0, 80)}</span>
+    </div>` : '';
 
   if (isGrouped) {
     div.innerHTML = `
       <div style="width:40px;flex-shrink:0;"></div>
       <div class="msg-content">
+        ${replyQuoteHtml}
         <div class="msg-text">${textHtml} ${editedLabel}</div>
         ${reactionsHtml}
       </div>
-      ${editBtn}${reactBtn}${delBtn}
+      ${replyBtn}${editBtn}${reactBtn}${delBtn}
     `;
   } else {
     div.innerHTML = `
@@ -1506,10 +1590,11 @@ function createMemberElement(member) {
           <span class="msg-time">${time}</span>
           ${editedLabel}
         </div>
+        ${replyQuoteHtml}
         <div class="msg-text">${textHtml}</div>
         ${reactionsHtml}
       </div>
-      ${editBtn}${reactBtn}${delBtn}
+      ${replyBtn}${editBtn}${reactBtn}${delBtn}
     `;
   }
   return div;
@@ -1584,6 +1669,20 @@ function createMemberElement(member) {
   function escHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  
+  function startReply(msgId, sender, text) {
+  replyingTo = { id: msgId, sender, text };
+  const bar = document.getElementById('reply-bar');
+  bar.classList.remove('hidden');
+  document.querySelector('.reply-bar-name').textContent = sender;
+  document.querySelector('.reply-bar-text').textContent = text.replace(/<[^>]*>/g, '').substring(0, 80);
+  document.getElementById('chat-input').focus();
+}
+
+function cancelReply() {
+  replyingTo = null;
+  document.getElementById('reply-bar').classList.add('hidden');
+}
 
   // ═══════════════════════════════════════════════════════
   //  USER PROFILE
