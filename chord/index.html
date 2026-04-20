@@ -1278,23 +1278,29 @@ function renderReactionsBar(messageId, reactions) {
   const offlineContainer = document.getElementById('offline-members');
   const onlineCountSpan = document.getElementById('online-count');
 
-  // Fetch all users
   const usersRef = window.fbRef(window.db, 'users');
   window.fbOnValue(usersRef, (usersSnap) => {
     const allUsers = usersSnap.val() || {};
 
-    // Fetch presence
     const presRef = window.fbRef(window.db, 'presence');
     window.fbOnValue(presRef, (presSnap) => {
       const onlineUsers = presSnap.val() || {};
 
-      // Separate online and offline
       const onlineList = [];
       const offlineList = [];
 
       Object.entries(allUsers).forEach(([uid, user]) => {
+        // Ensure user has a username (should always exist)
+        if (!user.username) return;
+        
         const isOnline = !!onlineUsers[uid];
-        const member = { uid, ...user, isOnline };
+        const member = {
+          uid,
+          username: user.username,
+          colorIdx: user.colorIdx ?? 0, // fallback to first color
+          isOnline
+        };
+        
         if (isOnline) {
           onlineList.push(member);
         } else {
@@ -1302,16 +1308,14 @@ function renderReactionsBar(messageId, reactions) {
         }
       });
 
-      // Sort each list alphabetically, with current user on top
       const sortMembers = (a, b) => {
-        if (a.uid === currentUser.uid) return -1;
-        if (b.uid === currentUser.uid) return 1;
+        if (a.uid === currentUser?.uid) return -1;
+        if (b.uid === currentUser?.uid) return 1;
         return a.username.localeCompare(b.username);
       };
       onlineList.sort(sortMembers);
       offlineList.sort(sortMembers);
 
-      // Update online count
       onlineCountSpan.innerText = onlineList.length;
 
       // Render online members
@@ -1331,20 +1335,20 @@ function renderReactionsBar(messageId, reactions) {
   });
 }
 
-// Helper to create a member DOM element
 function createMemberElement(member) {
   const div = document.createElement('div');
   div.className = 'member-item';
-  const youTag = member.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
+  const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
   const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
+  const avatarColor = AVATAR_COLORS[member.colorIdx] || AVATAR_COLORS[0];
+  
   div.innerHTML = `
-    <div class="member-avatar" style="background:${AVATAR_COLORS[member.colorIdx]}">${escHtml(member.username[0].toUpperCase())}</div>
+    <div class="member-avatar" style="background:${avatarColor}">${escHtml(member.username[0].toUpperCase())}</div>
     <span class="member-name" style="cursor:pointer;" onclick="showUserProfile('${member.uid}')">${escHtml(member.username)}${youTag}</span>
     <span style="margin-left:auto; width:8px; height:8px; border-radius:50%; background:${statusColor};"></span>
   `;
   return div;
 }
-
   // ═══════════════════════════════════════════════════════
   //  TYPING INDICATORS
   // ═══════════════════════════════════════════════════════
