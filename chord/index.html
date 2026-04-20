@@ -567,11 +567,48 @@
     margin-bottom: 20px;
   }
 
-  /* ========== NEW: GROUPED MESSAGE STYLES ========== */
   .msg-grouped-line {
     margin-top: 2px;
   }
-
+.react-msg {
+  position: absolute;
+  right: 65px;  /* adjust spacing */
+  top: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  display: none;
+}
+  /* REACTIONS */
+.reactions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.reaction {
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.reaction:hover {
+  background: var(--bg-hover);
+}
+.reaction.reacted {
+  background: rgba(124, 106, 247, 0.2);
+  border-color: var(--accent);
+}
+  .message.mention-highlight {
+  background: rgba(124, 106, 247, 0.15);
+  border-left: 3px solid var(--accent);
+  margin-left: -3px; /* keep alignment */
+}
+.message:hover .react-msg { display: block; }
+.react-msg:hover { color: var(--accent); }
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2b2d31; border-radius: 4px; }
@@ -822,6 +859,7 @@
   let messagesChangedUnsubscribe = null;
   let editingMessageId = null;
   let originalMessageText = '';
+  let reactingToMessageId = null;
 
   // ═══════════════════════════════════════════════════════
   //  AUTH LOGIC
@@ -1184,7 +1222,45 @@
       });
     });
   }
+function openReactionPicker(event, messageId) {
+  event.stopPropagation();
+  reactingToMessageId = messageId;
+  const pickerContainer = document.getElementById('emoji-picker-container');
+  pickerContainer.classList.remove('hidden');
+}
 
+async function addReaction(messageId, emoji) {
+  if (!currentChannelId || !currentUser) return;
+  const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+  await window.fbSet(reactionRef, true);
+}
+
+async function removeReaction(messageId, emoji) {
+  if (!currentChannelId || !currentUser) return;
+  const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+  await window.fbSet(reactionRef, null);
+}
+
+function toggleReaction(messageId, emoji) {
+  const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+  window.fbOnValue(reactionRef, (snap) => {
+    if (snap.exists()) {
+      removeReaction(messageId, emoji);
+    } else {
+      addReaction(messageId, emoji);
+    }
+  }, { onlyOnce: true });
+}
+
+function renderReactionsBar(messageId, reactions) {
+  if (!reactions) return '';
+  const emojis = Object.entries(reactions).map(([emoji, users]) => {
+    const count = Object.keys(users).length;
+    const hasReacted = users[currentUser.uid] !== undefined;
+    return `<span class="reaction ${hasReacted ? 'reacted' : ''}" onclick="toggleReaction('${messageId}', '${emoji}')">${emoji} ${count}</span>`;
+  }).join('');
+  return `<div class="reactions-bar">${emojis}</div>`;
+}
   function initMemberList() {
     const presRef = window.fbRef(window.db, 'presence');
     window.fbOnValue(presRef, (snap) => {
@@ -1290,63 +1366,82 @@
   }
 
   function sendMessage() {
-    if (editingMessageId) {
-      updateMessage();
-      return;
-    }
-    const input = document.getElementById('chat-input');
-    censorFull();
-    let text = input.value;
-    text = text.replace(/\n{3,}/g, '\n\n').trim();
-    if (!text || !currentChannelId) return;
-    const msgData = {
-      text: text,
-      sender: currentUser.username,
-      senderUid: currentUser.uid,
-      color: AVATAR_COLORS[currentUser.colorIdx],
-      ts: Date.now()
-    };
-    window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
-    input.value = '';
-    input.style.height = 'auto';
-    clearTyping();
+  if (editingMessageId) {
+    updateMessage();
+    return;
   }
+  const input = document.getElementById('chat-input');
+  censorFull();
+  let text = input.value;
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  if (!text || !currentChannelId) return;
+
+  // Extract mentions: @username (letters, numbers, underscores)
+  const mentionRegex = /@(\w+)/g;
+  const mentions = [];
+  let match;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    mentions.push(match[1]); // store just the username without @
+  }
+
+  const msgData = {
+    text: text,
+    sender: currentUser.username,
+    senderUid: currentUser.uid,
+    color: AVATAR_COLORS[currentUser.colorIdx],
+    ts: Date.now(),
+    mentions: mentions.length > 0 ? mentions : null
+  };
+  window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
+  input.value = '';
+  input.style.height = 'auto';
+  clearTyping();
+}
 
   function renderMessageElement(m, id) {
-    const div = document.createElement('div');
-    div.className = 'message';
-    div.id = `msg-${id}`;
-    div.dataset.msgSender = m.senderUid;
-    div.dataset.msgTs = m.ts;
-    const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const isOwnMessage = (m.senderUid === currentUser.uid);
-    const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
-    const canEdit = isOwnMessage;
-    const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
-    const editBtn = canEdit ? `<div class="edit-msg" onclick="startEditMessage('${id}', '${escHtml(m.text).replace(/'/g, "\\'")}')" title="Edit Message">✎</div>` : '';
-    const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
-    div.innerHTML = `
-      <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
-      <div class="msg-content">
-        <div class="msg-header">
-          <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
-          <span class="msg-time">${time}</span>
-          ${editedLabel}
-        </div>
-        <div class="msg-text">${parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'))}</div>
-      </div>
-      ${editBtn}
-      ${delBtn}
-    `;
-    return div;
+  const div = document.createElement('div');
+  div.className = 'message';
+  div.id = `msg-${id}`;
+  div.dataset.msgSender = m.senderUid;
+  div.dataset.msgTs = m.ts;
+
+  // Highlight if current user is mentioned
+  if (m.mentions && Array.isArray(m.mentions) && m.mentions.includes(currentUser.username)) {
+    div.classList.add('mention-highlight');
   }
 
- // AFTER
+  const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  const isOwnMessage = (m.senderUid === currentUser.uid);
+  const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
+  const canEdit = isOwnMessage;
+  const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
+  const editBtn = canEdit ? `<div class="edit-msg" onclick="startEditMessage('${id}', '${escHtml(m.text).replace(/'/g, "\\'")}')" title="Edit Message">✎</div>` : '';
+  const reactBtn = `<div class="react-msg" onclick="openReactionPicker(event, '${id}')" title="Add Reaction">😀</div>`;
+  const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
+  const reactionsHtml = m.reactions ? renderReactionsBar(id, m.reactions) : '';
+
+  div.innerHTML = `
+    <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+    <div class="msg-content">
+      <div class="msg-header">
+        <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
+        <span class="msg-time">${time}</span>
+        ${editedLabel}
+      </div>
+      <div class="msg-text">${parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'))}</div>
+      ${reactionsHtml}
+    </div>
+    ${editBtn}
+    ${reactBtn}
+    ${delBtn}
+  `;
+  return div;
+}
+  
   function renderMessage(m, id) {
     const container = document.getElementById('messages-container');
     const lockToTop = (currentChannelId === rulesChannelId) && !rulesAccepted && (currentUser.uid !== ADMIN_UID);
 
-    // Get the last message element in the container
     const lastMsgEl = container.lastElementChild;
     let lastMsgData = null;
     if (lastMsgEl && lastMsgEl.dataset.msgSender && lastMsgEl.dataset.msgTs) {
@@ -1479,17 +1574,26 @@
         emojiPicker = new Picker();
         pickerContainer.appendChild(emojiPicker);
         emojiPicker.addEventListener('emoji-click', event => {
-          const emoji = event.detail.unicode;
-          const input = document.getElementById('chat-input');
-          const start = input.selectionStart;
-          const end = input.selectionEnd;
-          const text = input.value;
-          input.value = text.slice(0, start) + emoji + text.slice(end);
-          input.selectionStart = input.selectionEnd = start + emoji.length;
-          input.focus();
-          autoResizeTextarea(input);
-          pickerContainer.classList.add('hidden');
-        });
+  const emoji = event.detail.unicode;
+  const input = document.getElementById('chat-input');
+  
+  if (reactingToMessageId) {
+    // Add reaction
+    addReaction(reactingToMessageId, emoji);
+    reactingToMessageId = null;
+    pickerContainer.classList.add('hidden');
+  } else {
+    // Normal text insertion
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const text = input.value;
+    input.value = text.slice(0, start) + emoji + text.slice(end);
+    input.selectionStart = input.selectionEnd = start + emoji.length;
+    input.focus();
+    autoResizeTextarea(input);
+    pickerContainer.classList.add('hidden');
+  }
+});
       })
       .catch(err => console.warn('Emoji picker failed to load:', err));
     emojiBtn.addEventListener('click', (e) => {
@@ -1497,10 +1601,11 @@
       pickerContainer.classList.toggle('hidden');
     });
     document.addEventListener('click', (e) => {
-      if (!pickerContainer.contains(e.target) && e.target !== emojiBtn) {
-        pickerContainer.classList.add('hidden');
-      }
-    });
+  if (!pickerContainer.contains(e.target) && e.target !== emojiBtn) {
+    pickerContainer.classList.add('hidden');
+    reactingToMessageId = null;  // <-- add this line
+  }
+});
 
     setTimeout(() => {
       if (window.auth) {
