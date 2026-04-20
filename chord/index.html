@@ -607,6 +607,14 @@
   border-left: 3px solid var(--accent);
   margin-left: -3px; /* keep alignment */
 }
+  .offline-label {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
 .message:hover .react-msg { display: block; }
 .react-msg:hover { color: var(--accent); }
   ::-webkit-scrollbar { width: 8px; }
@@ -701,14 +709,18 @@
     </div>
   </main>
 
-  <aside class="member-list">
-    <div class="member-list-header">
-      <div class="online-pip"></div>
-      <span id="online-count">0</span>&nbsp;Online
-    </div>
-    <div class="members-scroll" id="members-container"></div>
-  </aside>
-</div>
+<aside class="member-list">
+  <div class="member-list-header">
+    <div class="online-pip"></div>
+    <span id="online-count">0</span>&nbsp;Online
+  </div>
+  <div class="members-scroll" id="members-container">
+    <!-- Online members will be inserted here -->
+    <div id="online-members"></div>
+    <div class="section-label offline-label">Offline</div>
+    <div id="offline-members"></div>
+  </div>
+</aside>
 
 <div id="modal-channel" class="modal-overlay hidden">
   <div class="modal">
@@ -1261,30 +1273,77 @@ function renderReactionsBar(messageId, reactions) {
   }).join('');
   return `<div class="reactions-bar">${emojis}</div>`;
 }
-  function initMemberList() {
+ function initMemberList() {
+  const onlineContainer = document.getElementById('online-members');
+  const offlineContainer = document.getElementById('offline-members');
+  const onlineCountSpan = document.getElementById('online-count');
+
+  // Fetch all users
+  const usersRef = window.fbRef(window.db, 'users');
+  window.fbOnValue(usersRef, (usersSnap) => {
+    const allUsers = usersSnap.val() || {};
+
+    // Fetch presence
     const presRef = window.fbRef(window.db, 'presence');
-    window.fbOnValue(presRef, (snap) => {
-      const data = snap.val() || {};
-      const members = Object.values(data).sort((a, b) => {
+    window.fbOnValue(presRef, (presSnap) => {
+      const onlineUsers = presSnap.val() || {};
+
+      // Separate online and offline
+      const onlineList = [];
+      const offlineList = [];
+
+      Object.entries(allUsers).forEach(([uid, user]) => {
+        const isOnline = !!onlineUsers[uid];
+        const member = { uid, ...user, isOnline };
+        if (isOnline) {
+          onlineList.push(member);
+        } else {
+          offlineList.push(member);
+        }
+      });
+
+      // Sort each list alphabetically, with current user on top
+      const sortMembers = (a, b) => {
         if (a.uid === currentUser.uid) return -1;
         if (b.uid === currentUser.uid) return 1;
         return a.username.localeCompare(b.username);
+      };
+      onlineList.sort(sortMembers);
+      offlineList.sort(sortMembers);
+
+      // Update online count
+      onlineCountSpan.innerText = onlineList.length;
+
+      // Render online members
+      onlineContainer.innerHTML = '';
+      onlineList.forEach(m => {
+        const div = createMemberElement(m);
+        onlineContainer.appendChild(div);
       });
-      document.getElementById('online-count').innerText = members.length;
-      const container = document.getElementById('members-container');
-      container.innerHTML = '';
-      members.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'member-item';
-        const youTag = m.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
-        div.innerHTML = `
-          <div class="member-avatar" style="background:${m.color}">${escHtml(m.username[0].toUpperCase())}</div>
-          <span class="member-name" style="cursor:pointer;" onclick="showUserProfile('${m.uid}')">${escHtml(m.username)}${youTag}</span>
-        `;
-        container.appendChild(div);
+
+      // Render offline members
+      offlineContainer.innerHTML = '';
+      offlineList.forEach(m => {
+        const div = createMemberElement(m);
+        offlineContainer.appendChild(div);
       });
     });
-  }
+  });
+}
+
+// Helper to create a member DOM element
+function createMemberElement(member) {
+  const div = document.createElement('div');
+  div.className = 'member-item';
+  const youTag = member.uid === currentUser.uid ? ' <span class="you-tag">(you)</span>' : '';
+  const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
+  div.innerHTML = `
+    <div class="member-avatar" style="background:${AVATAR_COLORS[member.colorIdx]}">${escHtml(member.username[0].toUpperCase())}</div>
+    <span class="member-name" style="cursor:pointer;" onclick="showUserProfile('${member.uid}')">${escHtml(member.username)}${youTag}</span>
+    <span style="margin-left:auto; width:8px; height:8px; border-radius:50%; background:${statusColor};"></span>
+  `;
+  return div;
+}
 
   // ═══════════════════════════════════════════════════════
   //  TYPING INDICATORS
