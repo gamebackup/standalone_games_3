@@ -231,11 +231,14 @@
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 2px;
   }
 
   .message { display: flex; gap: 16px; position: relative; }
   .message:hover { background: var(--bg-msg-hover); margin: 0 -20px; padding: 0 20px; }
+  .message:not(.grouped) {
+  margin-top: 18px;
+}
   
   .del-msg {
     position: absolute;
@@ -1080,13 +1083,18 @@
       if (el) el.remove();
     });
     messagesChangedUnsubscribe = window.fbOnChildChanged(msgRef, (snap) => {
-      // For simplicity, we'll just replace the element. Grouping will still work for new messages.
-      const el = document.getElementById(`msg-${snap.key}`);
-      if (el) {
-        const newEl = renderMessageElement(snap.val(), snap.key);
-        el.replaceWith(newEl);
-      }
-    });
+  const el = document.getElementById(`msg-${snap.key}`);
+  if (!el) return;
+  const prevEl = el.previousElementSibling;
+  let isGrouped = false;
+  if (prevEl?.dataset.msgSender && prevEl?.dataset.msgTs) {
+    isGrouped = shouldGroupMessages(
+      { senderUid: prevEl.dataset.msgSender, ts: parseInt(prevEl.dataset.msgTs) },
+      snap.val()
+    );
+  }
+  el.replaceWith(renderMessageElement(snap.val(), snap.key, isGrouped));
+});
     subscribeTyping(id);
     updateRulesUI(id);
   }
@@ -1458,79 +1466,68 @@ function createMemberElement(member) {
   clearTyping();
 }
 
-  function renderMessageElement(m, id) {
+  function renderMessageElement(m, id, isGrouped = false) {
   const div = document.createElement('div');
-  div.className = 'message';
   div.id = `msg-${id}`;
   div.dataset.msgSender = m.senderUid;
   div.dataset.msgTs = m.ts;
+  div.className = 'message' + (isGrouped ? ' grouped' : '');
 
-  // Highlight if current user is mentioned
   if (m.mentions && Array.isArray(m.mentions) && m.mentions.includes(currentUser.username)) {
     div.classList.add('mention-highlight');
   }
 
   const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  const isOwnMessage = (m.senderUid === currentUser.uid);
+  const isOwnMessage = m.senderUid === currentUser.uid;
   const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
-  const canEdit = isOwnMessage;
-  const delBtn = canDelete ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete Message">×</div>` : '';
-  const editBtn = canEdit ? `<div class="edit-msg" onclick="startEditMessage('${id}', '${escHtml(m.text).replace(/'/g, "\\'")}')" title="Edit Message">✎</div>` : '';
-  const reactBtn = `<div class="react-msg" onclick="openReactionPicker(event, '${id}')" title="Add Reaction">😀</div>`;
-  const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
+  const delBtn   = canDelete  ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete">×</div>` : '';
+  const editBtn  = isOwnMessage ? `<div class="edit-msg" onclick="startEditMessage('${id}')" title="Edit">✎</div>` : '';
+  const reactBtn = `<div class="react-msg" onclick="openReactionPicker(event,'${id}')" title="React">😀</div>`;
+  const editedLabel  = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
   const reactionsHtml = m.reactions ? renderReactionsBar(id, m.reactions) : '';
+  const textHtml = parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'));
 
-  div.innerHTML = `
-    <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
-    <div class="msg-content">
-      <div class="msg-header">
-        <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
-        <span class="msg-time">${time}</span>
-        ${editedLabel}
+  if (isGrouped) {
+    div.innerHTML = `
+      <div style="width:40px;flex-shrink:0;"></div>
+      <div class="msg-content">
+        <div class="msg-text">${textHtml} ${editedLabel}</div>
+        ${reactionsHtml}
       </div>
-      <div class="msg-text">${parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'))}</div>
-      ${reactionsHtml}
-    </div>
-    ${editBtn}
-    ${reactBtn}
-    ${delBtn}
-  `;
+      ${editBtn}${reactBtn}${delBtn}
+    `;
+  } else {
+    div.innerHTML = `
+      <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+      <div class="msg-content">
+        <div class="msg-header">
+          <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
+          <span class="msg-time">${time}</span>
+          ${editedLabel}
+        </div>
+        <div class="msg-text">${textHtml}</div>
+        ${reactionsHtml}
+      </div>
+      ${editBtn}${reactBtn}${delBtn}
+    `;
+  }
   return div;
 }
   
   function renderMessage(m, id) {
-    const container = document.getElementById('messages-container');
-    const lockToTop = (currentChannelId === rulesChannelId) && !rulesAccepted && (currentUser.uid !== ADMIN_UID);
-
-    const lastMsgEl = container.lastElementChild;
-    let lastMsgData = null;
-    if (lastMsgEl && lastMsgEl.dataset.msgSender && lastMsgEl.dataset.msgTs) {
-      lastMsgData = {
-        senderUid: lastMsgEl.dataset.msgSender,
-        ts: parseInt(lastMsgEl.dataset.msgTs)
-      };
-    }
-
-    // Check if we should group with the previous message
-    if (shouldGroupMessages(lastMsgData, m)) {
-      const textContainer = lastMsgEl.querySelector('.msg-text');
-      if (textContainer) {
-        const newLine = document.createElement('div');
-        newLine.className = 'msg-grouped-line';
-        newLine.innerHTML = parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'));
-        textContainer.appendChild(newLine);
-      }
-      // Update the timestamp of the grouped block to the newer message
-      lastMsgEl.dataset.msgTs = m.ts;
-      if (!lockToTop) container.scrollTop = container.scrollHeight;
-      return;
-    }
-
-    // Not grouping: create a new full message element
-    const div = renderMessageElement(m, id);
-    container.appendChild(div);
-    if (!lockToTop) container.scrollTop = container.scrollHeight;
+  const container = document.getElementById('messages-container');
+  const lockToTop = (currentChannelId === rulesChannelId) && !rulesAccepted && (currentUser.uid !== ADMIN_UID);
+  const lastMsgEl = container.lastElementChild;
+  let lastMsgData = null;
+  if (lastMsgEl?.dataset.msgSender && lastMsgEl?.dataset.msgTs) {
+    lastMsgData = { senderUid: lastMsgEl.dataset.msgSender, ts: parseInt(lastMsgEl.dataset.msgTs) };
   }
+
+  const isGrouped = shouldGroupMessages(lastMsgData, m);
+  const div = renderMessageElement(m, id, isGrouped);
+  container.appendChild(div);
+  if (!lockToTop) container.scrollTop = container.scrollHeight;
+}
 
   async function deleteMessage(msgId) {
     if (!confirm("Are you sure you want to delete this message?")) return;
@@ -1540,15 +1537,24 @@ function createMemberElement(member) {
     } catch (e) { console.error("Delete failed:", e); }
   }
 
-  function startEditMessage(msgId, text) {
-    if (editingMessageId) cancelEdit();
-    editingMessageId = msgId;
-    originalMessageText = text;
-    const input = document.getElementById('chat-input');
-    input.value = text;
-    input.focus();
-    document.getElementById('active-ch-title').innerHTML += ' (editing)';
-  }
+  function startEditMessage(msgId) {
+  if (editingMessageId) cancelEdit();
+  editingMessageId = msgId;
+  window.fbOnValue(
+    window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`),
+    (snap) => {
+      const data = snap.val();
+      if (!data) return;
+      originalMessageText = data.text;
+      const input = document.getElementById('chat-input');
+      input.value = data.text;
+      autoResizeTextarea(input);
+      input.focus();
+      document.getElementById('active-ch-title').innerHTML += ' (editing)';
+    },
+    { onlyOnce: true }
+  );
+}
 
   function cancelEdit() {
     editingMessageId = null;
