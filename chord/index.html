@@ -864,7 +864,7 @@
   
   // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
   async function loadCensorList() {
-  const CENSOR_URL = 'https://cdn.jsdelivr.net/gh/gamebackup/standalone_games_3@main/chord/censor-list.js';
+  const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
   try {
     const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -900,7 +900,7 @@
   }
 }
 loadCensorList();
-setInterval(loadCensorList, 60 * 60 * 1000);
+setInterval(loadCensorList, 30 * 60 * 1000);
 
   const AVATAR_COLORS = ['#ff5c5c','#d7ae0c','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#f9f871','#0cd733','#b39cd0','#00c9a7','#ff6f91','#2a628f','#87007a','#005347','#688f62','#0095ff','#a2af9f','#00be6f','#50424f','#7676a1','#c64800','#ff1697'];
   
