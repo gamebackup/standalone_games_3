@@ -1803,6 +1803,8 @@ function showUserProfile(uid) {
     statusLine.id = 'profile-status-line';
     statusLine.style.margin = '4px 0 0';
     statusLine.style.fontSize = '13px';
+    statusLine.style.padding = '0';
+    statusLine.style.marginLeft = '0';
     statusLine.style.color = 'var(--text-dim)';
     statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
 
