@@ -541,7 +541,10 @@
     text-transform: uppercase;
     font-weight: 700;
   }
-
+  .member-item {
+    align-items: flex-start !important;
+  }
+  
   /* ═══════════════════════════════════════════════
      MODALS
   ═══════════════════════════════════════════════ */
@@ -1422,21 +1425,27 @@ function createMemberElement(member) {
   const div = document.createElement('div');
   div.className = 'member-item';
 
-  const youTag      = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
+  const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
   const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
   const avatarColor = AVATAR_COLORS[member.colorIdx] || AVATAR_COLORS[0];
-  
-  // Add status text if present
-  const statusDisplay = member.statusText ? ` <span style="font-size:10px;color:var(--text-muted);">– ${escHtml(member.statusText)}</span>` : '';
+
+  // Status text, if present, will go on a new line
+  const statusDisplay = member.statusText ? 
+    `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escHtml(member.statusText)}</div>` : '';
 
   div.innerHTML = `
     <div class="member-avatar" style="background:${avatarColor}">
       ${escHtml(member.username[0].toUpperCase())}
     </div>
-    <span class="member-name" style="cursor:pointer">
-      ${escHtml(member.username)}${youTag}${statusDisplay}
-    </span>
-    <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;">
+        <span class="member-name" style="cursor:pointer;">
+          ${escHtml(member.username)}${youTag}
+        </span>
+        <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
+      </div>
+      ${statusDisplay}
+    </div>
   `;
 
   div.querySelector('.member-name').addEventListener('click', () => showUserProfile(member.uid));
@@ -1758,9 +1767,8 @@ async function saveSettings() {
   if (statusEl) {
     statusEl.textContent = statusText || 'Online';
   }
-} // <-- 1. Properly close updateOwnStatusDisplay
-
-function showUserProfile(uid) { // <-- 2. Now a standalone function
+}
+function showUserProfile(uid) {
   if (!window.fbRef || !window.fbOnValue) return;
   const presRef = window.fbRef(window.db, `presence/${uid}`);
   window.fbOnValue(presRef, (presSnap) => {
@@ -1788,13 +1796,19 @@ function showUserProfile(uid) { // <-- 2. Now a standalone function
       ? new Date(user.createdAt).toLocaleDateString()
       : 'Unknown';
 
-    // Update status in profile modal
+    // --- NEW STATUS CODE (place it right here) ---
     const statusDisplay = user.statusText || 'No status set';
-    document.getElementById('profile-status-text')?.remove();
+    document.getElementById('profile-status-line')?.remove();
     const statusLine = document.createElement('p');
-    statusLine.id = 'profile-status-text';
+    statusLine.id = 'profile-status-line';
+    statusLine.style.margin = '4px 0 0';
+    statusLine.style.fontSize = '13px';
+    statusLine.style.color = 'var(--text-dim)';
     statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
-    document.querySelector('.profile-body').appendChild(statusLine);
+
+    const usernameH3 = document.getElementById('profile-username').parentNode; // the <div> containing h3 and span
+    usernameH3.insertAdjacentElement('afterend', statusLine);
+    // ---------------------------------------------
 
     document.getElementById('profile-mention-btn').onclick = () => {
       const input = document.getElementById('chat-input');
@@ -1805,12 +1819,11 @@ function showUserProfile(uid) { // <-- 2. Now a standalone function
     document.getElementById('modal-profile').classList.remove('hidden');
   }, { onlyOnce: true });
 }
+
 // ═══════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════
+
 function buildColorGrid() {
   const grid = document.getElementById('reg-color-grid');
   if (!grid) return;
