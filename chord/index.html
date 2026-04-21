@@ -1389,6 +1389,7 @@ function initMemberList() {
         username: user.username,
         colorIdx: user.colorIdx ?? 0,
         isOnline: onlineUids.has(uid)
+        statusText: user.statusText || ""
       };
       (member.isOnline ? onlineList : offlineList).push(member);
     });
@@ -1430,7 +1431,7 @@ function createMemberElement(member) {
   const avatarColor = AVATAR_COLORS[member.colorIdx] || AVATAR_COLORS[0];
 
   // Status text, if present, will go on a new line
-  const statusDisplay = member.statusText ? 
+  const statusDisplay = (member.isOnline && member.statusText) ?  
     `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escHtml(member.statusText)}</div>` : '';
 
   div.innerHTML = `
