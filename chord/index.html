@@ -311,7 +311,7 @@
   .msg-user { font-weight: 600; font-size: 14px; cursor: pointer; }
   .msg-user:hover { text-decoration: underline; }
   .msg-time { color: var(--text-dim); font-size: 11px; }
-  .msg-text { font-size: 14px; line-height: 1.5; color: #dbdee1; word-wrap: break-word; }
+  .msg-text { font-size: 14px; line-height: 1.5; color: #dbdee1; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
   .msg-edited { font-size: 10px; color: var(--text-muted); margin-left: 6px; font-style: italic; }
   .msg-grouped-line { margin-top: 2px; }
 
@@ -393,6 +393,8 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
   .msg-reply-quote:hover { background: var(--bg-hover); }
   .msg-reply-quote-name { color: var(--accent-bright); font-weight: 600; flex-shrink: 0; }
@@ -748,7 +750,8 @@
     
     <div class="input-area">
       <div class="input-box">
-        <textarea id="chat-input" placeholder="Message..." rows="1" onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput(); autoResizeTextarea(this)"></textarea>
+        <textarea id="chat-input" placeholder="Message..." rows="1" onkeydown="handleChatKey(event)" oninput="applyCensorInput(); handleTypingInput(); autoResizeTextarea(this); updateCharCount()"></textarea>
+        <span id="char-count" style="font-size:11px;color:var(--text-muted);align-self:flex-end;padding-bottom:10px;flex-shrink:0;"></span>
         <button id="emoji-btn" class="emoji-btn" type="button" title="Add emoji">😊</button>
         <div id="emoji-picker-container" class="emoji-picker-container hidden"></div>
       </div>
@@ -856,7 +859,7 @@
 </script>
 
 <script>
-  // ========== GROUPING LOGIC ==========
+  // ========== GROUPING LOGIC and MESSAGING ==========
   const GROUP_TIME_MS = 300000; // 5 minutes
 
   function shouldGroupMessages(prevMsg, currentMsg) {
@@ -865,7 +868,17 @@
     return (currentMsg.ts - prevMsg.ts) <= GROUP_TIME_MS;
   }
   
-  // ========== EXISTING CODE (with grouping modifications) ==========
+  function updateCharCount() {
+  const input = document.getElementById('chat-input');
+  const counter = document.getElementById('char-count');
+  const len = input.value.length;
+  if (len > 1800) {
+    counter.textContent = `${len}/2000`;
+    counter.style.color = len > 1950 ? 'var(--red)' : 'var(--yellow)';
+  } else {
+    counter.textContent = '';
+  }
+}
   
   function autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
@@ -938,6 +951,11 @@ setInterval(loadCensorList, 30 * 60 * 1000);
   let originalMessageText = '';
   let reactingToMessageId = null;
   let replyingTo = null; 
+  let messageTimestamps = [];
+  let lastSentText = '';
+  let lastSentTime = 0;
+  const MSG_RATE_LIMIT = 10;
+  const MSG_RATE_WINDOW = 60000;
 
   // ═══════════════════════════════════════════════════════
   //  AUTH LOGIC
@@ -1016,6 +1034,9 @@ setInterval(loadCensorList, 30 * 60 * 1000);
       window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
     }
     currentUser = userData;
+    window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
+  currentUser.mutedUntil = snap.val() || 0;
+});
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('my-name').innerText = userData.username;
@@ -1521,33 +1542,68 @@ function createMemberElement(member) {
   // ═══════════════════════════════════════════════════════
   //  MESSAGES (WITH GROUPING & EDITING)
   // ═══════════════════════════════════════════════════════
-  function handleChatKey(e) { 
-    if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        return;
+  function handleChatKey(e) {
+  if (e.key === 'Enter') {
+    if (e.shiftKey) {
+      return;
+    } else {
+      e.preventDefault();
+      if (editingMessageId) {
+        updateMessage();
       } else {
-        e.preventDefault();
-        if (editingMessageId) {
-          updateMessage();
+        const input = document.getElementById('chat-input');
+        if (input.value.startsWith('/') && currentUser.uid === ADMIN_UID) {
+          handleCommand(input.value.trim());
         } else {
           sendMessage();
         }
       }
     }
-    if (e.key === 'Escape') {
-      if (editingMessageId) cancelEdit();
-      if (replyingTo) cancelReply();
-      e.preventDefault();
-    }
   }
+  if (e.key === 'Escape') {
+    if (editingMessageId) cancelEdit();
+    if (replyingTo) cancelReply();
+    e.preventDefault();
+  }
+}
 
- function sendMessage() {
+function sendMessage() {
   if (editingMessageId) { updateMessage(); return; }
+  if (currentUser.mutedUntil && currentUser.mutedUntil > Date.now()) {
+  const secsLeft = Math.ceil((currentUser.mutedUntil - Date.now()) / 1000);
+  const minsLeft = Math.floor(secsLeft / 60);
+  const s = secsLeft % 60;
+  alert(`You are muted for ${minsLeft}m ${s}s.`);
+  return;
+}
   const input = document.getElementById('chat-input');
   censorFull();
   let text = input.value;
   text = text.replace(/\n{3,}/g, '\n\n').trim();
   if (!text || !currentChannelId) return;
+
+  if (text.length > 2000) {
+    alert(`Message too long (${text.length}/2000 characters).`);
+    return;
+  }
+  if (/(.)\1{19,}/.test(text)) {
+    alert("Message contains too many repeated characters.");
+    return;
+  }
+  const now = Date.now();
+  messageTimestamps = messageTimestamps.filter(t => now - t < MSG_RATE_WINDOW);
+  if (messageTimestamps.length >= MSG_RATE_LIMIT) {
+    const wait = Math.ceil((MSG_RATE_WINDOW - (now - messageTimestamps[0])) / 1000);
+    alert(`You're sending too many messages. Please wait ${wait} seconds.`);
+    return;
+  }
+  messageTimestamps.push(now);
+  if (text === lastSentText && now - lastSentTime < 10000) {
+    alert("Don't send the same message twice in a row.");
+    return;
+  }
+  lastSentText = text;
+  lastSentTime = now;
 
   const mentionRegex = /@(\w+)/g;
   const mentions = [];
@@ -1673,6 +1729,53 @@ function createMemberElement(member) {
   );
 }
 
+async function handleCommand(raw) {
+  const input = document.getElementById('chat-input');
+  const parts = raw.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+
+  if (cmd === '/mute') {
+    const targetName = parts[1];
+    const minutes = parseInt(parts[2]);
+    if (!targetName || isNaN(minutes) || minutes < 1) {
+      alert('Usage: /mute username minutes\nExample: /mute crow 10');
+      return;
+    }
+    const user = await findUserByUsername(targetName);
+    if (!user) { alert(`User "${targetName}" not found.`); return; }
+    const mutedUntil = Date.now() + minutes * 60 * 1000;
+    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
+    input.value = '';
+    input.style.height = 'auto';
+    alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
+
+  } else if (cmd === '/unmute') {
+    const targetName = parts[1];
+    if (!targetName) { alert('Usage: /unmute username'); return; }
+    const user = await findUserByUsername(targetName);
+    if (!user) { alert(`User "${targetName}" not found.`); return; }
+    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
+    input.value = '';
+    input.style.height = 'auto';
+    alert(`${user.username} has been unmuted.`);
+
+  } else {
+    alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username`);
+  }
+}
+
+function findUserByUsername(username) {
+  return new Promise((resolve) => {
+    window.fbOnValue(window.fbRef(window.db, 'users'), (snap) => {
+      const all = snap.val() || {};
+      const found = Object.values(all).find(
+        u => u.username?.toLowerCase() === username.toLowerCase()
+      );
+      resolve(found || null);
+    }, { onlyOnce: true });
+  });
+}
+  
   function cancelEdit() {
     editingMessageId = null;
     originalMessageText = '';
@@ -1809,8 +1912,8 @@ function showUserProfile(uid) {
     statusLine.style.color = 'var(--text-dim)';
     statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
 
-    const usernameH3 = document.getElementById('profile-username').parentNode; // the <div> containing h3 and span
-    usernameH3.insertAdjacentElement('afterend', statusLine);
+    const statusSpan = document.getElementById('profile-status');
+    statusSpan.parentNode.insertBefore(statusLine, statusSpan);
     // ---------------------------------------------
 
     document.getElementById('profile-mention-btn').onclick = () => {
