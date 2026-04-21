@@ -801,8 +801,15 @@
 <div id="modal-settings" class="modal-overlay hidden">
   <div class="modal" style="width:360px;">
     <h3>Settings</h3>
-    <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">Choose your profile color</p>
+    
+    <p style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">Profile Color</p>
     <div class="color-grid" id="settings-color-grid"></div>
+    
+    <div class="input-group" style="margin-top:20px;">
+      <label>Custom Status</label>
+      <input type="text" id="settings-status" placeholder="e.g., 🎮 Gaming" maxlength="30">
+    </div>
+
     <div class="modal-btns">
       <button class="btn-ghost" onclick="closeModals()">Cancel</button>
       <button class="btn-action" onclick="saveSettings()">Save</button>
@@ -1012,13 +1019,13 @@ setInterval(loadCensorList, 30 * 60 * 1000);
     const av = document.getElementById('my-avatar');
     av.innerText = userData.username[0].toUpperCase();
     av.style.background = AVATAR_COLORS[userData.colorIdx];
+    updateOwnStatusDisplay(currentUser.statusText);
     setupPresence(userData);
     initMemberList();
     const createBtn = document.getElementById('create-channel-btn');
     if (createBtn) {
       createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
     }
-    // Read rulesRead FIRST so rulesAccepted is correct before initChannels runs
     if (currentUser.uid === ADMIN_UID) {
       rulesAccepted = true;
       initChannels();
@@ -1418,18 +1425,20 @@ function createMemberElement(member) {
   const youTag      = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
   const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
   const avatarColor = AVATAR_COLORS[member.colorIdx] || AVATAR_COLORS[0];
+  
+  // Add status text if present
+  const statusDisplay = member.statusText ? ` <span style="font-size:10px;color:var(--text-muted);">– ${escHtml(member.statusText)}</span>` : '';
 
   div.innerHTML = `
     <div class="member-avatar" style="background:${avatarColor}">
       ${escHtml(member.username[0].toUpperCase())}
     </div>
     <span class="member-name" style="cursor:pointer">
-      ${escHtml(member.username)}${youTag}
+      ${escHtml(member.username)}${youTag}${statusDisplay}
     </span>
     <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
   `;
 
-  // Use addEventListener instead of inline onclick — avoids global scope lookup failures
   div.querySelector('.member-name').addEventListener('click', () => showUserProfile(member.uid));
   return div;
 }
@@ -1703,6 +1712,7 @@ function cancelReply() {
 
 function openSettings() {
   settingsSelectedColor = currentUser.colorIdx ?? 0;
+  
   const grid = document.getElementById('settings-color-grid');
   grid.innerHTML = '';
   AVATAR_COLORS.forEach((c, i) => {
@@ -1716,30 +1726,42 @@ function openSettings() {
     };
     grid.appendChild(s);
   });
+  
+  document.getElementById('settings-status').value = currentUser.statusText || '';
   document.getElementById('modal-settings').classList.remove('hidden');
 }
 
 async function saveSettings() {
   if (!currentUser) return;
-  currentUser.colorIdx = settingsSelectedColor;
-  const newColor = AVATAR_COLORS[settingsSelectedColor];
-
-  // Update Firebase
-  await window.fbSet(window.fbRef(window.db, `users/${currentUser.uid}/colorIdx`), settingsSelectedColor);
-
-  // Update presence so member list reflects new color instantly
+  
+  const newColorIdx = settingsSelectedColor;
+  const newStatus = document.getElementById('settings-status').value.trim();
+  
+  currentUser.colorIdx = newColorIdx;
+  currentUser.statusText = newStatus;
+  
+  const newColor = AVATAR_COLORS[newColorIdx];
+  
+  const updates = {
+    colorIdx: newColorIdx,
+    statusText: newStatus
+  };
+  await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
   await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), newColor);
-
-  // Update the avatar in the bottom-left user bar
-  const av = document.getElementById('my-avatar');
-  av.style.background = newColor;
-
+  document.getElementById('my-avatar').style.background = newColor;
+  updateOwnStatusDisplay(newStatus);
   closeModals();
 }
-  
-  function showUserProfile(uid) {
-  if (!window.fbRef || !window.fbOnValue) return;
 
+  function updateOwnStatusDisplay(statusText) {
+  const statusEl = document.querySelector('.u-status');
+  if (statusEl) {
+    statusEl.textContent = statusText || 'Online';
+  }
+} // <-- 1. Properly close updateOwnStatusDisplay
+
+function showUserProfile(uid) { // <-- 2. Now a standalone function
+  if (!window.fbRef || !window.fbOnValue) return;
   const presRef = window.fbRef(window.db, `presence/${uid}`);
   window.fbOnValue(presRef, (presSnap) => {
     const isOnline = presSnap.exists();
@@ -1759,7 +1781,6 @@ async function saveSettings() {
     }
     const colorIdx    = user.colorIdx ?? 0;
     const avatarColor = AVATAR_COLORS[colorIdx] || AVATAR_COLORS[0];
-
     document.getElementById('profile-avatar').style.background = avatarColor;
     document.getElementById('profile-avatar').innerText        = user.username[0].toUpperCase();
     document.getElementById('profile-username').innerText      = user.username;
@@ -1767,21 +1788,28 @@ async function saveSettings() {
       ? new Date(user.createdAt).toLocaleDateString()
       : 'Unknown';
 
+    // Update status in profile modal
+    const statusDisplay = user.statusText || 'No status set';
+    document.getElementById('profile-status-text')?.remove();
+    const statusLine = document.createElement('p');
+    statusLine.id = 'profile-status-text';
+    statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
+    document.querySelector('.profile-body').appendChild(statusLine);
+
     document.getElementById('profile-mention-btn').onclick = () => {
       const input = document.getElementById('chat-input');
       input.value += `@${user.username} `;
       input.focus();
       closeModals();
     };
-
     document.getElementById('modal-profile').classList.remove('hidden');
   }, { onlyOnce: true });
-}
+} // <-- 3. Properly close showUserProfile
 
-  // ═══════════════════════════════════════════════════════
-  //  INIT
-  // ═══════════════════════════════════════════════════════
-  function buildColorGrid() {
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+function buildColorGrid() { ... } // <-- 4. Now correctly outside
     const grid = document.getElementById('reg-color-grid');
     if (!grid) return;
     grid.innerHTML = '';
