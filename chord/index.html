@@ -1804,27 +1804,29 @@ function showUserProfile(uid) { // <-- 2. Now a standalone function
     };
     document.getElementById('modal-profile').classList.remove('hidden');
   }, { onlyOnce: true });
-} // <-- 3. Properly close showUserProfile
-
+}
 // ═══════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════
-function buildColorGrid() { ... } // <-- 4. Now correctly outside
-    const grid = document.getElementById('reg-color-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    AVATAR_COLORS.forEach((c, i) => {
-      const s = document.createElement('div');
-      s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
-      s.style.background = c;
-      s.onclick = () => {
-        document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
-        s.classList.add('selected');
-        selectedRegColor = i;
-      };
-      grid.appendChild(s);
-    });
-  }
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+function buildColorGrid() {
+  const grid = document.getElementById('reg-color-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  AVATAR_COLORS.forEach((c, i) => {
+    const s = document.createElement('div');
+    s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
+    s.style.background = c;
+    s.onclick = () => {
+      document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+      s.classList.add('selected');
+      selectedRegColor = i;
+    };
+    grid.appendChild(s);
+  });
+}
 
   window.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
