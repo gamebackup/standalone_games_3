@@ -1388,7 +1388,7 @@ function initMemberList() {
         uid,
         username: user.username,
         colorIdx: user.colorIdx ?? 0,
-        isOnline: onlineUids.has(uid)
+        isOnline: onlineUids.has(uid),
         statusText: user.statusText || ""
       };
       (member.isOnline ? onlineList : offlineList).push(member);
