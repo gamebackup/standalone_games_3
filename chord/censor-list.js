@@ -2784,7 +2784,6 @@ export const BANNED_WORDS = [
 "brothel",
 "buried",
 "burn",
-"butt",
 "butt-bang",
 "butt-fuck",
 "butt-fucker",
