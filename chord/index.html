@@ -1707,7 +1707,7 @@
       alert(`Message too long (${text.length}/2000 characters).`);
       return;
     }
-    if (/(.)\1{19,}/.test(text)) {
+    if (/(.)\1{9,}/.test(text)) {
       alert("Message contains too many repeated characters.");
       return;
     }
