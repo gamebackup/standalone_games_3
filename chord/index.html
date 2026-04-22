@@ -1,4 +1,4 @@
-<!-- Stable -->
+<!-- Unstable -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -155,9 +155,53 @@
     cursor: pointer;
     border: 3px solid transparent;
     transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .color-swatch:hover { transform: scale(1.1); }
   .color-swatch.selected { border-color: #fff; }
+
+  /* Custom swatch styling */
+  .custom-swatch {
+    background: #3a3d4a;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+  }
+
+  /* ═══════════════════════════════════════════════
+     RGB PICKER MODAL
+  ═══════════════════════════════════════════════ */
+  .rgb-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .rgb-slider-group label {
+    width: 20px;
+    font-weight: 700;
+  }
+  .rgb-slider-group input[type="range"] {
+    flex: 1;
+    background: var(--bg-input);
+  }
+  .rgb-slider-group input[type="number"] {
+    width: 70px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: white;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+  }
+  .color-preview {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin: 10px auto;
+    border: 2px solid var(--border);
+  }
 
   /* ═══════════════════════════════════════════════
      MAIN LAYOUT
@@ -672,7 +716,7 @@
     <div class="logo-text"><div class="logo-dot"></div> CHORDE</div>
     
     <div id="login-view" class="auth-form">
-      <h2>I had to wipe all data, if you had an account, please make a new one</h2></h2>
+      <h2>I had to wipe all data, if you had an account, please make a new one</h2>
       <h2>Welcome to Chorde!</h2>
       <p>If you've been here before, welcome back!</p>
       <div class="input-group">
@@ -823,6 +867,33 @@
     </div>
   </div>
 </div>
+
+<!-- Custom RGB Color Picker Modal -->
+<div id="modal-custom-color" class="modal-overlay hidden">
+  <div class="modal" style="width:380px;">
+    <h3>Custom Color</h3>
+    <div class="color-preview" id="custom-color-preview" style="background:#ff0000;"></div>
+    <div class="rgb-slider-group">
+      <label style="color:#ff5c5c;">R</label>
+      <input type="range" id="rgb-r" min="0" max="255" value="255" step="1">
+      <input type="number" id="rgb-r-num" min="0" max="255" value="255">
+    </div>
+    <div class="rgb-slider-group">
+      <label style="color:#3ddc84;">G</label>
+      <input type="range" id="rgb-g" min="0" max="255" value="0" step="1">
+      <input type="number" id="rgb-g-num" min="0" max="255" value="0">
+    </div>
+    <div class="rgb-slider-group">
+      <label style="color:#00d2ff;">B</label>
+      <input type="range" id="rgb-b" min="0" max="255" value="0" step="1">
+      <input type="number" id="rgb-b-num" min="0" max="255" value="0">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModals()">Cancel</button>
+      <button class="btn-action" onclick="saveCustomColor()">Save</button>
+    </div>
+  </div>
+</div>
   
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -870,16 +941,16 @@
   }
   
   function updateCharCount() {
-  const input = document.getElementById('chat-input');
-  const counter = document.getElementById('char-count');
-  const len = input.value.length;
-  if (len > 1800) {
-    counter.textContent = `${len}/2000`;
-    counter.style.color = len > 1950 ? 'var(--red)' : 'var(--yellow)';
-  } else {
-    counter.textContent = '';
+    const input = document.getElementById('chat-input');
+    const counter = document.getElementById('char-count');
+    const len = input.value.length;
+    if (len > 1800) {
+      counter.textContent = `${len}/2000`;
+      counter.style.color = len > 1950 ? 'var(--red)' : 'var(--yellow)';
+    } else {
+      counter.textContent = '';
+    }
   }
-}
   
   function autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
@@ -888,45 +959,51 @@
   
   // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
   async function loadCensorList() {
-  const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
-  try {
-    const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    const match = text.match(/\[([\s\S]*)\]/);
-    if (!match) throw new Error('Could not find word array in censor list');
-    const words = JSON.parse('[' + match[1] + ']');
-    const sorted = [...words].sort((a, b) => b.length - a.length);
-    const parts = sorted.map(word => {
-      if (word.includes('*')) {
-        return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
-      }
-      let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      let pattern = '';
-      for (let i = 0; i < escaped.length; i++) {
-        const char = escaped[i];
-        const lower = char.toLowerCase();
-        if (LEET_MAP[lower]) {
-          pattern += '[' + LEET_MAP[lower] + ']';
-        } else {
-          pattern += char;
+    const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
+    try {
+      const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const match = text.match(/\[([\s\S]*)\]/);
+      if (!match) throw new Error('Could not find word array in censor list');
+      const words = JSON.parse('[' + match[1] + ']');
+      const sorted = [...words].sort((a, b) => b.length - a.length);
+      const parts = sorted.map(word => {
+        if (word.includes('*')) {
+          return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
         }
-      }
-      const hasLetter = /[a-zA-Z]/.test(word);
-      return hasLetter
-        ? '(?<![a-zA-Z0-9])' + pattern + '(?![a-zA-Z0-9])'
-        : pattern;
-    });
-    window.censorRegex = new RegExp(parts.join('|'), 'gi');
-    console.log(`Chorde: censor list loaded (${words.length} entries)`);
-  } catch (err) {
-    console.warn('Chorde: censor list failed to load —', err.message);
+        let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let pattern = '';
+        for (let i = 0; i < escaped.length; i++) {
+          const char = escaped[i];
+          const lower = char.toLowerCase();
+          if (LEET_MAP[lower]) {
+            pattern += '[' + LEET_MAP[lower] + ']';
+          } else {
+            pattern += char;
+          }
+        }
+        const hasLetter = /[a-zA-Z]/.test(word);
+        return hasLetter
+          ? '(?<![a-zA-Z0-9])' + pattern + '(?![a-zA-Z0-9])'
+          : pattern;
+      });
+      window.censorRegex = new RegExp(parts.join('|'), 'gi');
+      console.log(`Chorde: censor list loaded (${words.length} entries)`);
+    } catch (err) {
+      console.warn('Chorde: censor list failed to load —', err.message);
+    }
   }
-}
-loadCensorList();
-setInterval(loadCensorList, 30 * 60 * 1000);
+  loadCensorList();
+  setInterval(loadCensorList, 30 * 60 * 1000);
 
-  const AVATAR_COLORS = ['#ff5c5c','#d7ae0c','#7c6af7','#f5f543','#ff9f43','#00d2ff','#ff78cb','#a29bfe','#f9f871','#0cd733','#b39cd0','#00c9a7','#ff6f91','#2a628f','#87007a','#005347','#688f62','#0095ff','#a2af9f','#00be6f','#50424f','#7676a1','#c64800','#ff1697'];
+  // New color palette: 11 preset hex colors + custom
+  const PRESET_COLORS = [
+    '#FF0000', '#FF4500', '#FF8C00', '#FFD700', '#FFFF00',
+    '#ADFF2F', '#008000', '#00CED1', '#0000FF', '#4B0082', '#8A2BE2'
+  ];
+  // For backward compatibility, keep a combined array for index-based access if needed
+  const AVATAR_COLORS = PRESET_COLORS;
   
   const ADMIN_UID = "pvc9bzXd4BOhXu45zFg8SUpj5zl1";
   
@@ -939,7 +1016,8 @@ setInterval(loadCensorList, 30 * 60 * 1000);
 
   let currentUser = null;
   let currentChannelId = null;
-  let selectedRegColor = 0;
+  let selectedRegColor = 0; // index of preset color (0-10) or -1 for custom
+  let selectedRegCustomHex = '#FF0000'; // default custom hex if user picks custom during reg
   let typingTimer = null;
   let typingUnsubscribe = null;
   let rulesAccepted = false;
@@ -958,6 +1036,15 @@ setInterval(loadCensorList, 30 * 60 * 1000);
   const MSG_RATE_LIMIT = 10;
   const MSG_RATE_WINDOW = 60000;
 
+  // Helper to get the effective color for a user (preset or custom)
+  function getUserColor(user) {
+    if (user && user.colorHex) return user.colorHex;
+    if (user && user.colorIdx !== undefined) {
+      return AVATAR_COLORS[user.colorIdx] || AVATAR_COLORS[0];
+    }
+    return AVATAR_COLORS[0];
+  }
+
   // ═══════════════════════════════════════════════════════
   //  AUTH LOGIC
   // ═══════════════════════════════════════════════════════
@@ -967,24 +1054,28 @@ setInterval(loadCensorList, 30 * 60 * 1000);
   }
 
   async function tryRegister() {
-  const user = document.getElementById('reg-user').value.trim();
-  const pass = document.getElementById('reg-pass').value.trim();
-  if(!user || pass.length < 6) return alert("Username required and password min 6 chars.");
-  const email = `${user.toLowerCase()}@chorde.com`;
-  try {
-    const cred = await window.fbCreateUser(window.auth, email, pass);
-    const userData = { 
-      uid: cred.user.uid, 
-      username: user, 
-      colorIdx: selectedRegColor,
-      createdAt: Date.now(),
-      statusText: "",          
-      theme: "dark"             
-    };
-    await window.fbSet(window.fbRef(window.db, 'users/' + cred.user.uid), userData);
-    setupApp(userData);
-  } catch (e) { alert(e.message); }
-}
+    const user = document.getElementById('reg-user').value.trim();
+    const pass = document.getElementById('reg-pass').value.trim();
+    if(!user || pass.length < 6) return alert("Username required and password min 6 chars.");
+    const email = `${user.toLowerCase()}@chorde.com`;
+    try {
+      const cred = await window.fbCreateUser(window.auth, email, pass);
+      const userData = { 
+        uid: cred.user.uid, 
+        username: user, 
+        colorIdx: selectedRegColor,
+        createdAt: Date.now(),
+        statusText: "",          
+        theme: "dark"             
+      };
+      // If custom color selected during registration, add colorHex
+      if (selectedRegColor === -1) {
+        userData.colorHex = selectedRegCustomHex;
+      }
+      await window.fbSet(window.fbRef(window.db, 'users/' + cred.user.uid), userData);
+      setupApp(userData);
+    } catch (e) { alert(e.message); }
+  }
 
   async function tryLogin() {
     const user = document.getElementById('login-user').value.trim();
@@ -1009,41 +1100,36 @@ setInterval(loadCensorList, 30 * 60 * 1000);
     let needsUpdate = false;
   
     if (!userData.createdAt) {
-    userData.createdAt = Date.now();
-    needsUpdate = true;
-  }
+      userData.createdAt = Date.now();
+      needsUpdate = true;
+    }
     if (userData.statusText === undefined) {
-    userData.statusText = "";
-    needsUpdate = true;
-  }
+      userData.statusText = "";
+      needsUpdate = true;
+    }
     if (!userData.theme) {
-    userData.theme = "dark";
-    needsUpdate = true;
-  }
+      userData.theme = "dark";
+      needsUpdate = true;
+    }
   
     if (needsUpdate) {
-    window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
-      createdAt: userData.createdAt,
-      statusText: userData.statusText,
-      theme: userData.theme
-    });
-  }
-
-  currentUser = userData;
-    if (!userData.createdAt) {
-      userData.createdAt = Date.now();
-      window.fbSet(window.fbRef(window.db, `users/${userData.uid}/createdAt`), userData.createdAt);
+      window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
+        createdAt: userData.createdAt,
+        statusText: userData.statusText,
+        theme: userData.theme
+      });
     }
+
     currentUser = userData;
     window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
-  currentUser.mutedUntil = snap.val() || 0;
-});
+      currentUser.mutedUntil = snap.val() || 0;
+    });
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('my-name').innerText = userData.username;
     const av = document.getElementById('my-avatar');
     av.innerText = userData.username[0].toUpperCase();
-    av.style.background = AVATAR_COLORS[userData.colorIdx];
+    av.style.background = getUserColor(userData);
     updateOwnStatusDisplay(currentUser.statusText);
     setupPresence(userData);
     initMemberList();
@@ -1194,18 +1280,18 @@ setInterval(loadCensorList, 30 * 60 * 1000);
       if (el) el.remove();
     });
     messagesChangedUnsubscribe = window.fbOnChildChanged(msgRef, (snap) => {
-  const el = document.getElementById(`msg-${snap.key}`);
-  if (!el) return;
-  const prevEl = el.previousElementSibling;
-  let isGrouped = false;
-  if (prevEl?.dataset.msgSender && prevEl?.dataset.msgTs) {
-    isGrouped = shouldGroupMessages(
-      { senderUid: prevEl.dataset.msgSender, ts: parseInt(prevEl.dataset.msgTs) },
-      snap.val()
-    );
-  }
-  el.replaceWith(renderMessageElement(snap.val(), snap.key, isGrouped));
-});
+      const el = document.getElementById(`msg-${snap.key}`);
+      if (!el) return;
+      const prevEl = el.previousElementSibling;
+      let isGrouped = false;
+      if (prevEl?.dataset.msgSender && prevEl?.dataset.msgTs) {
+        isGrouped = shouldGroupMessages(
+          { senderUid: prevEl.dataset.msgSender, ts: parseInt(prevEl.dataset.msgTs) },
+          snap.val()
+        );
+      }
+      el.replaceWith(renderMessageElement(snap.val(), snap.key, isGrouped));
+    });
     subscribeTyping(id);
     updateRulesUI(id);
   }
@@ -1308,8 +1394,8 @@ setInterval(loadCensorList, 30 * 60 * 1000);
       inputArea.classList.remove('hidden');
     }
     if (isRules && !isAdmin && !rulesAccepted) {
-  msgBox.scrollTop = 0;
-}
+      msgBox.scrollTop = 0;
+    }
   }
 
   async function acceptRules() {
@@ -1349,131 +1435,133 @@ setInterval(loadCensorList, 30 * 60 * 1000);
       window.fbSet(presRef, {
         uid: userData.uid,
         username: userData.username,
-        color: AVATAR_COLORS[userData.colorIdx]
+        color: getUserColor(userData)
       });
     });
   }
-function openReactionPicker(event, messageId) {
-  event.stopPropagation();
-  reactingToMessageId = messageId;
-  const pickerContainer = document.getElementById('emoji-picker-container');
-  pickerContainer.classList.remove('hidden');
-}
 
-async function addReaction(messageId, emoji) {
-  if (!currentChannelId || !currentUser) return;
-  const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
-  await window.fbSet(reactionRef, true);
-}
-
-async function removeReaction(messageId, emoji) {
-  if (!currentChannelId || !currentUser) return;
-  const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
-  await window.fbSet(reactionRef, null);
-}
-
-function toggleReaction(messageId, emoji) {
-  const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
-  window.fbOnValue(reactionRef, (snap) => {
-    if (snap.exists()) {
-      removeReaction(messageId, emoji);
-    } else {
-      addReaction(messageId, emoji);
-    }
-  }, { onlyOnce: true });
-}
-
-function renderReactionsBar(messageId, reactions) {
-  if (!reactions) return '';
-  const emojis = Object.entries(reactions).map(([emoji, users]) => {
-    const count = Object.keys(users).length;
-    const hasReacted = users[currentUser.uid] !== undefined;
-    return `<span class="reaction ${hasReacted ? 'reacted' : ''}" onclick="toggleReaction('${messageId}', '${emoji}')">${emoji} ${count}</span>`;
-  }).join('');
-  return `<div class="reactions-bar">${emojis}</div>`;
-}
-function initMemberList() {
-  const onlineContainer = document.getElementById('online-members');
-  const offlineContainer = document.getElementById('offline-members');
-  const onlineCountSpan  = document.getElementById('online-count');
-
-  let allUsers   = {};
-  let onlineUids = new Set();
-
-  function renderMemberList() {
-    const onlineList  = [];
-    const offlineList = [];
-
-    Object.entries(allUsers).forEach(([uid, user]) => {
-      if (!user || !user.username) return;
-      const member = {
-        uid,
-        username: user.username,
-        colorIdx: user.colorIdx ?? 0,
-        isOnline: onlineUids.has(uid),
-        statusText: user.statusText || ""
-      };
-      (member.isOnline ? onlineList : offlineList).push(member);
-    });
-
-    const sort = (a, b) => {
-      if (a.uid === currentUser?.uid) return -1;
-      if (b.uid === currentUser?.uid) return  1;
-      return a.username.localeCompare(b.username);
-    };
-    onlineList.sort(sort);
-    offlineList.sort(sort);
-
-    onlineCountSpan.innerText = onlineList.length;
-    onlineContainer.innerHTML  = '';
-    offlineContainer.innerHTML = '';
-    onlineList .forEach(m => onlineContainer .appendChild(createMemberElement(m)));
-    offlineList.forEach(m => offlineContainer.appendChild(createMemberElement(m)));
+  function openReactionPicker(event, messageId) {
+    event.stopPropagation();
+    reactingToMessageId = messageId;
+    const pickerContainer = document.getElementById('emoji-picker-container');
+    pickerContainer.classList.remove('hidden');
   }
 
-  // Two independent listeners — no nesting
-  window.fbOnValue(window.fbRef(window.db, 'users'), (snap) => {
-    allUsers = snap.val() || {};
-    renderMemberList();
-  });
+  async function addReaction(messageId, emoji) {
+    if (!currentChannelId || !currentUser) return;
+    const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+    await window.fbSet(reactionRef, true);
+  }
 
-  window.fbOnValue(window.fbRef(window.db, 'presence'), (snap) => {
-    const presence = snap.val() || {};
-    onlineUids = new Set(Object.keys(presence));
-    renderMemberList();
-  });
-}
+  async function removeReaction(messageId, emoji) {
+    if (!currentChannelId || !currentUser) return;
+    const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+    await window.fbSet(reactionRef, null);
+  }
 
-function createMemberElement(member) {
-  const div = document.createElement('div');
-  div.className = 'member-item';
+  function toggleReaction(messageId, emoji) {
+    const reactionRef = window.fbRef(window.db, `messages/${currentChannelId}/${messageId}/reactions/${emoji}/${currentUser.uid}`);
+    window.fbOnValue(reactionRef, (snap) => {
+      if (snap.exists()) {
+        removeReaction(messageId, emoji);
+      } else {
+        addReaction(messageId, emoji);
+      }
+    }, { onlyOnce: true });
+  }
 
-  const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
-  const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
-  const avatarColor = AVATAR_COLORS[member.colorIdx] || AVATAR_COLORS[0];
+  function renderReactionsBar(messageId, reactions) {
+    if (!reactions) return '';
+    const emojis = Object.entries(reactions).map(([emoji, users]) => {
+      const count = Object.keys(users).length;
+      const hasReacted = users[currentUser.uid] !== undefined;
+      return `<span class="reaction ${hasReacted ? 'reacted' : ''}" onclick="toggleReaction('${messageId}', '${emoji}')">${emoji} ${count}</span>`;
+    }).join('');
+    return `<div class="reactions-bar">${emojis}</div>`;
+  }
 
-  // Status text, if present, will go on a new line
-  const statusDisplay = (member.isOnline && member.statusText) ?  
-    `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escHtml(member.statusText)}</div>` : '';
+  function initMemberList() {
+    const onlineContainer = document.getElementById('online-members');
+    const offlineContainer = document.getElementById('offline-members');
+    const onlineCountSpan  = document.getElementById('online-count');
 
-  div.innerHTML = `
-    <div class="member-avatar" style="background:${avatarColor}">
-      ${escHtml(member.username[0].toUpperCase())}
-    </div>
-    <div style="flex:1;min-width:0;">
-      <div style="display:flex;align-items:center;">
-        <span class="member-name" style="cursor:pointer;">
-          ${escHtml(member.username)}${youTag}
-        </span>
-        <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
+    let allUsers   = {};
+    let onlineUids = new Set();
+
+    function renderMemberList() {
+      const onlineList  = [];
+      const offlineList = [];
+
+      Object.entries(allUsers).forEach(([uid, user]) => {
+        if (!user || !user.username) return;
+        const member = {
+          uid,
+          username: user.username,
+          colorIdx: user.colorIdx,
+          colorHex: user.colorHex,
+          isOnline: onlineUids.has(uid),
+          statusText: user.statusText || ""
+        };
+        (member.isOnline ? onlineList : offlineList).push(member);
+      });
+
+      const sort = (a, b) => {
+        if (a.uid === currentUser?.uid) return -1;
+        if (b.uid === currentUser?.uid) return  1;
+        return a.username.localeCompare(b.username);
+      };
+      onlineList.sort(sort);
+      offlineList.sort(sort);
+
+      onlineCountSpan.innerText = onlineList.length;
+      onlineContainer.innerHTML  = '';
+      offlineContainer.innerHTML = '';
+      onlineList .forEach(m => onlineContainer .appendChild(createMemberElement(m)));
+      offlineList.forEach(m => offlineContainer.appendChild(createMemberElement(m)));
+    }
+
+    window.fbOnValue(window.fbRef(window.db, 'users'), (snap) => {
+      allUsers = snap.val() || {};
+      renderMemberList();
+    });
+
+    window.fbOnValue(window.fbRef(window.db, 'presence'), (snap) => {
+      const presence = snap.val() || {};
+      onlineUids = new Set(Object.keys(presence));
+      renderMemberList();
+    });
+  }
+
+  function createMemberElement(member) {
+    const div = document.createElement('div');
+    div.className = 'member-item';
+
+    const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
+    const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
+    const avatarColor = getUserColor(member);
+
+    const statusDisplay = (member.isOnline && member.statusText) ?  
+      `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escHtml(member.statusText)}</div>` : '';
+
+    div.innerHTML = `
+      <div class="member-avatar" style="background:${avatarColor}">
+        ${escHtml(member.username[0].toUpperCase())}
       </div>
-      ${statusDisplay}
-    </div>
-  `;
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;">
+          <span class="member-name" style="cursor:pointer;">
+            ${escHtml(member.username)}${youTag}
+          </span>
+          <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
+        </div>
+        ${statusDisplay}
+      </div>
+    `;
 
-  div.querySelector('.member-name').addEventListener('click', () => showUserProfile(member.uid));
-  return div;
-}
+    div.querySelector('.member-name').addEventListener('click', () => showUserProfile(member.uid));
+    return div;
+  }
+
   // ═══════════════════════════════════════════════════════
   //  TYPING INDICATORS
   // ═══════════════════════════════════════════════════════
@@ -1481,7 +1569,7 @@ function createMemberElement(member) {
     if (!currentChannelId || !currentUser) return;
     window.fbSet(
       window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
-      { username: currentUser.username, color: AVATAR_COLORS[currentUser.colorIdx], ts: Date.now() }
+      { username: currentUser.username, color: getUserColor(currentUser), ts: Date.now() }
     );
     clearTimeout(typingTimer);
     typingTimer = setTimeout(clearTyping, 1250);
@@ -1494,28 +1582,26 @@ function createMemberElement(member) {
   }
 
   function subscribeTyping(channelId) {
-  if (typingUnsubscribe) typingUnsubscribe();
-  let lastTypingKey = '';
-  const ref = window.fbRef(window.db, `typing/${channelId}`);
-  typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-    const data   = snap.val() || {};
-    const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
-    
-    // Build a stable key representing who is currently typing
-    const typingKey = others.map(t => t.username).sort().join(',');
-    
-    // Only re-render if the set of typers changed
-    if (typingKey === lastTypingKey) return;
-    lastTypingKey = typingKey;
+    if (typingUnsubscribe) typingUnsubscribe();
+    let lastTypingKey = '';
+    const ref = window.fbRef(window.db, `typing/${channelId}`);
+    typingUnsubscribe = window.fbOnValue(ref, (snap) => {
+      const data   = snap.val() || {};
+      const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
+      
+      const typingKey = others.map(t => t.username).sort().join(',');
+      
+      if (typingKey === lastTypingKey) return;
+      lastTypingKey = typingKey;
 
-    const box  = document.getElementById('typing-box');
-    const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-    if (others.length === 0)      box.innerHTML = '';
-    else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
-    else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
-    else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
-  });
-}
+      const box  = document.getElementById('typing-box');
+      const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+      if (others.length === 0)      box.innerHTML = '';
+      else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+      else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+      else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+    });
+  }
 
   // ═══════════════════════════════════════════════════════
   //  CENSORING
@@ -1544,164 +1630,164 @@ function createMemberElement(member) {
   //  MESSAGES (WITH GROUPING & EDITING)
   // ═══════════════════════════════════════════════════════
   function handleChatKey(e) {
-  if (e.key === 'Enter') {
-    if (e.shiftKey) {
-      return;
-    } else {
-      e.preventDefault();
-      if (editingMessageId) {
-        updateMessage();
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        return;
       } else {
-        const input = document.getElementById('chat-input');
-        if (input.value.startsWith('/') && currentUser.uid === ADMIN_UID) {
-          handleCommand(input.value.trim());
+        e.preventDefault();
+        if (editingMessageId) {
+          updateMessage();
         } else {
-          sendMessage();
+          const input = document.getElementById('chat-input');
+          if (input.value.startsWith('/') && currentUser.uid === ADMIN_UID) {
+            handleCommand(input.value.trim());
+          } else {
+            sendMessage();
+          }
         }
       }
     }
+    if (e.key === 'Escape') {
+      if (editingMessageId) cancelEdit();
+      if (replyingTo) cancelReply();
+      e.preventDefault();
+    }
   }
-  if (e.key === 'Escape') {
-    if (editingMessageId) cancelEdit();
-    if (replyingTo) cancelReply();
-    e.preventDefault();
-  }
-}
 
-function sendMessage() {
-  if (editingMessageId) { updateMessage(); return; }
-  if (currentUser.mutedUntil && currentUser.mutedUntil > Date.now()) {
-  const secsLeft = Math.ceil((currentUser.mutedUntil - Date.now()) / 1000);
-  const minsLeft = Math.floor(secsLeft / 60);
-  const s = secsLeft % 60;
-  alert(`You are muted for ${minsLeft}m ${s}s.`);
-  return;
-}
-  const input = document.getElementById('chat-input');
-  censorFull();
-  let text = input.value;
-  text = text.replace(/\n{3,}/g, '\n\n').trim();
-  if (!text || !currentChannelId) return;
+  function sendMessage() {
+    if (editingMessageId) { updateMessage(); return; }
+    if (currentUser.mutedUntil && currentUser.mutedUntil > Date.now()) {
+      const secsLeft = Math.ceil((currentUser.mutedUntil - Date.now()) / 1000);
+      const minsLeft = Math.floor(secsLeft / 60);
+      const s = secsLeft % 60;
+      alert(`You are muted for ${minsLeft}m ${s}s.`);
+      return;
+    }
+    const input = document.getElementById('chat-input');
+    censorFull();
+    let text = input.value;
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
+    if (!text || !currentChannelId) return;
 
-  if (text.length > 2000) {
-    alert(`Message too long (${text.length}/2000 characters).`);
-    return;
-  }
-  if (/(.)\1{19,}/.test(text)) {
-    alert("Message contains too many repeated characters.");
-    return;
-  }
-  const now = Date.now();
-  messageTimestamps = messageTimestamps.filter(t => now - t < MSG_RATE_WINDOW);
-  if (messageTimestamps.length >= MSG_RATE_LIMIT) {
-    const wait = Math.ceil((MSG_RATE_WINDOW - (now - messageTimestamps[0])) / 1000);
-    alert(`You're sending too many messages. Please wait ${wait} seconds.`);
-    return;
-  }
-  messageTimestamps.push(now);
-  if (text === lastSentText && now - lastSentTime < 10000) {
-    alert("Don't send the same message twice in a row.");
-    return;
-  }
-  lastSentText = text;
-  lastSentTime = now;
+    if (text.length > 2000) {
+      alert(`Message too long (${text.length}/2000 characters).`);
+      return;
+    }
+    if (/(.)\1{19,}/.test(text)) {
+      alert("Message contains too many repeated characters.");
+      return;
+    }
+    const now = Date.now();
+    messageTimestamps = messageTimestamps.filter(t => now - t < MSG_RATE_WINDOW);
+    if (messageTimestamps.length >= MSG_RATE_LIMIT) {
+      const wait = Math.ceil((MSG_RATE_WINDOW - (now - messageTimestamps[0])) / 1000);
+      alert(`You're sending too many messages. Please wait ${wait} seconds.`);
+      return;
+    }
+    messageTimestamps.push(now);
+    if (text === lastSentText && now - lastSentTime < 10000) {
+      alert("Don't send the same message twice in a row.");
+      return;
+    }
+    lastSentText = text;
+    lastSentTime = now;
 
-  const mentionRegex = /@(\w+)/g;
-  const mentions = [];
-  let match;
-  while ((match = mentionRegex.exec(text)) !== null) mentions.push(match[1]);
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [];
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) mentions.push(match[1]);
 
-  const msgData = {
-    text,
-    sender: currentUser.username,
-    senderUid: currentUser.uid,
-    color: AVATAR_COLORS[currentUser.colorIdx],
-    ts: Date.now(),
-    mentions: mentions.length > 0 ? mentions : null,
-    replyTo: replyingTo ? {
-      id: replyingTo.id,
-      sender: replyingTo.sender,
-      text: replyingTo.text.substring(0, 100)
-    } : null
-  };
+    const msgData = {
+      text,
+      sender: currentUser.username,
+      senderUid: currentUser.uid,
+      color: getUserColor(currentUser),
+      ts: Date.now(),
+      mentions: mentions.length > 0 ? mentions : null,
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        sender: replyingTo.sender,
+        text: replyingTo.text.substring(0, 100)
+      } : null
+    };
 
-  window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
-  input.value = '';
-  input.style.height = 'auto';
-  clearTyping();
-  cancelReply();
-}
+    window.fbPush(window.fbRef(window.db, `messages/${currentChannelId}`), msgData);
+    input.value = '';
+    input.style.height = 'auto';
+    clearTyping();
+    cancelReply();
+  }
 
   function renderMessageElement(m, id, isGrouped = false) {
-  const div = document.createElement('div');
-  div.id = `msg-${id}`;
-  div.dataset.msgSender = m.senderUid;
-  div.dataset.msgTs = m.ts;
-  div.className = 'message' + (isGrouped ? ' grouped' : '');
+    const div = document.createElement('div');
+    div.id = `msg-${id}`;
+    div.dataset.msgSender = m.senderUid;
+    div.dataset.msgTs = m.ts;
+    div.className = 'message' + (isGrouped ? ' grouped' : '');
 
-  if (m.mentions && Array.isArray(m.mentions) && m.mentions.includes(currentUser.username)) {
-    div.classList.add('mention-highlight');
-  }
+    if (m.mentions && Array.isArray(m.mentions) && m.mentions.includes(currentUser.username)) {
+      div.classList.add('mention-highlight');
+    }
 
-  const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  const isOwnMessage = m.senderUid === currentUser.uid;
-  const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
-  const delBtn      = canDelete   ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete">×</div>` : '';
-  const editBtn     = isOwnMessage ? `<div class="edit-msg" onclick="startEditMessage('${id}')" title="Edit">✎</div>` : '';
-  const reactBtn    = `<div class="react-msg" onclick="openReactionPicker(event,'${id}')" title="React">😀</div>`;
-  const replyBtn    = `<div class="reply-msg" onclick="startReply('${id}', '${escHtml(m.sender)}', '${escHtml(m.text).replace(/'/g, "\\'").replace(/\n/g, ' ')}')" title="Reply">↩</div>`;
-  const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
-  const reactionsHtml = m.reactions ? renderReactionsBar(id, m.reactions) : '';
-  const textHtml = parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'));
-  const replyQuoteHtml = m.replyTo ? `
-    <div class="msg-reply-quote" onclick="document.getElementById('msg-${m.replyTo.id}')?.scrollIntoView({behavior:'smooth',block:'center'})">
-      <span class="msg-reply-quote-name">${escHtml(m.replyTo.sender)}</span>
-      <span>${escHtml(m.replyTo.text.replace(/\n/g, ' ')).substring(0, 80)}</span>
-    </div>` : '';
+    const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const isOwnMessage = m.senderUid === currentUser.uid;
+    const canDelete = isOwnMessage || currentUser.uid === ADMIN_UID;
+    const delBtn      = canDelete   ? `<div class="del-msg" onclick="deleteMessage('${id}')" title="Delete">×</div>` : '';
+    const editBtn     = isOwnMessage ? `<div class="edit-msg" onclick="startEditMessage('${id}')" title="Edit">✎</div>` : '';
+    const reactBtn    = `<div class="react-msg" onclick="openReactionPicker(event,'${id}')" title="React">😀</div>`;
+    const replyBtn    = `<div class="reply-msg" onclick="startReply('${id}', '${escHtml(m.sender)}', '${escHtml(m.text).replace(/'/g, "\\'").replace(/\n/g, ' ')}')" title="Reply">↩</div>`;
+    const editedLabel = m.edited ? '<span class="msg-edited">(edited)</span>' : '';
+    const reactionsHtml = m.reactions ? renderReactionsBar(id, m.reactions) : '';
+    const textHtml = parseMarkdown(escHtml(m.text).replace(/\n/g, '<br>'));
+    const replyQuoteHtml = m.replyTo ? `
+      <div class="msg-reply-quote" onclick="document.getElementById('msg-${m.replyTo.id}')?.scrollIntoView({behavior:'smooth',block:'center'})">
+        <span class="msg-reply-quote-name">${escHtml(m.replyTo.sender)}</span>
+        <span>${escHtml(m.replyTo.text.replace(/\n/g, ' ')).substring(0, 80)}</span>
+      </div>` : '';
 
-  if (isGrouped) {
-    div.innerHTML = `
-      <div style="width:40px;flex-shrink:0;"></div>
-      <div class="msg-content">
-        ${replyQuoteHtml}
-        <div class="msg-text">${textHtml} ${editedLabel}</div>
-        ${reactionsHtml}
-      </div>
-      ${reactBtn}${replyBtn}${editBtn}${delBtn}
-    `;
-  } else {
-    div.innerHTML = `
-      <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
-      <div class="msg-content">
-        <div class="msg-header">
-          <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
-          <span class="msg-time">${time}</span>
-          ${editedLabel}
+    if (isGrouped) {
+      div.innerHTML = `
+        <div style="width:40px;flex-shrink:0;"></div>
+        <div class="msg-content">
+          ${replyQuoteHtml}
+          <div class="msg-text">${textHtml} ${editedLabel}</div>
+          ${reactionsHtml}
         </div>
-        ${replyQuoteHtml}
-        <div class="msg-text">${textHtml}</div>
-        ${reactionsHtml}
-      </div>
-      ${reactBtn}${replyBtn}${editBtn}${delBtn}
-    `;
+        ${reactBtn}${replyBtn}${editBtn}${delBtn}
+      `;
+    } else {
+      div.innerHTML = `
+        <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+        <div class="msg-content">
+          <div class="msg-header">
+            <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
+            <span class="msg-time">${time}</span>
+            ${editedLabel}
+          </div>
+          ${replyQuoteHtml}
+          <div class="msg-text">${textHtml}</div>
+          ${reactionsHtml}
+        </div>
+        ${reactBtn}${replyBtn}${editBtn}${delBtn}
+      `;
+    }
+    return div;
   }
-  return div;
-}
   
   function renderMessage(m, id) {
-  const container = document.getElementById('messages-container');
-  const lockToTop = (currentChannelId === rulesChannelId) && !rulesAccepted && (currentUser.uid !== ADMIN_UID);
-  const lastMsgEl = container.lastElementChild;
-  let lastMsgData = null;
-  if (lastMsgEl?.dataset.msgSender && lastMsgEl?.dataset.msgTs) {
-    lastMsgData = { senderUid: lastMsgEl.dataset.msgSender, ts: parseInt(lastMsgEl.dataset.msgTs) };
-  }
+    const container = document.getElementById('messages-container');
+    const lockToTop = (currentChannelId === rulesChannelId) && !rulesAccepted && (currentUser.uid !== ADMIN_UID);
+    const lastMsgEl = container.lastElementChild;
+    let lastMsgData = null;
+    if (lastMsgEl?.dataset.msgSender && lastMsgEl?.dataset.msgTs) {
+      lastMsgData = { senderUid: lastMsgEl.dataset.msgSender, ts: parseInt(lastMsgEl.dataset.msgTs) };
+    }
 
-  const isGrouped = shouldGroupMessages(lastMsgData, m);
-  const div = renderMessageElement(m, id, isGrouped);
-  container.appendChild(div);
-  if (!lockToTop) container.scrollTop = container.scrollHeight;
-}
+    const isGrouped = shouldGroupMessages(lastMsgData, m);
+    const div = renderMessageElement(m, id, isGrouped);
+    container.appendChild(div);
+    if (!lockToTop) container.scrollTop = container.scrollHeight;
+  }
 
   async function deleteMessage(msgId) {
     if (!confirm("Are you sure you want to delete this message?")) return;
@@ -1712,70 +1798,70 @@ function sendMessage() {
   }
 
   function startEditMessage(msgId) {
-  if (editingMessageId) cancelEdit();
-  editingMessageId = msgId;
-  window.fbOnValue(
-    window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`),
-    (snap) => {
-      const data = snap.val();
-      if (!data) return;
-      originalMessageText = data.text;
-      const input = document.getElementById('chat-input');
-      input.value = data.text;
-      autoResizeTextarea(input);
-      input.focus();
-      document.getElementById('active-ch-title').innerHTML += ' (editing)';
-    },
-    { onlyOnce: true }
-  );
-}
-
-async function handleCommand(raw) {
-  const input = document.getElementById('chat-input');
-  const parts = raw.split(/\s+/);
-  const cmd = parts[0].toLowerCase();
-
-  if (cmd === '/mute') {
-    const targetName = parts[1];
-    const minutes = parseInt(parts[2]);
-    if (!targetName || isNaN(minutes) || minutes < 1) {
-      alert('Usage: /mute username minutes\nExample: /mute crow 10');
-      return;
-    }
-    const user = await findUserByUsername(targetName);
-    if (!user) { alert(`User "${targetName}" not found.`); return; }
-    const mutedUntil = Date.now() + minutes * 60 * 1000;
-    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
-    input.value = '';
-    input.style.height = 'auto';
-    alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
-
-  } else if (cmd === '/unmute') {
-    const targetName = parts[1];
-    if (!targetName) { alert('Usage: /unmute username'); return; }
-    const user = await findUserByUsername(targetName);
-    if (!user) { alert(`User "${targetName}" not found.`); return; }
-    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
-    input.value = '';
-    input.style.height = 'auto';
-    alert(`${user.username} has been unmuted.`);
-
-  } else {
-    alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username`);
+    if (editingMessageId) cancelEdit();
+    editingMessageId = msgId;
+    window.fbOnValue(
+      window.fbRef(window.db, `messages/${currentChannelId}/${msgId}`),
+      (snap) => {
+        const data = snap.val();
+        if (!data) return;
+        originalMessageText = data.text;
+        const input = document.getElementById('chat-input');
+        input.value = data.text;
+        autoResizeTextarea(input);
+        input.focus();
+        document.getElementById('active-ch-title').innerHTML += ' (editing)';
+      },
+      { onlyOnce: true }
+    );
   }
-}
 
-function findUserByUsername(username) {
-  return new Promise((resolve) => {
-    window.fbOnValue(window.fbRef(window.db, 'users'), (snap) => {
-      const all = snap.val() || {};
-      const found = Object.values(all).find(
-        u => u.username?.toLowerCase() === username.toLowerCase()
-      );
-      resolve(found || null);
-    }, { onlyOnce: true });
-  });
-}
+  async function handleCommand(raw) {
+    const input = document.getElementById('chat-input');
+    const parts = raw.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+
+    if (cmd === '/mute') {
+      const targetName = parts[1];
+      const minutes = parseInt(parts[2]);
+      if (!targetName || isNaN(minutes) || minutes < 1) {
+        alert('Usage: /mute username minutes\nExample: /mute crow 10');
+        return;
+      }
+      const user = await findUserByUsername(targetName);
+      if (!user) { alert(`User "${targetName}" not found.`); return; }
+      const mutedUntil = Date.now() + minutes * 60 * 1000;
+      await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
+      input.value = '';
+      input.style.height = 'auto';
+      alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
+
+    } else if (cmd === '/unmute') {
+      const targetName = parts[1];
+      if (!targetName) { alert('Usage: /unmute username'); return; }
+      const user = await findUserByUsername(targetName);
+      if (!user) { alert(`User "${targetName}" not found.`); return; }
+      await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
+      input.value = '';
+      input.style.height = 'auto';
+      alert(`${user.username} has been unmuted.`);
+
+    } else {
+      alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username`);
+    }
+  }
+
+  function findUserByUsername(username) {
+    return new Promise((resolve) => {
+      window.fbOnValue(window.fbRef(window.db, 'users'), (snap) => {
+        const all = snap.val() || {};
+        const found = Object.values(all).find(
+          u => u.username?.toLowerCase() === username.toLowerCase()
+        );
+        resolve(found || null);
+      }, { onlyOnce: true });
+    });
+  }
   
   function cancelEdit() {
     editingMessageId = null;
@@ -1806,152 +1892,291 @@ function findUserByUsername(username) {
   }
   
   function startReply(msgId, sender, text) {
-  replyingTo = { id: msgId, sender, text };
-  const bar = document.getElementById('reply-bar');
-  bar.classList.remove('hidden');
-  document.querySelector('.reply-bar-name').textContent = sender;
-  document.querySelector('.reply-bar-text').textContent = text.replace(/<[^>]*>/g, '').substring(0, 80);
-  document.getElementById('chat-input').focus();
-}
+    replyingTo = { id: msgId, sender, text };
+    const bar = document.getElementById('reply-bar');
+    bar.classList.remove('hidden');
+    document.querySelector('.reply-bar-name').textContent = sender;
+    document.querySelector('.reply-bar-text').textContent = text.replace(/<[^>]*>/g, '').substring(0, 80);
+    document.getElementById('chat-input').focus();
+  }
 
-function cancelReply() {
-  replyingTo = null;
-  document.getElementById('reply-bar').classList.add('hidden');
-}
+  function cancelReply() {
+    replyingTo = null;
+    document.getElementById('reply-bar').classList.add('hidden');
+  }
 
   // ═══════════════════════════════════════════════════════
   //  USER PROFILE
   // ═══════════════════════════════════════════════════════
-  let settingsSelectedColor = 0;
+  let settingsSelectedColor = 0; // preset index
+  let settingsSelectedCustomHex = null; // custom hex if chosen
 
-function openSettings() {
-  settingsSelectedColor = currentUser.colorIdx ?? 0;
-  
-  const grid = document.getElementById('settings-color-grid');
-  grid.innerHTML = '';
-  AVATAR_COLORS.forEach((c, i) => {
-    const s = document.createElement('div');
-    s.className = 'color-swatch' + (i === settingsSelectedColor ? ' selected' : '');
-    s.style.background = c;
-    s.onclick = () => {
-      grid.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
-      s.classList.add('selected');
-      settingsSelectedColor = i;
+  function openSettings() {
+    // Determine current selection
+    if (currentUser.colorHex) {
+      settingsSelectedColor = -1;
+      settingsSelectedCustomHex = currentUser.colorHex;
+    } else {
+      settingsSelectedColor = currentUser.colorIdx ?? 0;
+      settingsSelectedCustomHex = null;
+    }
+    
+    buildColorGridForSettings();
+    
+    document.getElementById('settings-status').value = currentUser.statusText || '';
+    document.getElementById('modal-settings').classList.remove('hidden');
+  }
+
+  function buildColorGridForSettings() {
+    const grid = document.getElementById('settings-color-grid');
+    grid.innerHTML = '';
+    
+    // Add preset colors
+    PRESET_COLORS.forEach((hex, idx) => {
+      const swatch = document.createElement('div');
+      swatch.className = 'color-swatch';
+      if (settingsSelectedColor === idx) swatch.classList.add('selected');
+      swatch.style.background = hex;
+      swatch.onclick = () => {
+        // Deselect all
+        grid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        swatch.classList.add('selected');
+        settingsSelectedColor = idx;
+        settingsSelectedCustomHex = null;
+      };
+      grid.appendChild(swatch);
+    });
+    
+    // Add custom swatch
+    const customSwatch = document.createElement('div');
+    customSwatch.className = 'color-swatch custom-swatch';
+    if (settingsSelectedColor === -1) customSwatch.classList.add('selected');
+    customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
+    customSwatch.style.background = '#3a3d4a';
+    customSwatch.onclick = () => {
+      // Deselect all
+      grid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      customSwatch.classList.add('selected');
+      settingsSelectedColor = -1;
+      // Open RGB picker with current custom color or default
+      openCustomColorPicker(settingsSelectedCustomHex || '#FF0000');
     };
-    grid.appendChild(s);
-  });
-  
-  document.getElementById('settings-status').value = currentUser.statusText || '';
-  document.getElementById('modal-settings').classList.remove('hidden');
-}
+    grid.appendChild(customSwatch);
+  }
 
-async function saveSettings() {
-  if (!currentUser) return;
-  
-  const newColorIdx = settingsSelectedColor;
-  const newStatus = document.getElementById('settings-status').value.trim();
-  
-  currentUser.colorIdx = newColorIdx;
-  currentUser.statusText = newStatus;
-  
-  const newColor = AVATAR_COLORS[newColorIdx];
-  
-  const updates = {
-    colorIdx: newColorIdx,
-    statusText: newStatus
-  };
-  await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
-  await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), newColor);
-  document.getElementById('my-avatar').style.background = newColor;
-  updateOwnStatusDisplay(newStatus);
-  closeModals();
-}
+  function openCustomColorPicker(initialHex) {
+    // Set sliders based on hex
+    const r = parseInt(initialHex.slice(1,3), 16);
+    const g = parseInt(initialHex.slice(3,5), 16);
+    const b = parseInt(initialHex.slice(5,7), 16);
+    
+    document.getElementById('rgb-r').value = r;
+    document.getElementById('rgb-r-num').value = r;
+    document.getElementById('rgb-g').value = g;
+    document.getElementById('rgb-g-num').value = g;
+    document.getElementById('rgb-b').value = b;
+    document.getElementById('rgb-b-num').value = b;
+    updateCustomPreview();
+    
+    document.getElementById('modal-custom-color').classList.remove('hidden');
+  }
+
+  function updateCustomPreview() {
+    const r = document.getElementById('rgb-r').value;
+    const g = document.getElementById('rgb-g').value;
+    const b = document.getElementById('rgb-b').value;
+    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + (b << 0)).toString(16).slice(1)}`;
+    document.getElementById('custom-color-preview').style.background = hex;
+  }
+
+  // Sync sliders and number inputs
+  function setupRgbSliders() {
+    const rRange = document.getElementById('rgb-r');
+    const rNum = document.getElementById('rgb-r-num');
+    const gRange = document.getElementById('rgb-g');
+    const gNum = document.getElementById('rgb-g-num');
+    const bRange = document.getElementById('rgb-b');
+    const bNum = document.getElementById('rgb-b-num');
+    
+    rRange.addEventListener('input', () => { rNum.value = rRange.value; updateCustomPreview(); });
+    rNum.addEventListener('input', () => { rRange.value = rNum.value; updateCustomPreview(); });
+    gRange.addEventListener('input', () => { gNum.value = gRange.value; updateCustomPreview(); });
+    gNum.addEventListener('input', () => { gRange.value = gNum.value; updateCustomPreview(); });
+    bRange.addEventListener('input', () => { bNum.value = bRange.value; updateCustomPreview(); });
+    bNum.addEventListener('input', () => { bRange.value = bNum.value; updateCustomPreview(); });
+  }
+
+  function saveCustomColor() {
+    const r = document.getElementById('rgb-r').value;
+    const g = document.getElementById('rgb-g').value;
+    const b = document.getElementById('rgb-b').value;
+    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + (b << 0)).toString(16).slice(1)}`;
+    settingsSelectedCustomHex = hex;
+    closeModals();
+    // Update settings grid selection (the custom swatch is already selected)
+  }
+
+  async function saveSettings() {
+    if (!currentUser) return;
+    
+    let updates = {};
+    let newColor = null;
+    
+    if (settingsSelectedColor === -1) {
+      // Custom color
+      updates.colorHex = settingsSelectedCustomHex;
+      // Remove colorIdx if exists? Keep for fallback but not used
+      newColor = settingsSelectedCustomHex;
+    } else {
+      // Preset color
+      updates.colorIdx = settingsSelectedColor;
+      updates.colorHex = null; // remove custom hex if any
+      newColor = PRESET_COLORS[settingsSelectedColor];
+    }
+    
+    const newStatus = document.getElementById('settings-status').value.trim();
+    updates.statusText = newStatus;
+    
+    // Update currentUser
+    currentUser.colorIdx = settingsSelectedColor;
+    currentUser.colorHex = updates.colorHex || null;
+    currentUser.statusText = newStatus;
+    
+    await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
+    await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), newColor);
+    
+    document.getElementById('my-avatar').style.background = newColor;
+    updateOwnStatusDisplay(newStatus);
+    closeModals();
+  }
 
   function updateOwnStatusDisplay(statusText) {
-  const statusEl = document.querySelector('.u-status');
-  if (statusEl) {
-    statusEl.textContent = statusText || 'Online';
-  }
-}
-function showUserProfile(uid) {
-  if (!window.fbRef || !window.fbOnValue) return;
-  const presRef = window.fbRef(window.db, `presence/${uid}`);
-  window.fbOnValue(presRef, (presSnap) => {
-    const isOnline = presSnap.exists();
-    const statusEl = document.getElementById('profile-status');
+    const statusEl = document.querySelector('.u-status');
     if (statusEl) {
-      statusEl.textContent = isOnline ? 'Online' : 'Offline';
-      statusEl.style.color  = isOnline ? 'var(--green)' : 'var(--text-muted)';
+      statusEl.textContent = statusText || 'Online';
     }
-  }, { onlyOnce: true });
+  }
 
-  const userRef = window.fbRef(window.db, `users/${uid}`);
-  window.fbOnValue(userRef, (snap) => {
-    const user = snap.val();
-    if (!user) {
-      console.warn('showUserProfile: no data for uid', uid);
-      return;
-    }
-    const colorIdx    = user.colorIdx ?? 0;
-    const avatarColor = AVATAR_COLORS[colorIdx] || AVATAR_COLORS[0];
-    document.getElementById('profile-avatar').style.background = avatarColor;
-    document.getElementById('profile-avatar').innerText        = user.username[0].toUpperCase();
-    document.getElementById('profile-username').innerText      = user.username;
-    document.getElementById('profile-joined').innerText        = user.createdAt
-      ? new Date(user.createdAt).toLocaleDateString()
-      : 'Unknown';
+  function showUserProfile(uid) {
+    if (!window.fbRef || !window.fbOnValue) return;
+    const presRef = window.fbRef(window.db, `presence/${uid}`);
+    window.fbOnValue(presRef, (presSnap) => {
+      const isOnline = presSnap.exists();
+      const statusEl = document.getElementById('profile-status');
+      if (statusEl) {
+        statusEl.textContent = isOnline ? 'Online' : 'Offline';
+        statusEl.style.color  = isOnline ? 'var(--green)' : 'var(--text-muted)';
+      }
+    }, { onlyOnce: true });
 
-    // --- NEW STATUS CODE (place it right here) ---
-    const statusDisplay = user.statusText || 'No status set';
-    document.getElementById('profile-status-line')?.remove();
-    const statusLine = document.createElement('p');
-    statusLine.id = 'profile-status-line';
-    statusLine.style.margin = '4px 0 0';
-    statusLine.style.fontSize = '13px';
-    statusLine.style.padding = '0';
-    statusLine.style.marginLeft = '0';
-    statusLine.style.color = 'var(--text-dim)';
-    statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
+    const userRef = window.fbRef(window.db, `users/${uid}`);
+    window.fbOnValue(userRef, (snap) => {
+      const user = snap.val();
+      if (!user) {
+        console.warn('showUserProfile: no data for uid', uid);
+        return;
+      }
+      const avatarColor = getUserColor(user);
+      document.getElementById('profile-avatar').style.background = avatarColor;
+      document.getElementById('profile-avatar').innerText        = user.username[0].toUpperCase();
+      document.getElementById('profile-username').innerText      = user.username;
+      document.getElementById('profile-joined').innerText        = user.createdAt
+        ? new Date(user.createdAt).toLocaleDateString()
+        : 'Unknown';
 
-    const statusSpan = document.getElementById('profile-status');
-    statusSpan.parentNode.insertBefore(statusLine, statusSpan);
-    // ---------------------------------------------
+      const statusDisplay = user.statusText || 'No status set';
+      document.getElementById('profile-status-line')?.remove();
+      const statusLine = document.createElement('p');
+      statusLine.id = 'profile-status-line';
+      statusLine.style.margin = '4px 0 0';
+      statusLine.style.fontSize = '13px';
+      statusLine.style.padding = '0';
+      statusLine.style.marginLeft = '0';
+      statusLine.style.color = 'var(--text-dim)';
+      statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
 
-    document.getElementById('profile-mention-btn').onclick = () => {
-      const input = document.getElementById('chat-input');
-      input.value += `@${user.username} `;
-      input.focus();
+      const statusSpan = document.getElementById('profile-status');
+      statusSpan.parentNode.insertBefore(statusLine, statusSpan);
+
+      document.getElementById('profile-mention-btn').onclick = () => {
+        const input = document.getElementById('chat-input');
+        input.value += `@${user.username} `;
+        input.focus();
+        closeModals();
+      };
+      document.getElementById('modal-profile').classList.remove('hidden');
+    }, { onlyOnce: true });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  INIT
+  // ═══════════════════════════════════════════════════════
+
+  function buildColorGrid() {
+    const grid = document.getElementById('reg-color-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    // Add preset colors
+    PRESET_COLORS.forEach((hex, idx) => {
+      const s = document.createElement('div');
+      s.className = 'color-swatch' + (idx === 0 ? ' selected' : '');
+      s.style.background = hex;
+      s.onclick = () => {
+        grid.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+        s.classList.add('selected');
+        selectedRegColor = idx;
+        selectedRegCustomHex = null;
+      };
+      grid.appendChild(s);
+    });
+    
+    // Add custom swatch
+    const customSwatch = document.createElement('div');
+    customSwatch.className = 'color-swatch custom-swatch';
+    customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
+    customSwatch.style.background = '#3a3d4a';
+    customSwatch.onclick = () => {
+      grid.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+      customSwatch.classList.add('selected');
+      selectedRegColor = -1;
+      // Open RGB picker for registration
+      openCustomColorPickerForReg();
+    };
+    grid.appendChild(customSwatch);
+  }
+
+  function openCustomColorPickerForReg() {
+    // Set default red
+    document.getElementById('rgb-r').value = 255;
+    document.getElementById('rgb-r-num').value = 255;
+    document.getElementById('rgb-g').value = 0;
+    document.getElementById('rgb-g-num').value = 0;
+    document.getElementById('rgb-b').value = 0;
+    document.getElementById('rgb-b-num').value = 0;
+    updateCustomPreview();
+    
+    // Override save button temporarily
+    const saveBtn = document.querySelector('#modal-custom-color .btn-action');
+    const originalHandler = saveBtn.onclick;
+    saveBtn.onclick = () => {
+      const r = document.getElementById('rgb-r').value;
+      const g = document.getElementById('rgb-g').value;
+      const b = document.getElementById('rgb-b').value;
+      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + (b << 0)).toString(16).slice(1)}`;
+      selectedRegCustomHex = hex;
       closeModals();
+      // Restore original handler
+      saveBtn.onclick = originalHandler;
     };
-    document.getElementById('modal-profile').classList.remove('hidden');
-  }, { onlyOnce: true });
-}
-
-// ═══════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════
-
-function buildColorGrid() {
-  const grid = document.getElementById('reg-color-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  AVATAR_COLORS.forEach((c, i) => {
-    const s = document.createElement('div');
-    s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
-    s.style.background = c;
-    s.onclick = () => {
-      document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
-      s.classList.add('selected');
-      selectedRegColor = i;
-    };
-    grid.appendChild(s);
-  });
-}
+    document.getElementById('modal-custom-color').classList.remove('hidden');
+  }
 
   window.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('paste', () => setTimeout(() => autoResizeTextarea(chatInput), 10));
     buildColorGrid();
+    setupRgbSliders();
     
     // Emoji picker setup
     const emojiBtn = document.getElementById('emoji-btn');
@@ -1962,26 +2187,24 @@ function buildColorGrid() {
         emojiPicker = new Picker();
         pickerContainer.appendChild(emojiPicker);
         emojiPicker.addEventListener('emoji-click', event => {
-  const emoji = event.detail.unicode;
-  const input = document.getElementById('chat-input');
-  
-  if (reactingToMessageId) {
-    // Add reaction
-    addReaction(reactingToMessageId, emoji);
-    reactingToMessageId = null;
-    pickerContainer.classList.add('hidden');
-  } else {
-    // Normal text insertion
-    const start = input.selectionStart;
-    const end = input.selectionEnd;
-    const text = input.value;
-    input.value = text.slice(0, start) + emoji + text.slice(end);
-    input.selectionStart = input.selectionEnd = start + emoji.length;
-    input.focus();
-    autoResizeTextarea(input);
-    pickerContainer.classList.add('hidden');
-  }
-});
+          const emoji = event.detail.unicode;
+          const input = document.getElementById('chat-input');
+          
+          if (reactingToMessageId) {
+            addReaction(reactingToMessageId, emoji);
+            reactingToMessageId = null;
+            pickerContainer.classList.add('hidden');
+          } else {
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const text = input.value;
+            input.value = text.slice(0, start) + emoji + text.slice(end);
+            input.selectionStart = input.selectionEnd = start + emoji.length;
+            input.focus();
+            autoResizeTextarea(input);
+            pickerContainer.classList.add('hidden');
+          }
+        });
       })
       .catch(err => console.warn('Emoji picker failed to load:', err));
     emojiBtn.addEventListener('click', (e) => {
@@ -1989,11 +2212,11 @@ function buildColorGrid() {
       pickerContainer.classList.toggle('hidden');
     });
     document.addEventListener('click', (e) => {
-  if (!pickerContainer.contains(e.target) && e.target !== emojiBtn) {
-    pickerContainer.classList.add('hidden');
-    reactingToMessageId = null;  // <-- add this line
-  }
-});
+      if (!pickerContainer.contains(e.target) && e.target !== emojiBtn) {
+        pickerContainer.classList.add('hidden');
+        reactingToMessageId = null;
+      }
+    });
 
     setTimeout(() => {
       if (window.auth) {
