@@ -1,0 +1,182 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Flip Bottle</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="full-screen" content="true" />
+    <meta name="screen-orientation" content="portrait" />
+    <meta name="x5-fullscreen" content="true" />
+    <meta name="360-fullscreen" content="true" />
+    <style>
+        html, body {
+            -ms-touch-action: none;
+            background: #5E5858;
+            padding: 0;
+            border: 0;
+            margin: 0;
+            height: 100%;
+        }
+
+        .button {
+          background: #599bb3;
+          background-image: -webkit-linear-gradient(top, #599bb3, #408c99);
+          background-image: -moz-linear-gradient(top, #599bb3, #408c99);
+          background-image: -ms-linear-gradient(top, #599bb3, #408c99);
+          background-image: -o-linear-gradient(top, #599bb3, #408c99);
+          background-image: linear-gradient(to bottom, #599bb3, #408c99);
+          -webkit-border-radius: 8;
+          -moz-border-radius: 8;
+          border-radius: 8px;
+          text-shadow: 0px 1px 0px #3d768a;
+          -webkit-box-shadow: 0px 10px 14px -7px #276873;
+          -moz-box-shadow: 0px 10px 14px -7px #276873;
+          box-shadow: 0px 10px 14px -7px #276873;
+          font-family: Arial;
+          color: #ffffff;
+          font-size: 24px;
+          padding: 12px 30px 12px 30px;
+          text-decoration: none;
+        }
+
+        .button:hover {
+          color: #ffffff;
+          background: #408c99;
+          text-decoration: none;
+        }
+    </style>
+    <script src="js/adsdk.js"></script>
+    <script>
+        window["GD_OPTIONS"] = {                  
+          "gameId": "95c4932d8f6d42688b0fa38274282a86",
+          "onEvent": function(event) {
+              switch (event.name) {
+                  case "SDK_GAME_START":
+                      // advertisement done, resume game logic and unmute audio
+                      window.egret && window.egret.ticker.resume();
+                      break;
+                  case "SDK_GAME_PAUSE":
+                      // pause game logic / mute audio
+                       window.egret && window.egret.ticker.pause();
+                      break;
+                  case "SDK_GDPR_TRACKING":
+                  case "SDK_GDPR_TARGETING":
+                  case "AD_SDK_REQUEST_ADS":
+                  case "AD_SDK_FINISHED":
+                  case "AD_SDK_ERROR":
+                  case "AD_CANCELED":
+                      break;
+                  case "SDK_READY":
+                      window.adSDK = new adService();
+                      window.adSDK.startPreLoad();
+                      break;
+              }
+          },
+        };
+
+        // BYPASS SITELOCK: Create a fake SDK object so the game doesn't crash if it asks for an ad
+        window.gdsdk = {
+            showAd: function() {
+                // If the game asks for an ad, instantly tell it the ad is "done" so it resumes
+                if (window.GD_OPTIONS && window.GD_OPTIONS.onEvent) {
+                    window.GD_OPTIONS.onEvent({ name: "SDK_GAME_START" });
+                }
+            },
+            preloadAd: function() {}
+        };
+
+        // BYPASS SITELOCK: Manually trigger the ready event without loading the external script
+        setTimeout(function() {
+            if (window.GD_OPTIONS && window.GD_OPTIONS.onEvent) {
+                window.GD_OPTIONS.onEvent({ name: "SDK_READY" });
+            }
+        }, 500);
+    </script>
+</head>
+
+<body>
+    <script>
+    window.$T_GAME_VERSION="1.0.33"
+    window.$T_GAME_ARGS={};
+    window.$T__RES__FILE="resource/default.res.json";
+    window.$T__THE__FILE="resource/default.thm.json";
+    window.$T_PROGRESS = 0;
+    
+    </script>
+    <div style="margin: auto;width: 100%;height: 100%;" class="egret-player"
+         data-entry-class="Main"
+         data-orientation="auto"
+         data-scale-mode="fixedHeight"
+         data-frame-rate="60"
+         data-content-width="640"
+         data-content-height="1136"
+         data-multi-fingered="2"
+         data-show-fps="false" data-show-log="false"
+         data-show-fps-style="x:0,y:0,size:12,textColor:0xffffff,bgAlpha:0.9">
+    </div>
+    <center>
+	    <div id="btn_play" style="z-index:100;width:122px;height:71px;position:absolute;left:0; right:0; top:0; bottom:0;margin:auto;display:none">
+	      <a class="button" href="#" onClick="window.this_0xd1011e&&window.this_0xd1011e.StartGame();">Play</a>
+	    </div>
+  	</center>
+<script>
+    var loadScript = function (list, callback) {
+        var loaded = 0;
+        var loadNext = function () {
+            loadSingleScript(list[loaded], function () {
+                loaded++;
+                if (loaded >= list.length) {
+                    callback();
+                }
+                else {
+                    loadNext();
+                }
+            })
+        };
+        loadNext();
+    };
+
+    var loadSingleScript = function (src, callback) {
+        var s = document.createElement('script');
+        s.async = false;
+        s.src = src;
+        s.addEventListener('load', function () {
+            s.parentNode.removeChild(s);
+            s.removeEventListener('load', arguments.callee, false);
+            callback();
+        }, false);
+        document.body.appendChild(s);
+    };
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', './manifest.json?v=' + Math.random(), true);
+    xhr.addEventListener("load", function () {
+        var manifest = JSON.parse(xhr.response);
+        var list = manifest.initial.concat(manifest.game);
+        loadScript(list, function () {
+            /**
+             * {
+             * "renderMode":, //Engine rendering mode, "canvas" or "webgl"
+             * "audioType": 0 //Use the audio type, 0: default, 2: web audio, 3: audio
+             * "antialias": //Whether the anti-aliasing is enabled in WebGL mode, true: on, false: off, defaults to false
+             * "calculateCanvasScaleFactor": //a function return canvas scale factor
+             * }
+             **/
+            egret.runEgret({ renderMode: "webgl", audioType: 0, calculateCanvasScaleFactor:function(context) {
+                var backingStore = context.backingStorePixelRatio ||
+                    context.webkitBackingStorePixelRatio ||
+                    context.mozBackingStorePixelRatio ||
+                    context.msBackingStorePixelRatio ||
+                    context.oBackingStorePixelRatio ||
+                    context.backingStorePixelRatio || 1;
+                return (window.devicePixelRatio || 1) / backingStore;
+            }});
+        });
+    });
+    xhr.send(null);
+</script>
+</body>
+
+</html>
