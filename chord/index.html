@@ -890,7 +890,7 @@
     </div>
     <div class="modal-btns">
       <button class="btn-ghost" onclick="closeModals()">Cancel</button>
-      <button class="btn-action" onclick="saveCustomColor()">Save</button>
+      <button class="btn-action" id="save-custom-color-btn" onclick="saveCustomColor()">Save</button>
     </div>
   </div>
 </div>
@@ -1036,6 +1036,18 @@
   const MSG_RATE_LIMIT = 10;
   const MSG_RATE_WINDOW = 60000;
 
+  // Helper: get contrast text color (black or white) based on background luminance
+  function getContrastColor(hex) {
+    // Remove hash
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substr(0,2), 16);
+    const g = parseInt(h.substr(2,2), 16);
+    const b = parseInt(h.substr(4,2), 16);
+    // Luminance formula
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+  }
+
   // Helper to get the effective color for a user (preset or custom)
   function getUserColor(user) {
     if (user && user.colorHex) return user.colorHex;
@@ -1043,6 +1055,13 @@
       return AVATAR_COLORS[user.colorIdx] || AVATAR_COLORS[0];
     }
     return AVATAR_COLORS[0];
+  }
+
+  // Apply background and contrast-aware text color to an avatar element
+  function styleAvatarElement(el, bgColor, text) {
+    el.style.background = bgColor;
+    el.style.color = getContrastColor(bgColor);
+    if (text !== undefined) el.textContent = text;
   }
 
   // ═══════════════════════════════════════════════════════
@@ -1128,8 +1147,8 @@
     document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('my-name').innerText = userData.username;
     const av = document.getElementById('my-avatar');
-    av.innerText = userData.username[0].toUpperCase();
-    av.style.background = getUserColor(userData);
+    const bgColor = getUserColor(userData);
+    styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
     updateOwnStatusDisplay(currentUser.statusText);
     setupPresence(userData);
     initMemberList();
@@ -1539,12 +1558,13 @@
     const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
     const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
     const avatarColor = getUserColor(member);
+    const contrastText = getContrastColor(avatarColor);
 
     const statusDisplay = (member.isOnline && member.statusText) ?  
       `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escHtml(member.statusText)}</div>` : '';
 
     div.innerHTML = `
-      <div class="member-avatar" style="background:${avatarColor}">
+      <div class="member-avatar" style="background:${avatarColor}; color:${contrastText}">
         ${escHtml(member.username[0].toUpperCase())}
       </div>
       <div style="flex:1;min-width:0;">
@@ -1745,6 +1765,9 @@
         <span>${escHtml(m.replyTo.text.replace(/\n/g, ' ')).substring(0, 80)}</span>
       </div>` : '';
 
+    const avatarColor = m.color;
+    const contrastText = getContrastColor(avatarColor);
+
     if (isGrouped) {
       div.innerHTML = `
         <div style="width:40px;flex-shrink:0;"></div>
@@ -1757,10 +1780,10 @@
       `;
     } else {
       div.innerHTML = `
-        <div class="msg-avatar" style="background:${m.color}">${m.sender[0].toUpperCase()}</div>
+        <div class="msg-avatar" style="background:${avatarColor}; color:${contrastText}">${m.sender[0].toUpperCase()}</div>
         <div class="msg-content">
           <div class="msg-header">
-            <span class="msg-user" style="color:${m.color}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
+            <span class="msg-user" style="color:${avatarColor}" onclick="showUserProfile('${m.senderUid}')">${escHtml(m.sender)}</span>
             <span class="msg-time">${time}</span>
             ${editedLabel}
           </div>
@@ -1906,19 +1929,21 @@
   }
 
   // ═══════════════════════════════════════════════════════
-  //  USER PROFILE
+  //  USER PROFILE & SETTINGS
   // ═══════════════════════════════════════════════════════
-  let settingsSelectedColor = 0; // preset index
-  let settingsSelectedCustomHex = null; // custom hex if chosen
+  let settingsSelectedColor = 0;
+  let settingsSelectedCustomHex = null;
+  let isSettingsCustomMode = false; // track whether the custom swatch is selected
 
   function openSettings() {
-    // Determine current selection
     if (currentUser.colorHex) {
       settingsSelectedColor = -1;
       settingsSelectedCustomHex = currentUser.colorHex;
+      isSettingsCustomMode = true;
     } else {
       settingsSelectedColor = currentUser.colorIdx ?? 0;
       settingsSelectedCustomHex = null;
+      isSettingsCustomMode = false;
     }
     
     buildColorGridForSettings();
@@ -1931,41 +1956,48 @@
     const grid = document.getElementById('settings-color-grid');
     grid.innerHTML = '';
     
-    // Add preset colors
     PRESET_COLORS.forEach((hex, idx) => {
       const swatch = document.createElement('div');
       swatch.className = 'color-swatch';
-      if (settingsSelectedColor === idx) swatch.classList.add('selected');
+      if (!isSettingsCustomMode && settingsSelectedColor === idx) swatch.classList.add('selected');
       swatch.style.background = hex;
       swatch.onclick = () => {
-        // Deselect all
         grid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
         swatch.classList.add('selected');
         settingsSelectedColor = idx;
         settingsSelectedCustomHex = null;
+        isSettingsCustomMode = false;
+        // Update custom swatch appearance
+        const customSwatch = grid.querySelector('.custom-swatch');
+        if (customSwatch) {
+          customSwatch.style.background = '#3a3d4a';
+          customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
+        }
       };
       grid.appendChild(swatch);
     });
     
-    // Add custom swatch
     const customSwatch = document.createElement('div');
     customSwatch.className = 'color-swatch custom-swatch';
-    if (settingsSelectedColor === -1) customSwatch.classList.add('selected');
-    customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
-    customSwatch.style.background = '#3a3d4a';
+    if (isSettingsCustomMode) {
+      customSwatch.classList.add('selected');
+      customSwatch.style.background = settingsSelectedCustomHex;
+      customSwatch.innerHTML = ''; // remove plus icon to show color
+    } else {
+      customSwatch.style.background = '#3a3d4a';
+      customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
+    }
     customSwatch.onclick = () => {
-      // Deselect all
       grid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
       customSwatch.classList.add('selected');
       settingsSelectedColor = -1;
-      // Open RGB picker with current custom color or default
+      isSettingsCustomMode = true;
       openCustomColorPicker(settingsSelectedCustomHex || '#FF0000');
     };
     grid.appendChild(customSwatch);
   }
 
   function openCustomColorPicker(initialHex) {
-    // Set sliders based on hex
     const r = parseInt(initialHex.slice(1,3), 16);
     const g = parseInt(initialHex.slice(3,5), 16);
     const b = parseInt(initialHex.slice(5,7), 16);
@@ -1989,7 +2021,6 @@
     document.getElementById('custom-color-preview').style.background = hex;
   }
 
-  // Sync sliders and number inputs
   function setupRgbSliders() {
     const rRange = document.getElementById('rgb-r');
     const rNum = document.getElementById('rgb-r-num');
@@ -2006,14 +2037,63 @@
     bNum.addEventListener('input', () => { bRange.value = bNum.value; updateCustomPreview(); });
   }
 
-  function saveCustomColor() {
+  // Save custom color immediately (updates profile and UI)
+  async function saveCustomColor() {
     const r = document.getElementById('rgb-r').value;
     const g = document.getElementById('rgb-g').value;
     const b = document.getElementById('rgb-b').value;
     const hex = `#${((1 << 24) + (r << 16) + (g << 8) + (b << 0)).toString(16).slice(1)}`;
-    settingsSelectedCustomHex = hex;
+    
+    // If we are in registration flow (selectedRegColor === -1), just store and update preview
+    if (selectedRegColor === -1 && !currentUser) {
+      selectedRegCustomHex = hex;
+      // Update the custom swatch in registration grid
+      const regGrid = document.getElementById('reg-color-grid');
+      if (regGrid) {
+        const customSwatch = regGrid.querySelector('.custom-swatch');
+        if (customSwatch) {
+          customSwatch.style.background = hex;
+          customSwatch.innerHTML = ''; // remove plus
+          customSwatch.classList.add('selected');
+        }
+      }
+      closeModals();
+      return;
+    }
+    
+    // For settings or when user is already logged in
+    if (currentUser) {
+      // Update user data
+      currentUser.colorHex = hex;
+      currentUser.colorIdx = -1;
+      
+      const updates = { colorHex: hex, colorIdx: -1 };
+      await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
+      await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), hex);
+      
+      // Update UI avatars
+      const av = document.getElementById('my-avatar');
+      styleAvatarElement(av, hex, currentUser.username[0].toUpperCase());
+      
+      // Update settings grid selection
+      const settingsGrid = document.getElementById('settings-color-grid');
+      if (settingsGrid) {
+        const customSwatch = settingsGrid.querySelector('.custom-swatch');
+        if (customSwatch) {
+          customSwatch.style.background = hex;
+          customSwatch.innerHTML = '';
+          customSwatch.classList.add('selected');
+        }
+        // Deselect presets
+        settingsGrid.querySelectorAll('.color-swatch:not(.custom-swatch)').forEach(s => s.classList.remove('selected'));
+      }
+      
+      settingsSelectedCustomHex = hex;
+      settingsSelectedColor = -1;
+      isSettingsCustomMode = true;
+    }
+    
     closeModals();
-    // Update settings grid selection (the custom swatch is already selected)
   }
 
   async function saveSettings() {
@@ -2023,21 +2103,18 @@
     let newColor = null;
     
     if (settingsSelectedColor === -1) {
-      // Custom color
       updates.colorHex = settingsSelectedCustomHex;
-      // Remove colorIdx if exists? Keep for fallback but not used
+      updates.colorIdx = -1;
       newColor = settingsSelectedCustomHex;
     } else {
-      // Preset color
       updates.colorIdx = settingsSelectedColor;
-      updates.colorHex = null; // remove custom hex if any
+      updates.colorHex = null;
       newColor = PRESET_COLORS[settingsSelectedColor];
     }
     
     const newStatus = document.getElementById('settings-status').value.trim();
     updates.statusText = newStatus;
     
-    // Update currentUser
     currentUser.colorIdx = settingsSelectedColor;
     currentUser.colorHex = updates.colorHex || null;
     currentUser.statusText = newStatus;
@@ -2045,7 +2122,8 @@
     await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
     await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), newColor);
     
-    document.getElementById('my-avatar').style.background = newColor;
+    const av = document.getElementById('my-avatar');
+    styleAvatarElement(av, newColor, currentUser.username[0].toUpperCase());
     updateOwnStatusDisplay(newStatus);
     closeModals();
   }
@@ -2077,10 +2155,14 @@
         return;
       }
       const avatarColor = getUserColor(user);
-      document.getElementById('profile-avatar').style.background = avatarColor;
-      document.getElementById('profile-avatar').innerText        = user.username[0].toUpperCase();
-      document.getElementById('profile-username').innerText      = user.username;
-      document.getElementById('profile-joined').innerText        = user.createdAt
+      const contrastText = getContrastColor(avatarColor);
+      const profileAv = document.getElementById('profile-avatar');
+      profileAv.style.background = avatarColor;
+      profileAv.style.color = contrastText;
+      profileAv.innerText = user.username[0].toUpperCase();
+      
+      document.getElementById('profile-username').innerText = user.username;
+      document.getElementById('profile-joined').innerText = user.createdAt
         ? new Date(user.createdAt).toLocaleDateString()
         : 'Unknown';
 
@@ -2117,7 +2199,6 @@
     if (!grid) return;
     grid.innerHTML = '';
     
-    // Add preset colors
     PRESET_COLORS.forEach((hex, idx) => {
       const s = document.createElement('div');
       s.className = 'color-swatch' + (idx === 0 ? ' selected' : '');
@@ -2127,11 +2208,16 @@
         s.classList.add('selected');
         selectedRegColor = idx;
         selectedRegCustomHex = null;
+        // Reset custom swatch appearance
+        const customSwatch = grid.querySelector('.custom-swatch');
+        if (customSwatch) {
+          customSwatch.style.background = '#3a3d4a';
+          customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
+        }
       };
       grid.appendChild(s);
     });
     
-    // Add custom swatch
     const customSwatch = document.createElement('div');
     customSwatch.className = 'color-swatch custom-swatch';
     customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
@@ -2140,14 +2226,12 @@
       grid.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
       customSwatch.classList.add('selected');
       selectedRegColor = -1;
-      // Open RGB picker for registration
       openCustomColorPickerForReg();
     };
     grid.appendChild(customSwatch);
   }
 
   function openCustomColorPickerForReg() {
-    // Set default red
     document.getElementById('rgb-r').value = 255;
     document.getElementById('rgb-r-num').value = 255;
     document.getElementById('rgb-g').value = 0;
@@ -2156,19 +2240,6 @@
     document.getElementById('rgb-b-num').value = 0;
     updateCustomPreview();
     
-    // Override save button temporarily
-    const saveBtn = document.querySelector('#modal-custom-color .btn-action');
-    const originalHandler = saveBtn.onclick;
-    saveBtn.onclick = () => {
-      const r = document.getElementById('rgb-r').value;
-      const g = document.getElementById('rgb-g').value;
-      const b = document.getElementById('rgb-b').value;
-      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + (b << 0)).toString(16).slice(1)}`;
-      selectedRegCustomHex = hex;
-      closeModals();
-      // Restore original handler
-      saveBtn.onclick = originalHandler;
-    };
     document.getElementById('modal-custom-color').classList.remove('hidden');
   }
 
