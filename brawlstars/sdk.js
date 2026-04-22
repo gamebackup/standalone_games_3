@@ -1,7 +1,6 @@
-// sdk.js - Mock Yandex Games SDK for local/off‑Yandex hosting
+// sdk.js - Mock Yandex Games SDK (with serverTime)
 const YaGames = {
     init: () => Promise.resolve({
-        // Core player
         getPlayer: () => Promise.resolve({
             isAuthorized: () => false,
             getName: () => "Guest",
@@ -13,13 +12,7 @@ const YaGames = {
             getStats: () => Promise.resolve({}),
             setStats: (stats) => Promise.resolve(),
         }),
-
-        // Auth
-        auth: {
-            openAuthDialog: () => Promise.resolve()
-        },
-
-        // Ads
+        auth: { openAuthDialog: () => Promise.resolve() },
         adv: {
             showFullscreenAdv: (options) => {
                 console.log("[YG Mock] Fullscreen ad requested");
@@ -36,16 +29,12 @@ const YaGames = {
             showBannerAdv: () => {},
             hideBannerAdv: () => {}
         },
-
-        // Payments
         getPayments: () => Promise.resolve({
             getCatalog: () => Promise.resolve([]),
             getPurchases: () => Promise.resolve([]),
             purchase: (id) => Promise.resolve(),
             consumePurchase: (token) => Promise.resolve()
         }),
-
-        // Leaderboards
         leaderboards: {
             setScore: (name, score, extra) => Promise.resolve(),
             getDescription: (name) => Promise.resolve({
@@ -58,8 +47,6 @@ const YaGames = {
             }),
             getEntries: (name, options) => Promise.resolve({ entries: [] })
         },
-
-        // Feedback & Shortcuts
         feedback: {
             canReview: () => Promise.resolve({ value: false }),
             requestReview: () => Promise.resolve({ feedbackSent: false })
@@ -68,8 +55,6 @@ const YaGames = {
             canShowPrompt: () => Promise.resolve({ canShow: false }),
             showPrompt: () => Promise.resolve({ outcome: "rejected" })
         },
-
-        // Features & Environment
         features: {
             GamesAPI: {
                 getAllGames: () => Promise.resolve({ games: [], developerURL: "" })
@@ -88,13 +73,13 @@ const YaGames = {
             browser: { lang: "en" },
             payload: null
         },
-
-        // Event handling
         on: (event, callback) => {
             console.log(`[YG Mock] Event "${event}" registered`);
-        }
+        },
+        serverTime: () => Date.now(),
+        isInitialized: () => true,
+        getLanguage: () => "en",
+        getPlatform: () => "mock"
     })
 };
-
-// Log that mock is loaded
-console.log("[YG Mock] SDK loaded – YaGames defined");
+console.log("[YG Mock] SDK loaded – YaGames defined with serverTime");
