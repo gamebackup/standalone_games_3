@@ -1140,6 +1140,7 @@
     }
 
     currentUser = userData;
+    currentUser.lastChannelId = userData.lastChannel || null;   
     window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
       currentUser.mutedUntil = snap.val() || 0;
     });
@@ -1172,66 +1173,78 @@
   //  CHANNELS
   // ═══════════════════════════════════════════════════════
   function initChannels() {
-    const chRef = window.fbRef(window.db, 'channels');
-    window.fbOnValue(chRef, (snap) => {
-      const list = document.getElementById('channels-container');
-      list.innerHTML = '';
-      const data = snap.val() || {};
+  const chRef = window.fbRef(window.db, 'channels');
+  window.fbOnValue(chRef, (snap) => {
+    const list = document.getElementById('channels-container');
+    list.innerHTML = '';
+    const data = snap.val() || {};
 
-      if (Object.keys(data).length === 0) {
-        if (currentUser.uid === ADMIN_UID) {
-          createChannelRaw('rules');
-          createChannelRaw('general');
-        }
-        return;
+    if (Object.keys(data).length === 0) {
+      if (currentUser.uid === ADMIN_UID) {
+        createChannelRaw('rules');
+        createChannelRaw('general');
       }
+      return;
+    }
 
-      rulesChannelId = null;
-      Object.keys(data).forEach(id => {
-        if (data[id].name === 'rules') rulesChannelId = id;
-      });
+    rulesChannelId = null;
+    Object.keys(data).forEach(id => {
+      if (data[id].name === 'rules') rulesChannelId = id;
+    });
 
-      const sorted = Object.keys(data).sort((a, b) => {
-        if (data[a].name === 'rules') return -1;
-        if (data[b].name === 'rules') return  1;
-        return data[a].name.localeCompare(data[b].name);
-      });
+    const sorted = Object.keys(data).sort((a, b) => {
+      if (data[a].name === 'rules') return -1;
+      if (data[b].name === 'rules') return  1;
+      return data[a].name.localeCompare(data[b].name);
+    });
 
-      sorted.forEach(id => {
-        const name    = data[id].name;
-        const isRules = name === 'rules';
-        const isAdmin = currentUser.uid === ADMIN_UID;
-        const locked  = !isAdmin && !rulesAccepted && !isRules;
+    // BUILD CHANNEL LIST (this part was missing)
+    sorted.forEach(id => {
+      const name    = data[id].name;
+      const isRules = name === 'rules';
+      const isAdmin = currentUser.uid === ADMIN_UID;
+      const locked  = !isAdmin && !rulesAccepted && !isRules;
 
-        const div = document.createElement('div');
-        div.className = 'channel-item'
-          + (id === currentChannelId ? ' active'    : '')
-          + (isRules                 ? ' ch-rules'  : '')
-          + (locked                  ? ' ch-locked' : '');
-        div.dataset.chId = id;
-        
-        div.appendChild(document.createTextNode(name));
-        div.onclick = () => { switchChannel(id, name); cancelEdit(); };
-        if (isAdmin && !isRules) {
-          const btn = document.createElement('span');
-          btn.className = 'del-ch';
-          btn.title = 'Delete channel';
-          btn.textContent = '×';
-          btn.onclick = (e) => deleteChannel(id, name, e);
-          div.appendChild(btn);
-        }
-        list.appendChild(div);
-      });
+      const div = document.createElement('div');
+      div.className = 'channel-item'
+        + (id === currentChannelId ? ' active'    : '')
+        + (isRules                 ? ' ch-rules'  : '')
+        + (locked                  ? ' ch-locked' : '');
+      div.dataset.chId = id;
+      
+      div.appendChild(document.createTextNode(name));
+      div.onclick = () => { switchChannel(id, name); cancelEdit(); };
+      if (isAdmin && !isRules) {
+        const btn = document.createElement('span');
+        btn.className = 'del-ch';
+        btn.title = 'Delete channel';
+        btn.textContent = '×';
+        btn.onclick = (e) => deleteChannel(id, name, e);
+        div.appendChild(btn);
+      }
+      list.appendChild(div);
+    });
 
-      if (!currentChannelId) {
-        if (rulesChannelId && !rulesAccepted && currentUser.uid !== ADMIN_UID) {
-          switchChannel(rulesChannelId, 'rules');
-        } else {
+    // DECIDE WHICH CHANNEL TO OPEN (your new logic)
+    if (!currentChannelId) {
+      const isAdmin = currentUser.uid === ADMIN_UID;
+      const hasAcceptedRules = isAdmin || rulesAccepted;
+
+      if (hasAcceptedRules && currentUser.lastChannelId && data[currentUser.lastChannelId]) {
+        switchChannel(currentUser.lastChannelId, data[currentUser.lastChannelId].name);
+      } else if (!hasAcceptedRules && rulesChannelId) {
+        switchChannel(rulesChannelId, 'rules');
+      } else {
+        const firstNonRules = sorted.find(id => data[id].name !== 'rules');
+        if (firstNonRules) {
+          switchChannel(firstNonRules, data[firstNonRules].name);
+        } else if (sorted.length > 0) {
           switchChannel(sorted[0], data[sorted[0]].name);
         }
       }
-    });
-  }
+    }
+  });
+}
 
   function openCreateChannel() { document.getElementById('modal-channel').classList.remove('hidden'); }
   function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
@@ -1289,7 +1302,9 @@
     if (messagesAddedUnsubscribe) { messagesAddedUnsubscribe(); messagesAddedUnsubscribe = null; }
     if (messagesRemovedUnsubscribe) { messagesRemovedUnsubscribe(); messagesRemovedUnsubscribe = null; }
     if (messagesChangedUnsubscribe) { messagesChangedUnsubscribe(); messagesChangedUnsubscribe = null; }
-
+    if (currentUser) {
+    window.fbSet(window.fbRef(window.db, `users/${currentUser.uid}/lastChannel`), id);
+    }
     const msgRef = window.fbRef(window.db, `messages/${id}`);
     messagesAddedUnsubscribe = window.fbOnChildAdded(msgRef, (snap) => {
       renderMessage(snap.val(), snap.key);
