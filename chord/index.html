@@ -1,4 +1,4 @@
-<!-- Stable? -->
+<!-- Unstable -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -674,6 +674,82 @@
   .rules-readonly { padding: 6px 20px 14px; font-size: 12px; color: var(--text-muted); text-align: center; font-style: italic; }
 
   /* ═══════════════════════════════════════════════
+       THEMES
+   ═══════════════════════════════════════════════ */
+  
+/* Default Dark Theme */
+body.theme-dark {
+  --bg-deepest: #0b0d12;
+  --bg-dark: #10121a;
+  --bg-mid: #15182280;
+  --bg-panel: #151820;
+  --bg-sidebar: #0f111a;
+  --bg-input: #1e2130;
+  --bg-hover: #1e2235;
+  --bg-active: #252a3d;
+  --bg-msg-hover: #1a1d2a;
+  --accent: #7c6af7;
+  --accent-bright: #9d8fff;
+  --accent-dim: #4a3fa8;
+  --accent-glow: rgba(124,106,247,0.25);
+  --green: #3ddc84;
+  --red: #ff5c5c;
+  --yellow: #f5f543;
+  --text-main: #e0e0e0;
+  --text-dim: #949ba4;
+  --text-muted: #4e5058;
+  --border: rgba(255,255,255,0.06);
+}
+
+/* Light Theme */
+body.theme-light {
+  --bg-deepest: #f5f7fa;
+  --bg-dark: #ffffff;
+  --bg-mid: #f0f2f580;
+  --bg-panel: #ffffff;
+  --bg-sidebar: #f0f2f5;
+  --bg-input: #e4e6eb;
+  --bg-hover: #e9eaef;
+  --bg-active: #d8dae0;
+  --bg-msg-hover: #f2f3f5;
+  --accent: #5865f2;
+  --accent-bright: #7984f5;
+  --accent-dim: #3c45a5;
+  --accent-glow: rgba(88,101,242,0.15);
+  --green: #2d7a4b;
+  --red: #d83c3c;
+  --yellow: #b58f00;
+  --text-main: #2e3338;
+  --text-dim: #5e6773;
+  --text-muted: #8e9297;
+  --border: rgba(0,0,0,0.08);
+}
+
+/* Midnight Theme (deep blue) */
+body.theme-midnight {
+  --bg-deepest: #0a0e1a;
+  --bg-dark: #0f1422;
+  --bg-mid: #161d3180;
+  --bg-panel: #12182a;
+  --bg-sidebar: #0c1120;
+  --bg-input: #1a2340;
+  --bg-hover: #1f2a4a;
+  --bg-active: #2a365a;
+  --bg-msg-hover: #182040;
+  --accent: #3b82f6;
+  --accent-bright: #60a5fa;
+  --accent-dim: #2563eb;
+  --accent-glow: rgba(59,130,246,0.25);
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --text-main: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-muted: #64748b;
+  --border: rgba(255,255,255,0.06);
+}
+  
+  /* ═══════════════════════════════════════════════
      MARKDOWN RENDERING
   ═══════════════════════════════════════════════ */
   .msg-text strong { color: #fff; font-weight: 700; }
@@ -860,6 +936,15 @@
       <input type="text" id="settings-status" placeholder="e.g., 🎮 Gaming" maxlength="30">
     </div>
 
+<div class="input-group" style="margin-top:20px;">
+  <label>Theme</label>
+  <select id="settings-theme" style="width:100%; background:var(--bg-input); color:#fff; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+    <option value="dark">Dark</option>
+    <option value="light">Light</option>
+    <option value="midnight">Midnight</option>
+  </select>
+</div>
+    
     <div class="modal-btns">
       <button class="btn-ghost" onclick="closeModals()">Cancel</button>
       <button class="btn-action" onclick="saveSettings()">Save</button>
@@ -1139,6 +1224,13 @@
     }
 
     currentUser = userData;
+    function applyTheme(theme) {
+    document.body.className = document.body.className.replace(/theme-\w+/g, '');
+    document.body.classList.add(`theme-${theme || 'dark'}`);
+    }
+
+    // In setupApp, after currentUser is set:
+    applyTheme(userData.theme || 'dark');
     currentUser.lastChannelId = userData.lastChannel || null;   
     window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
       currentUser.mutedUntil = snap.val() || 0;
@@ -1959,9 +2051,8 @@
       settingsSelectedCustomHex = null;
       isSettingsCustomMode = false;
     }
-    
     buildColorGridForSettings();
-    
+    document.getElementById('settings-theme').value = currentUser.theme || 'dark';
     document.getElementById('settings-status').value = currentUser.statusText || '';
     document.getElementById('modal-settings').classList.remove('hidden');
   }
@@ -2116,6 +2207,11 @@
   updateOwnStatusDisplay(newStatus);
   closeModals();
 
+  const newTheme = document.getElementById('settings-theme').value;
+  updates.theme = newTheme;
+  currentUser.theme = newTheme;
+  applyTheme(newTheme);
+    
   // Reset custom swatch appearance in settings grid
   const settingsGrid = document.getElementById('settings-color-grid');
   if (settingsGrid) {
