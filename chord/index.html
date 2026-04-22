@@ -1193,11 +1193,16 @@ body.theme-midnight {
   }
 
   function logout() {
-    if (currentUser) {
-      window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}`), null);
+  if (currentUser) {
+    // Clear presence
+    window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}`), null);
+    // Clear typing (if any)
+    if (currentChannelId) {
+      window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
     }
-    window.fbSignOut(window.auth).then(() => location.reload());
   }
+  window.fbSignOut(window.auth).then(() => location.reload());
+}
 
   function setupApp(userData) {
     let needsUpdate = false;
@@ -1685,14 +1690,24 @@ body.theme-midnight {
   //  TYPING INDICATORS
   // ═══════════════════════════════════════════════════════
   function handleTypingInput() {
-    if (!currentChannelId || !currentUser) return;
-    window.fbSet(
-      window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`),
-      { username: currentUser.username, color: getUserColor(currentUser), ts: Date.now() }
-    );
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(clearTyping, 1250);
-  }
+  if (!currentChannelId || !currentUser) return;
+  
+  const typingRef = window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`);
+  
+  // Set typing data
+  window.fbSet(typingRef, {
+    username: currentUser.username,
+    color: getUserColor(currentUser),
+    ts: Date.now()
+  });
+  
+  // Ensure it's removed on disconnect
+  window.fbOnDisconnect(typingRef).remove();
+  
+  // Clear local timeout and set a new one
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(clearTyping, 1250);
+}
 
   function clearTyping() {
     clearTimeout(typingTimer);
