@@ -121,7 +121,7 @@
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     padding: 12px;
-    color: #fff;
+    color: var(--text-main);
     outline: none;
     transition: border 0.2s;
   }
@@ -257,7 +257,7 @@
     font-size: 14px;
   }
   .channel-item:hover { background: var(--bg-hover); color: var(--text-main); }
-  .channel-item.active { background: var(--bg-active); color: #fff; }
+  .channel-item.active { background: var(--bg-active); color: var(--text-main); }
   .channel-item::before { content: "#"; opacity: 0.5; font-family: 'Space Mono', monospace; }
   .channel-item.ch-rules::before { content: "📜"; opacity: 1; font-family: inherit; font-size: 10px; }
   .channel-item.ch-locked { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
@@ -356,7 +356,7 @@
   .msg-user { font-weight: 600; font-size: 14px; cursor: pointer; }
   .msg-user:hover { text-decoration: underline; }
   .msg-time { color: var(--text-dim); font-size: 11px; }
-  .msg-text { font-size: 14px; line-height: 1.5; color: #dbdee1; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+  .msg-text { font-size: 14px; line-height: 1.5; color: var(--text-main); word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
   .msg-edited { font-size: 10px; color: var(--text-muted); margin-left: 6px; font-style: italic; }
   .msg-grouped-line { margin-top: 2px; }
 
@@ -461,7 +461,7 @@
     background: none;
     border: none;
     outline: none;
-    color: #fff;
+    color: var(--text-main);
     padding: 8px 0;
     font-size: 14px;
     font-family: inherit;
@@ -750,7 +750,7 @@ body.theme-midnight {
   /* ═══════════════════════════════════════════════
      MARKDOWN RENDERING
   ═══════════════════════════════════════════════ */
-  .msg-text strong { color: #fff; font-weight: 700; }
+  .msg-text strong { color: var(--text-main); font-weight: 700; }
   .msg-text em { font-style: italic; }
   .msg-text u { text-decoration: underline; }
   .msg-text del { text-decoration: line-through; opacity: 0.6; }
@@ -936,7 +936,7 @@ body.theme-midnight {
 
 <div class="input-group" style="margin-top:20px;">
   <label>Theme</label>
-  <select id="settings-theme" style="width:100%; background:var(--bg-input); color:#fff; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+  <select id="settings-theme" style="width:100%; background:var(--bg-input); color:var(--text-main); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
     <option value="dark">Dark</option>
     <option value="light">Light</option>
     <option value="midnight">Deep Blue</option>
