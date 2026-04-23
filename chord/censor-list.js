@@ -52,6 +52,8 @@ export const BANNED_WORDS = [
 "ass-hat",
 "ass-pirate",
 "assbag",
+"f@ag",
+"fa@g",
 "assbagger",
 "assbandit",
 "assbang",
