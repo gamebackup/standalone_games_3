@@ -1,5 +1,5 @@
 <!-- Unstable -->
-<!-- vers 2.4 -->
+<!-- vers 2.6 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -592,6 +592,30 @@
   .member-item {
     align-items: flex-start !important;
   }
+  /* Offline section takes remaining space and scrolls independently */
+.member-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+#online-scroll {
+  flex-shrink: 0;
+  max-height: 55%;  /* online members take at most 55% of the panel */
+  overflow-y: auto;
+}
+.offline-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.offline-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+.offline-label {
+  flex-shrink: 0;
+}
   
   /* ═══════════════════════════════════════════════
      MODALS
@@ -882,13 +906,15 @@ body.theme-midnight {
     <div class="online-pip"></div>
     <span id="online-count">0</span>&nbsp;Online
   </div>
-  <div class="members-scroll" id="members-container">
+  <div class="members-scroll" id="online-scroll">
     <div id="online-members"></div>
+  </div>
+  <div class="offline-section">
     <div class="section-label offline-label">
-  <span>Offline</span>
-  <span id="offline-count">0</span>
-</div>
-    <div id="offline-members"></div>
+      <span>Offline</span>
+      <span id="offline-count">0</span>
+    </div>
+    <div class="offline-scroll" id="offline-members"></div>
   </div>
 </aside>
 
@@ -1044,44 +1070,68 @@ body.theme-midnight {
   
   // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
   async function loadCensorList() {
-    const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
-    try {
-      const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      const match = text.match(/\[([\s\S]*)\]/);
-      if (!match) throw new Error('Could not find word array in censor list');
-      const words = JSON.parse('[' + match[1] + ']');
-      const sorted = [...words].sort((a, b) => b.length - a.length);
-      const parts = sorted.map(word => {
-        if (word.includes('*')) {
-          return word.split('*').map(seg => seg.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('\\w*');
-        }
-        let escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
+  try {
+    const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const match = text.match(/\[([\s\S]*)\]/);
+    if (!match) throw new Error('Could not find word array in censor list');
+    const words = JSON.parse('[' + match[1] + ']');
+    const sorted = [...words].sort((a, b) => b.length - a.length);
+
+    const parts = sorted.map(word => {
+      // If the word contains wildcard stars, split and treat separately
+      if (word.includes('*')) {
+        return word.split('*').map(seg => {
+          // For each segment, build leet-character-classes separated by [^a-zA-Z]*
+          let pattern = '';
+          for (const ch of seg) {
+            const lower = ch.toLowerCase();
+            if (LEET_MAP[lower]) {
+              pattern += '[' + LEET_MAP[lower] + ']';
+            } else {
+              pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            // Allow non‑letter junk between letters (but not after the last char of this segment)
+            // We'll attach the separator later in joining.
+          }
+          return pattern;
+        }).join('\\w*'); // original wildcard behaviour
+      } else {
+        // No wildcards: build full pattern with [^a-zA-Z]* between every leet-character
         let pattern = '';
-        for (let i = 0; i < escaped.length; i++) {
-          const char = escaped[i];
-          const lower = char.toLowerCase();
+        for (let i = 0; i < word.length; i++) {
+          const ch = word[i];
+          const lower = ch.toLowerCase();
           if (LEET_MAP[lower]) {
             pattern += '[' + LEET_MAP[lower] + ']';
           } else {
-            pattern += char;
+            pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          }
+          // Add non‑letter separator after every character except the last
+          if (i < word.length - 1) {
+            pattern += '[^a-zA-Z]*';
           }
         }
-        const hasLetter = /[a-zA-Z]/.test(word);
-        return hasLetter
-          ? '(?<![a-zA-Z0-9])' + pattern + '(?![a-zA-Z0-9])'
-          : pattern;
-      });
-      window.censorRegex = new RegExp(parts.join('|'), 'gi');
-      console.log(`Chorde: censor list loaded (${words.length} entries)`);
-    } catch (err) {
-      console.warn('Chorde: censor list failed to load —', err.message);
-    }
-  }
-  loadCensorList();
-  setInterval(loadCensorList, 30 * 60 * 1000);
+        return pattern;
+      }
+    });
 
+    // Wrap each part with word boundaries
+    const finalParts = parts.map(p => {
+      const hasLetter = /[a-zA-Z]/.test(p);
+      return hasLetter
+        ? '(?<![a-zA-Z0-9])' + p + '(?![a-zA-Z0-9])'
+        : p;
+    });
+
+    window.censorRegex = new RegExp(finalParts.join('|'), 'gi');
+    console.log(`Chorde: censor list loaded (${words.length} entries)`);
+  } catch (err) {
+    console.warn('Chorde: censor list failed to load —', err.message);
+  }
+}
   // New color palette: 11 preset hex colors + custom
   const PRESET_COLORS = [
     '#FF0000', '#FF4500', '#FF8C00', '#FFD700', '#FFFF00',
@@ -1967,39 +2017,78 @@ body.theme-midnight {
   }
 
   async function handleCommand(raw) {
-    const input = document.getElementById('chat-input');
-    const parts = raw.split(/\s+/);
-    const cmd = parts[0].toLowerCase();
+  const input = document.getElementById('chat-input');
+  const parts = raw.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
 
-    if (cmd === '/mute') {
-      const targetName = parts[1];
-      const minutes = parseInt(parts[2]);
-      if (!targetName || isNaN(minutes) || minutes < 1) {
-        alert('Usage: /mute username minutes\nExample: /mute crow 10');
-        return;
-      }
-      const user = await findUserByUsername(targetName);
-      if (!user) { alert(`User "${targetName}" not found.`); return; }
-      const mutedUntil = Date.now() + minutes * 60 * 1000;
-      await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
-      input.value = '';
-      input.style.height = 'auto';
-      alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
-
-    } else if (cmd === '/unmute') {
-      const targetName = parts[1];
-      if (!targetName) { alert('Usage: /unmute username'); return; }
-      const user = await findUserByUsername(targetName);
-      if (!user) { alert(`User "${targetName}" not found.`); return; }
-      await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
-      input.value = '';
-      input.style.height = 'auto';
-      alert(`${user.username} has been unmuted.`);
-
-    } else {
-      alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username`);
+  if (cmd === '/mute') {
+    const targetName = parts[1];
+    const minutes = parseInt(parts[2]);
+    if (!targetName || isNaN(minutes) || minutes < 1) {
+      alert('Usage: /mute username minutes\nExample: /mute crow 10');
+      return;
     }
+    const user = await findUserByUsername(targetName);
+    if (!user) { alert(`User "${targetName}" not found.`); return; }
+    const mutedUntil = Date.now() + minutes * 60 * 1000;
+    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
+    input.value = '';
+    input.style.height = 'auto';
+    alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
+
+  } else if (cmd === '/unmute') {
+    const targetName = parts[1];
+    if (!targetName) { alert('Usage: /unmute username'); return; }
+    const user = await findUserByUsername(targetName);
+    if (!user) { alert(`User "${targetName}" not found.`); return; }
+    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
+    input.value = '';
+    input.style.height = 'auto';
+    alert(`${user.username} has been unmuted.`);
+
+  } else if (cmd === '/ban') {
+    const targetName = parts[1];
+    if (!targetName) { alert('Usage: /ban username'); return; }
+    const user = await findUserByUsername(targetName);
+    if (!user) { alert(`User "${targetName}" not found.`); return; }
+    const uid = user.uid;
+
+    // 1. Remove presence & typing
+    await window.fbSet(window.fbRef(window.db, `presence/${uid}`), null);
+    if (currentChannelId) {
+      await window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
+    }
+
+    // 2. Delete user account
+    await window.fbSet(window.fbRef(window.db, `users/${uid}`), null);
+
+    // 3. Delete all messages from this user across every channel
+    const channelsSnap = await new Promise(resolve => {
+      window.fbOnValue(window.fbRef(window.db, 'channels'), resolve, { onlyOnce: true });
+    });
+    const channels = channelsSnap.val() || {};
+    const channelIds = Object.keys(channels);
+
+    for (const chId of channelIds) {
+      const messagesSnap = await new Promise(resolve => {
+        window.fbOnValue(window.fbRef(window.db, `messages/${chId}`), resolve, { onlyOnce: true });
+      });
+      const messages = messagesSnap.val() || {};
+      for (const msgId of Object.keys(messages)) {
+        if (messages[msgId].senderUid === uid) {
+          await window.fbSet(window.fbRef(window.db, `messages/${chId}/${msgId}`), null);
+        }
+      }
+    }
+
+    input.value = '';
+    input.style.height = 'auto';
+    alert(`${targetName} has been banned and all data removed.`);
+
+  } else {
+    alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username, /ban username`);
   }
+}
 
   function findUserByUsername(username) {
     return new Promise((resolve) => {
@@ -2416,17 +2505,22 @@ body.theme-midnight {
     });
 
     setTimeout(() => {
-      if (window.auth) {
-        window.auth.onAuthStateChanged((user) => {
-          if (user) {
-            window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
-              if (snap.exists()) setupApp(snap.val());
-            }, { onlyOnce: true });
+  if (window.auth) {
+    window.auth.onAuthStateChanged((user) => {
+      if (user) {
+        window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
+          if (snap.exists()) {
+            setupApp(snap.val());
+          } else {
+            // User was deleted (banned) – force sign‑out
+            window.fbSignOut(window.auth).then(() => location.reload());
           }
-        });
+        }, { onlyOnce: true });
       }
-    }, 1000);
-  });
+    });
+  }
+}, 1000);
+});
 </script>
 </body>
 </html>
