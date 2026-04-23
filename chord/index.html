@@ -1,5 +1,5 @@
 <!-- Unstable -->
-<!-- vers 2.3 -->
+<!-- vers 2.4 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -883,9 +883,11 @@ body.theme-midnight {
     <span id="online-count">0</span>&nbsp;Online
   </div>
   <div class="members-scroll" id="members-container">
-    <!-- Online members will be inserted here -->
     <div id="online-members"></div>
-    <div class="section-label offline-label">Offline</div>
+    <div class="section-label offline-label">
+  <span>Offline</span>
+  <span id="offline-count">0</span>
+</div>
     <div id="offline-members"></div>
   </div>
 </aside>
@@ -1206,61 +1208,62 @@ body.theme-midnight {
 }
 
   function setupApp(userData) {
-    let needsUpdate = false;
-    applyTheme(userData.theme || 'dark');
-    
-    if (!userData.createdAt) {
-      userData.createdAt = Date.now();
-      needsUpdate = true;
-    }
-    if (userData.statusText === undefined) {
-      userData.statusText = "";
-      needsUpdate = true;
-    }
-    if (!userData.theme) {
-      userData.theme = "dark";
-      needsUpdate = true;
-    }
+  let needsUpdate = false;
+  applyTheme(userData.theme || 'dark');
   
-    if (needsUpdate) {
-      window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
-        createdAt: userData.createdAt,
-        statusText: userData.statusText,
-        theme: userData.theme
-      });
-    }
-
-    currentUser = userData;
-    currentUser.lastChannelId = userData.lastChannel || null;   
-    window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
-      currentUser.mutedUntil = snap.val() || 0;
-    });
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('chat-screen').classList.remove('hidden');
-    document.getElementById('my-name').innerText = userData.username;
-    const av = document.getElementById('my-avatar');
-    const bgColor = getUserColor(userData);
-    styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
-    updateOwnStatusDisplay(currentUser.statusText);
-    setupPresence(userData);
-    initMemberList();
-    const createBtn = document.getElementById('create-channel-btn');
-    if (createBtn) {
-      createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
-    }
-    if (currentUser.uid === ADMIN_UID) {
-      rulesAccepted = true;
-      initChannels();
-      checkRulesStatus();
-    } else {
-      window.fbOnValue(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), (snap) => {
-        rulesAccepted = snap.val() === true;
-        initChannels();
-        checkRulesStatus();
-      }, { onlyOnce: true });
-    }
+  if (!userData.createdAt) {
+    userData.createdAt = Date.now();
+    needsUpdate = true;
+  }
+  if (userData.statusText === undefined) {
+    userData.statusText = "";
+    needsUpdate = true;
+  }
+  if (!userData.theme) {
+    userData.theme = "dark";
+    needsUpdate = true;
   }
 
+  if (needsUpdate) {
+    window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
+      createdAt: userData.createdAt,
+      statusText: userData.statusText,
+      theme: userData.theme
+    });
+  }
+
+  currentUser = userData;
+  currentUser.lastChannelId = userData.lastChannel || null;   
+  window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
+    currentUser.mutedUntil = snap.val() || 0;
+  });
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('chat-screen').classList.remove('hidden');
+  document.getElementById('my-name').innerText = userData.username;
+  const av = document.getElementById('my-avatar');
+  const bgColor = getUserColor(userData);
+  styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
+  updateOwnStatusDisplay(currentUser.statusText);
+  setupPresence(userData);
+  initMemberList();
+  startTypingCleanup();   // ✅ Call it once here
+
+  const createBtn = document.getElementById('create-channel-btn');
+  if (createBtn) {
+    createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
+  }
+  if (currentUser.uid === ADMIN_UID) {
+    rulesAccepted = true;
+    initChannels();
+    checkRulesStatus();
+  } else {
+    window.fbOnValue(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), (snap) => {
+      rulesAccepted = snap.val() === true;
+      initChannels();
+      checkRulesStatus();
+    }, { onlyOnce: true });
+  }
+}
   // ═══════════════════════════════════════════════════════
   //  CHANNELS
   // ═══════════════════════════════════════════════════════
@@ -1642,6 +1645,10 @@ body.theme-midnight {
       offlineContainer.innerHTML = '';
       onlineList .forEach(m => onlineContainer .appendChild(createMemberElement(m)));
       offlineList.forEach(m => offlineContainer.appendChild(createMemberElement(m)));
+      const offlineCountSpan = document.getElementById('offline-count');
+      if (offlineCountSpan) {
+      offlineCountSpan.innerText = offlineList.length;
+      }
     }
 
     window.fbOnValue(window.fbRef(window.db, 'users'), (snap) => {
@@ -1717,26 +1724,29 @@ body.theme-midnight {
   }
 
   function subscribeTyping(channelId) {
-    if (typingUnsubscribe) typingUnsubscribe();
-    let lastTypingKey = '';
-    const ref = window.fbRef(window.db, `typing/${channelId}`);
-    typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-      const data   = snap.val() || {};
-      const others = Object.values(data).filter(t => t.uid !== currentUser?.uid);
-      
-      const typingKey = others.map(t => t.username).sort().join(',');
-      
-      if (typingKey === lastTypingKey) return;
-      lastTypingKey = typingKey;
-
-      const box  = document.getElementById('typing-box');
-      const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-      if (others.length === 0)      box.innerHTML = '';
-      else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
-      else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
-      else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+  if (typingUnsubscribe) typingUnsubscribe();
+  let lastTypingKey = '';
+  const ref = window.fbRef(window.db, `typing/${channelId}`);
+  typingUnsubscribe = window.fbOnValue(ref, (snap) => {
+    const data = snap.val() || {};
+    const now = Date.now();
+    const others = Object.values(data).filter(t => {
+      return t.uid !== currentUser?.uid && (now - t.ts) < 3000;   // <-- age check
     });
-  }
+    
+    const typingKey = others.map(t => t.username).sort().join(',');
+    
+    if (typingKey === lastTypingKey) return;
+    lastTypingKey = typingKey;
+
+    const box = document.getElementById('typing-box');
+    const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+    if (others.length === 0)      box.innerHTML = '';
+    else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+    else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+    else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
+  });
+}
 
   // ═══════════════════════════════════════════════════════
   //  CENSORING
@@ -2343,6 +2353,22 @@ body.theme-midnight {
     
     document.getElementById('modal-custom-color').classList.remove('hidden');
   }
+
+  function startTypingCleanup() {
+  setInterval(() => {
+    if (!currentChannelId) return;
+    const typingRef = window.fbRef(window.db, `typing/${currentChannelId}`);
+    window.fbOnValue(typingRef, (snap) => {
+      const data = snap.val() || {};
+      const now = Date.now();
+      Object.entries(data).forEach(([uid, entry]) => {
+        if (now - entry.ts > 15000) {
+          window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
+        }
+      });
+    }, { onlyOnce: true });
+  }, 30000);
+}
 
   window.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
