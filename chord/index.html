@@ -1,5 +1,5 @@
 <!-- Unstable -->
-<!-- vers 2.6 -->
+<!-- vers 2.7 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -527,94 +527,47 @@
   /* ═══════════════════════════════════════════════
      MEMBER LIST (RIGHT SIDEBAR)
   ═══════════════════════════════════════════════ */
-  .member-list {
-    width: 220px;
-    background: var(--bg-sidebar);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .member-list-header {
-    padding: 16px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-    font-size: 11px;
-    text-transform: uppercase;
-    font-weight: 700;
-    color: var(--text-dim);
-    gap: 6px;
-  }
-  .online-pip {
-    width: 8px;
-    height: 8px;
-    background: var(--green);
-    border-radius: 50%;
-    box-shadow: 0 0 6px var(--green);
-    flex-shrink: 0;
-  }
-  .members-scroll { flex: 1; overflow-y: auto; padding: 12px 8px; }
-  .member-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 8px;
-    border-radius: var(--radius-sm);
-    cursor: default;
-    transition: background 0.15s;
-  }
-  .member-item:hover { background: var(--bg-hover); }
-  .member-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 11px;
-    color: #fff;
-    flex-shrink: 0;
-  }
-  .member-name { font-size: 13px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .member-item:hover .member-name { color: var(--text-main); }
-  .you-tag { font-size: 10px; color: var(--text-muted); }
-  .offline-label {
-    margin-top: 16px;
-    margin-bottom: 8px;
-    color: var(--text-muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
-  .member-item {
-    align-items: flex-start !important;
-  }
-  /* Offline section takes remaining space and scrolls independently */
+  /* ═══════════════════════════════════════════════
+   MEMBER LIST (RIGHT SIDEBAR) – single scroll
+   ═══════════════════════════════════════════════ */
 .member-list {
+  width: 220px;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  overflow: hidden;
 }
-#online-scroll {
-  flex-shrink: 0;
-  max-height: 55%;  /* online members take at most 55% of the panel */
-  overflow-y: auto;
-}
-.offline-section {
-  flex: 1;
+.member-list-header {
+  padding: 16px;
+  height: 60px;
   display: flex;
-  flex-direction: column;
-  min-height: 0;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-dim);
+  gap: 6px;
+  flex-shrink: 0;
 }
-.offline-scroll {
+.members-scroll {
   flex: 1;
   overflow-y: auto;
+  padding: 12px 8px;
 }
-.offline-label {
-  flex-shrink: 0;
+.offline-label-wrapper {
+  margin-top: 8px;
+  margin-bottom: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
   
   /* ═══════════════════════════════════════════════
@@ -702,7 +655,6 @@
        THEMES
    ═══════════════════════════════════════════════ */
   
-/* Default Dark Theme */
 body.theme-dark {
   --bg-deepest: #0b0d12;
   --bg-dark: #10121a;
@@ -769,6 +721,29 @@ body.theme-midnight {
   --text-main: #e2e8f0;
   --text-dim: #94a3b8;
   --text-muted: #64748b;
+  --border: rgba(255,255,255,0.06);
+}
+
+body.theme-forest {
+  --bg-deepest: #1a221c;
+  --bg-dark: #1f2a22;
+  --bg-mid: #26342880;
+  --bg-panel: #1e2820;
+  --bg-sidebar: #172018;
+  --bg-input: #2a372d;
+  --bg-hover: #2f3e32;
+  --bg-active: #3a4d3e;
+  --bg-msg-hover: #263028;
+  --accent: #4caf50;
+  --accent-bright: #81c784;
+  --accent-dim: #388e3c;
+  --accent-glow: rgba(76,175,80,0.25);
+  --green: #66bb6a;
+  --red: #ef5350;
+  --yellow: #ffb74d;
+  --text-main: #dcedc8;
+  --text-dim: #a5d6a7;
+  --text-muted: #6b8b6b;
   --border: rgba(255,255,255,0.06);
 }
   
@@ -906,18 +881,16 @@ body.theme-midnight {
     <div class="online-pip"></div>
     <span id="online-count">0</span>&nbsp;Online
   </div>
-  <div class="members-scroll" id="online-scroll">
+  <div class="members-scroll" id="members-scroll">
     <div id="online-members"></div>
-  </div>
-  <div class="offline-section">
-    <div class="section-label offline-label">
+    <div class="offline-label-wrapper">
       <span>Offline</span>
       <span id="offline-count">0</span>
     </div>
-    <div class="offline-scroll" id="offline-members"></div>
+    <div id="offline-members"></div>
   </div>
 </aside>
-
+  
 <div id="modal-channel" class="modal-overlay hidden">
   <div class="modal">
     <h3>Create Channel</h3>
@@ -969,6 +942,7 @@ body.theme-midnight {
     <option value="dark">Dark</option>
     <option value="light">Light</option>
     <option value="midnight">Deep Blue</option>
+    <option value="forest">Forest</option>
   </select>
 </div>
     
