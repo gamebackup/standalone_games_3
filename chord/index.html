@@ -527,6 +527,44 @@
   /* ═══════════════════════════════════════════════
      MEMBER LIST (RIGHT SIDEBAR)
   ═══════════════════════════════════════════════ */
+  .member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  transition: background 0.15s;
+}
+.member-item:hover { background: var(--bg-hover); }
+.member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.member-name {
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-item:hover .member-name { color: var(--text-main); }
+.you-tag { font-size: 10px; color: var(--text-muted); }
+.online-pip {
+  width: 8px;
+  height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--green);
+  flex-shrink: 0;
+}
   /* ═══════════════════════════════════════════════
    MEMBER LIST (RIGHT SIDEBAR) – single scroll
    ═══════════════════════════════════════════════ */
