@@ -1,5 +1,5 @@
-<!-- Stable -->
-<!-- vers 2.9 -->
+<!-- Unstable -->
+<!-- vers 3.0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,6 +140,19 @@
     transition: background 0.2s;
   }
   .btn-primary:hover { background: var(--accent-bright); }
+  .btn-danger {
+    width: 100%;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: opacity 0.2s;
+  }
+  .btn-danger:hover { opacity: 0.85; }
 
   /* ═══════════════════════════════════════════════
      COLOR PICKER (REGISTRATION & SETTINGS)
@@ -361,6 +374,9 @@
   .msg-edited { font-size: 10px; color: var(--text-muted); margin-left: 6px; font-style: italic; }
   .msg-grouped-line { margin-top: 2px; }
 
+  /* hide timestamps when class applied */
+  body.hide-timestamps .msg-time { display: none; }
+
   /* ═══════════════════════════════════════════════
      MESSAGE ACTION BUTTONS (react → reply → edit → delete)
   ═══════════════════════════════════════════════ */
@@ -546,6 +562,7 @@
   justify-content: center;
   font-weight: 700;
   font-size: 11px;
+  color: #fff;
   flex-shrink: 0;
 }
 .member-name {
@@ -1192,8 +1209,9 @@ body.theme-whitepink {
   </div>
 </div>
 
+<!-- ========== BIGGER SETTINGS MODAL ========== -->
 <div id="modal-settings" class="modal-overlay hidden">
-  <div class="modal" style="width:360px;">
+  <div class="modal" style="width: min(90vw, 900px); height: min(90vh, 700px); overflow-y: auto;">
     <h3>Settings</h3>
     
     <p style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">Profile Color</p>
@@ -1202,6 +1220,11 @@ body.theme-whitepink {
     <div class="input-group" style="margin-top:20px;">
       <label>Custom Status</label>
       <input type="text" id="settings-status" placeholder="e.g., 🎮 Gaming" maxlength="30">
+    </div>
+
+    <div class="input-group" style="margin-top:20px;">
+      <label>Nickname (leave blank to use username)</label>
+      <input type="text" id="settings-nickname" placeholder="Enter a nickname" maxlength="25">
     </div>
 
 <div class="input-group" style="margin-top:20px;">
@@ -1223,7 +1246,25 @@ body.theme-whitepink {
     <option value="whitepink">White Pink (Request)</option>
   </select>
 </div>
-    
+
+    <div class="input-group" style="margin-top:20px;">
+      <label>Font Size</label>
+      <input type="range" id="settings-fontsize" min="12" max="22" value="14" step="1" style="width:100%">
+      <span id="fontsize-value" style="font-size:12px; color:var(--text-dim);">14px</span>
+    </div>
+
+    <div class="input-group" style="margin-top:20px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="settings-timestamps">
+        Show message timestamps
+      </label>
+    </div>
+
+    <div style="margin-top:30px; border-top:1px solid var(--border); padding-top:20px;">
+      <h4 style="color:var(--red); margin-bottom:12px;">Danger Zone</h4>
+      <button class="btn-danger" onclick="deleteAccount()">Delete My Account</button>
+    </div>
+
     <div class="modal-btns">
       <button class="btn-ghost" onclick="closeModals()">Cancel</button>
       <button class="btn-action" onclick="saveSettings()">Save</button>
@@ -1333,10 +1374,8 @@ body.theme-whitepink {
     const sorted = [...words].sort((a, b) => b.length - a.length);
 
     const parts = sorted.map(word => {
-      // If the word contains wildcard stars, split and treat separately
       if (word.includes('*')) {
         return word.split('*').map(seg => {
-          // For each segment, build leet-character-classes separated by [^a-zA-Z]*
           let pattern = '';
           for (const ch of seg) {
             const lower = ch.toLowerCase();
@@ -1345,13 +1384,10 @@ body.theme-whitepink {
             } else {
               pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             }
-            // Allow non‑letter junk between letters (but not after the last char of this segment)
-            // We'll attach the separator later in joining.
           }
           return pattern;
-        }).join('\\w*'); // original wildcard behaviour
+        }).join('\\w*');
       } else {
-        // No wildcards: build full pattern with [^a-zA-Z]* between every leet-character
         let pattern = '';
         for (let i = 0; i < word.length; i++) {
           const ch = word[i];
@@ -1361,7 +1397,6 @@ body.theme-whitepink {
           } else {
             pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           }
-          // Add non‑letter separator after every character except the last
           if (i < word.length - 1) {
             pattern += '[^a-zA-Z]*';
           }
@@ -1370,7 +1405,6 @@ body.theme-whitepink {
       }
     });
 
-    // Wrap each part with word boundaries
     const finalParts = parts.map(p => {
       const hasLetter = /[a-zA-Z]/.test(p);
       return hasLetter
@@ -1428,6 +1462,18 @@ body.theme-whitepink {
     document.body.classList.add(`theme-${theme || 'dark'}`);
   }
 
+  function applyFontSize(size) {
+    document.body.style.fontSize = size + 'px';
+  }
+
+  function applyTimestamps(show) {
+    if (show) {
+      document.body.classList.remove('hide-timestamps');
+    } else {
+      document.body.classList.add('hide-timestamps');
+    }
+  }
+
   // Helper: get contrast text color (black or white) based on background luminance
   function getContrastColor(hex) {
     const h = hex.replace('#', '');
@@ -1474,8 +1520,11 @@ body.theme-whitepink {
         username: user, 
         colorIdx: selectedRegColor,
         createdAt: Date.now(),
-        statusText: "",          
-        theme: "dark"             
+        statusText: "",
+        nickname: "",
+        theme: "dark",
+        showTimestamps: true,
+        fontSize: 14
       };
       if (selectedRegColor === -1) {
         userData.colorHex = selectedRegCustomHex;
@@ -1499,9 +1548,7 @@ body.theme-whitepink {
 
   function logout() {
   if (currentUser) {
-    // Clear presence
     window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}`), null);
-    // Clear typing (if any)
     if (currentChannelId) {
       window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
     }
@@ -1512,6 +1559,8 @@ body.theme-whitepink {
   function setupApp(userData) {
   let needsUpdate = false;
   applyTheme(userData.theme || 'dark');
+  applyFontSize(userData.fontSize || 14);
+  applyTimestamps(userData.showTimestamps !== false);
   
   if (!userData.createdAt) {
     userData.createdAt = Date.now();
@@ -1521,8 +1570,20 @@ body.theme-whitepink {
     userData.statusText = "";
     needsUpdate = true;
   }
+  if (userData.nickname === undefined) {
+    userData.nickname = "";
+    needsUpdate = true;
+  }
   if (!userData.theme) {
     userData.theme = "dark";
+    needsUpdate = true;
+  }
+  if (userData.showTimestamps === undefined) {
+    userData.showTimestamps = true;
+    needsUpdate = true;
+  }
+  if (userData.fontSize === undefined) {
+    userData.fontSize = 14;
     needsUpdate = true;
   }
 
@@ -1530,7 +1591,10 @@ body.theme-whitepink {
     window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
       createdAt: userData.createdAt,
       statusText: userData.statusText,
-      theme: userData.theme
+      nickname: userData.nickname,
+      theme: userData.theme,
+      showTimestamps: userData.showTimestamps,
+      fontSize: userData.fontSize
     });
   }
 
@@ -1541,14 +1605,14 @@ body.theme-whitepink {
   });
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('chat-screen').classList.remove('hidden');
-  document.getElementById('my-name').innerText = userData.username;
+  document.getElementById('my-name').innerText = userData.nickname || userData.username;
   const av = document.getElementById('my-avatar');
   const bgColor = getUserColor(userData);
   styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
   updateOwnStatusDisplay(currentUser.statusText);
   setupPresence(userData);
   initMemberList();
-  startTypingCleanup();   // ✅ Call it once here
+  startTypingCleanup();
 
   const createBtn = document.getElementById('create-channel-btn');
   if (createBtn) {
@@ -1926,6 +1990,7 @@ body.theme-whitepink {
         const member = {
           uid,
           username: user.username,
+          nickname: user.nickname,
           colorIdx: user.colorIdx,
           colorHex: user.colorHex,
           isOnline: onlineUids.has(uid),
@@ -1937,7 +2002,7 @@ body.theme-whitepink {
       const sort = (a, b) => {
         if (a.uid === currentUser?.uid) return -1;
         if (b.uid === currentUser?.uid) return  1;
-        return a.username.localeCompare(b.username);
+        return (a.nickname || a.username).localeCompare(b.nickname || b.username);
       };
       onlineList.sort(sort);
       offlineList.sort(sort);
@@ -1969,6 +2034,7 @@ body.theme-whitepink {
     const div = document.createElement('div');
     div.className = 'member-item';
 
+    const displayName = member.nickname || member.username;
     const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
     const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
     const avatarColor = getUserColor(member);
@@ -1979,12 +2045,12 @@ body.theme-whitepink {
 
     div.innerHTML = `
       <div class="member-avatar" style="background:${avatarColor}; color:${contrastText}">
-        ${escHtml(member.username[0].toUpperCase())}
+        ${escHtml(displayName[0].toUpperCase())}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;">
           <span class="member-name" style="cursor:pointer;">
-            ${escHtml(member.username)}${youTag}
+            ${escHtml(displayName)}${youTag}
           </span>
           <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
         </div>
@@ -2146,7 +2212,7 @@ body.theme-whitepink {
 
     const msgData = {
       text,
-      sender: currentUser.username,
+      sender: currentUser.nickname || currentUser.username,
       senderUid: currentUser.uid,
       color: getUserColor(currentUser),
       ts: Date.now(),
@@ -2305,16 +2371,13 @@ body.theme-whitepink {
     if (!user) { alert(`User "${targetName}" not found.`); return; }
     const uid = user.uid;
 
-    // 1. Remove presence & typing
     await window.fbSet(window.fbRef(window.db, `presence/${uid}`), null);
     if (currentChannelId) {
       await window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
     }
 
-    // 2. Delete user account
     await window.fbSet(window.fbRef(window.db, `users/${uid}`), null);
 
-    // 3. Delete all messages from this user across every channel
     const channelsSnap = await new Promise(resolve => {
       window.fbOnValue(window.fbRef(window.db, 'channels'), resolve, { onlyOnce: true });
     });
@@ -2416,6 +2479,10 @@ body.theme-whitepink {
     buildColorGridForSettings();
     document.getElementById('settings-theme').value = currentUser.theme || 'dark';
     document.getElementById('settings-status').value = currentUser.statusText || '';
+    document.getElementById('settings-nickname').value = currentUser.nickname || '';
+    document.getElementById('settings-timestamps').checked = currentUser.showTimestamps !== false;
+    document.getElementById('settings-fontsize').value = currentUser.fontSize || 14;
+    document.getElementById('fontsize-value').innerText = (currentUser.fontSize || 14) + 'px';
     document.getElementById('modal-settings').classList.remove('hidden');
   }
 
@@ -2552,18 +2619,31 @@ body.theme-whitepink {
     }
     
     const newStatus = document.getElementById('settings-status').value.trim();
+    const newNickname = document.getElementById('settings-nickname').value.trim();
+    const showTimestamps = document.getElementById('settings-timestamps').checked;
+    const newFontSize = parseInt(document.getElementById('settings-fontsize').value);
+    
     updates.statusText = newStatus;
+    updates.nickname = newNickname;
+    updates.showTimestamps = showTimestamps;
+    updates.fontSize = newFontSize;
     
     currentUser.colorIdx = settingsSelectedColor;
     currentUser.colorHex = updates.colorHex || null;
     currentUser.statusText = newStatus;
+    currentUser.nickname = newNickname;
+    currentUser.showTimestamps = showTimestamps;
+    currentUser.fontSize = newFontSize;
     
     await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
     await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), newColor);
     
     const av = document.getElementById('my-avatar');
     styleAvatarElement(av, newColor, currentUser.username[0].toUpperCase());
+    document.getElementById('my-name').innerText = newNickname || currentUser.username;
     updateOwnStatusDisplay(newStatus);
+    applyTimestamps(showTimestamps);
+    applyFontSize(newFontSize);
     closeModals();
 
     const newTheme = document.getElementById('settings-theme').value;
@@ -2579,6 +2659,41 @@ body.theme-whitepink {
         customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
       }
     }
+  }
+
+  async function deleteAccount() {
+    if (!currentUser) return;
+    if (!confirm('This will permanently delete your account and all messages. Are you sure?')) return;
+    const uid = currentUser.uid;
+    
+    // remove presence & typing
+    await window.fbSet(window.fbRef(window.db, `presence/${uid}`), null);
+    if (currentChannelId) {
+      await window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
+    }
+    
+    // delete user account
+    await window.fbSet(window.fbRef(window.db, `users/${uid}`), null);
+    
+    // delete all messages
+    const channelsSnap = await new Promise(resolve => {
+      window.fbOnValue(window.fbRef(window.db, 'channels'), resolve, { onlyOnce: true });
+    });
+    const channels = channelsSnap.val() || {};
+    const channelIds = Object.keys(channels);
+    for (const chId of channelIds) {
+      const messagesSnap = await new Promise(resolve => {
+        window.fbOnValue(window.fbRef(window.db, `messages/${chId}`), resolve, { onlyOnce: true });
+      });
+      const messages = messagesSnap.val() || {};
+      for (const msgId of Object.keys(messages)) {
+        if (messages[msgId].senderUid === uid) {
+          await window.fbSet(window.fbRef(window.db, `messages/${chId}/${msgId}`), null);
+        }
+      }
+    }
+    
+    window.fbSignOut(window.auth).then(() => location.reload());
   }
 
   function updateOwnStatusDisplay(statusText) {
@@ -2614,7 +2729,7 @@ body.theme-whitepink {
       profileAv.style.color = contrastText;
       profileAv.innerText = user.username[0].toUpperCase();
       
-      document.getElementById('profile-username').innerText = user.username;
+      document.getElementById('profile-username').innerText = user.nickname || user.username;
       document.getElementById('profile-joined').innerText = user.createdAt
         ? new Date(user.createdAt).toLocaleDateString()
         : 'Unknown';
@@ -2628,7 +2743,7 @@ body.theme-whitepink {
       statusLine.style.padding = '0';
       statusLine.style.marginLeft = '0';
       statusLine.style.color = 'var(--text-dim)';
-      statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
+      statusLine.innerHTML = `<strong>Nickname:</strong> ${escHtml(user.nickname || '—')}<br><strong>Username:</strong> ${escHtml(user.username)}<br><strong>Status:</strong> ${escHtml(statusDisplay)}`;
 
       const statusSpan = document.getElementById('profile-status');
       statusSpan.parentNode.insertBefore(statusLine, statusSpan);
@@ -2710,6 +2825,14 @@ body.theme-whitepink {
     }, { onlyOnce: true });
   }, 30000);
 }
+
+  // Font size slider live update
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'settings-fontsize') {
+      const val = e.target.value;
+      document.getElementById('fontsize-value').innerText = val + 'px';
+    }
+  });
 
   window.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
