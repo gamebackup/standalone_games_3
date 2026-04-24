@@ -165,8 +165,6 @@
     margin-bottom: 20px;
   }
   .color-swatch {
-    max-width: 36px;
-    margin: auto;
     aspect-ratio: 1;
     border-radius: 50%;
     cursor: pointer;
@@ -175,6 +173,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  /* Settings: slightly smaller but still easy to click */
+  #settings-color-grid .color-swatch {
+    max-width: 42px;
+    margin: auto;
+  }
+  /* Registration: let them fill the grid naturally */
+  #reg-color-grid .color-swatch {
+    /* no max‑width override */
   }
   .color-swatch:hover { transform: scale(1.1); }
   .color-swatch.selected { border-color: #fff; }
@@ -1226,6 +1233,11 @@ body.theme-whitepink {
     </div>
 
     <div class="input-group" style="margin-top:20px;">
+      <label>Nickname (optional)</label>
+      <input type="text" id="settings-nickname" placeholder="Leave blank to use username" maxlength="25">
+    </div>
+
+    <div class="input-group" style="margin-top:20px;">
       <label>Theme</label>
       <select id="settings-theme" style="width:100%; background:var(--bg-input); color:var(--text-main); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
         <option value="dark">Dark</option>
@@ -1505,6 +1517,7 @@ body.theme-whitepink {
         colorIdx: selectedRegColor,
         createdAt: Date.now(),
         statusText: "",
+        nickname: "",
         theme: "dark",
         showTimestamps: true,
         fontSize: 14
@@ -1552,6 +1565,10 @@ body.theme-whitepink {
       userData.statusText = "";
       needsUpdate = true;
     }
+    if (userData.nickname === undefined) {
+      userData.nickname = "";
+      needsUpdate = true;
+    }
     if (!userData.theme) {
       userData.theme = "dark";
       needsUpdate = true;
@@ -1568,6 +1585,7 @@ body.theme-whitepink {
       window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
         createdAt: userData.createdAt,
         statusText: userData.statusText,
+        nickname: userData.nickname,
         theme: userData.theme,
         showTimestamps: userData.showTimestamps,
         fontSize: userData.fontSize
@@ -1581,7 +1599,7 @@ body.theme-whitepink {
     });
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('chat-screen').classList.remove('hidden');
-    document.getElementById('my-name').innerText = userData.username;
+    document.getElementById('my-name').innerText = userData.nickname || userData.username;
     const av = document.getElementById('my-avatar');
     const bgColor = getUserColor(userData);
     styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
@@ -1959,6 +1977,7 @@ body.theme-whitepink {
         const member = {
           uid,
           username: user.username,
+          nickname: user.nickname,
           colorIdx: user.colorIdx,
           colorHex: user.colorHex,
           isOnline: onlineUids.has(uid),
@@ -1970,7 +1989,7 @@ body.theme-whitepink {
       const sort = (a, b) => {
         if (a.uid === currentUser?.uid) return -1;
         if (b.uid === currentUser?.uid) return  1;
-        return a.username.localeCompare(b.username);
+        return (a.nickname || a.username).localeCompare(b.nickname || b.username);
       };
       onlineList.sort(sort);
       offlineList.sort(sort);
@@ -2002,6 +2021,7 @@ body.theme-whitepink {
     const div = document.createElement('div');
     div.className = 'member-item';
 
+    const displayName = member.nickname || member.username;
     const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
     const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
     const avatarColor = getUserColor(member);
@@ -2012,12 +2032,12 @@ body.theme-whitepink {
 
     div.innerHTML = `
       <div class="member-avatar" style="background:${avatarColor}; color:${contrastText}">
-        ${escHtml(member.username[0].toUpperCase())}
+        ${escHtml(displayName[0].toUpperCase())}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;">
           <span class="member-name" style="cursor:pointer;">
-            ${escHtml(member.username)}${youTag}
+            ${escHtml(displayName)}${youTag}
           </span>
           <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
         </div>
@@ -2164,7 +2184,7 @@ body.theme-whitepink {
 
     const msgData = {
       text,
-      sender: currentUser.username,
+      sender: currentUser.nickname || currentUser.username,
       senderUid: currentUser.uid,
       color: getUserColor(currentUser),
       ts: Date.now(),
@@ -2429,6 +2449,7 @@ body.theme-whitepink {
     buildColorGridForSettings();
     document.getElementById('settings-theme').value = currentUser.theme || 'dark';
     document.getElementById('settings-status').value = currentUser.statusText || '';
+    document.getElementById('settings-nickname').value = currentUser.nickname || '';
     document.getElementById('settings-fontsize').value = currentUser.fontSize || 14;
     document.getElementById('fontsize-value').innerText = (currentUser.fontSize || 14) + 'px';
     document.getElementById('modal-settings').classList.remove('hidden');
@@ -2563,28 +2584,31 @@ body.theme-whitepink {
     }
     
     const newStatus = document.getElementById('settings-status').value.trim();
+    const newNickname = document.getElementById('settings-nickname').value.trim();
     const newFontSize = parseInt(document.getElementById('settings-fontsize').value);
+    const newTheme = document.getElementById('settings-theme').value;
     
     updates.statusText = newStatus;
+    updates.nickname = newNickname;
     updates.fontSize = newFontSize;
+    updates.theme = newTheme;
     
     currentUser.colorIdx = settingsSelectedColor;
     currentUser.colorHex = updates.colorHex || null;
     currentUser.statusText = newStatus;
+    currentUser.nickname = newNickname;
     currentUser.fontSize = newFontSize;
+    currentUser.theme = newTheme;
+    applyTheme(newTheme);
     
     await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
     await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), newColor);
     
     const av = document.getElementById('my-avatar');
     styleAvatarElement(av, newColor, currentUser.username[0].toUpperCase());
+    document.getElementById('my-name').innerText = newNickname || currentUser.username;
     updateOwnStatusDisplay(newStatus);
     applyFontSize(newFontSize);
-
-    const newTheme = document.getElementById('settings-theme').value;
-    updates.theme = newTheme;
-    currentUser.theme = newTheme;
-    applyTheme(newTheme);
     
     closeModals();
 
@@ -2631,7 +2655,7 @@ body.theme-whitepink {
       profileAv.style.color = contrastText;
       profileAv.innerText = user.username[0].toUpperCase();
       
-      document.getElementById('profile-username').innerText = user.username;
+      document.getElementById('profile-username').innerText = user.nickname || user.username;
       document.getElementById('profile-joined').innerText = user.createdAt
         ? new Date(user.createdAt).toLocaleDateString()
         : 'Unknown';
@@ -2645,7 +2669,7 @@ body.theme-whitepink {
       statusLine.style.padding = '0';
       statusLine.style.marginLeft = '0';
       statusLine.style.color = 'var(--text-dim)';
-      statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
+      statusLine.innerHTML = `<strong>Nickname:</strong> ${escHtml(user.nickname || '—')}<br><strong>Username:</strong> ${escHtml(user.username)}<br><strong>Status:</strong> ${escHtml(statusDisplay)}`;
 
       const statusSpan = document.getElementById('profile-status');
       statusSpan.parentNode.insertBefore(statusLine, statusSpan);
