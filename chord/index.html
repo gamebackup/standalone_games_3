@@ -37,6 +37,7 @@
     --radius-md: 8px;
     --radius-sm: 4px;
     --shadow-soft: 0 4px 20px rgba(0,0,0,0.4);
+    --msg-font-size: 14px;
   }
 
   /* ═══════════════════════════════════════════════
@@ -164,6 +165,8 @@
     margin-bottom: 20px;
   }
   .color-swatch {
+    max-width: 36px;
+    margin: auto;
     aspect-ratio: 1;
     border-radius: 50%;
     cursor: pointer;
@@ -370,7 +373,7 @@
   .msg-user { font-weight: 600; font-size: 14px; cursor: pointer; }
   .msg-user:hover { text-decoration: underline; }
   .msg-time { color: var(--text-dim); font-size: 11px; }
-  .msg-text { font-size: 14px; line-height: 1.5; color: var(--text-main); word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+  .msg-text { font-size: var(--msg-font-size, 14px); line-height: 1.5; color: var(--text-main); word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
   .msg-edited { font-size: 10px; color: var(--text-muted); margin-left: 6px; font-style: italic; }
   .msg-grouped-line { margin-top: 2px; }
 
@@ -1209,9 +1212,9 @@ body.theme-whitepink {
   </div>
 </div>
 
-<!-- ========== BIGGER SETTINGS MODAL ========== -->
+<!-- ========== SETTINGS MODAL ========== -->
 <div id="modal-settings" class="modal-overlay hidden">
-  <div class="modal" style="width: min(90vw, 900px); height: min(90vh, 700px); overflow-y: auto;">
+  <div class="modal" style="width: min(90vw, 600px); max-height: 90vh; overflow-y: auto;">
     <h3>Settings</h3>
     
     <p style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">Profile Color</p>
@@ -1223,46 +1226,29 @@ body.theme-whitepink {
     </div>
 
     <div class="input-group" style="margin-top:20px;">
-      <label>Nickname (leave blank to use username)</label>
-      <input type="text" id="settings-nickname" placeholder="Enter a nickname" maxlength="25">
+      <label>Theme</label>
+      <select id="settings-theme" style="width:100%; background:var(--bg-input); color:var(--text-main); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="midnight">Deep Blue</option>
+        <option value="forest">Forest</option>
+        <option value="red">Deep Red</option> 
+        <option value="crimson">Crimson</option>
+        <option value="ocean">Ocean</option>
+        <option value="lavender">Lavender</option>
+        <option value="coffee">Coffee</option>
+        <option value="sunset">Sunset</option>
+        <option value="aurora">Aurora</option>
+        <option value="twilight">Twilight</option>
+        <option value="whitegreen">White Green (Request)</option>
+        <option value="whitepink">White Pink (Request)</option>
+      </select>
     </div>
 
-<div class="input-group" style="margin-top:20px;">
-  <label>Theme</label>
-  <select id="settings-theme" style="width:100%; background:var(--bg-input); color:var(--text-main); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-    <option value="dark">Dark</option>
-    <option value="light">Light</option>
-    <option value="midnight">Deep Blue</option>
-    <option value="forest">Forest</option>
-    <option value="red">Deep Red</option> 
-    <option value="crimson">Crimson</option>
-    <option value="ocean">Ocean</option>
-    <option value="lavender">Lavender</option>
-    <option value="coffee">Coffee</option>
-    <option value="sunset">Sunset</option>
-    <option value="aurora">Aurora</option>
-    <option value="twilight">Twilight</option>
-    <option value="whitegreen">White Green (Request)</option>
-    <option value="whitepink">White Pink (Request)</option>
-  </select>
-</div>
-
     <div class="input-group" style="margin-top:20px;">
-      <label>Font Size</label>
+      <label>Font Size (Messages)</label>
       <input type="range" id="settings-fontsize" min="12" max="22" value="14" step="1" style="width:100%">
       <span id="fontsize-value" style="font-size:12px; color:var(--text-dim);">14px</span>
-    </div>
-
-    <div class="input-group" style="margin-top:20px;">
-      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-        <input type="checkbox" id="settings-timestamps">
-        Show message timestamps
-      </label>
-    </div>
-
-    <div style="margin-top:30px; border-top:1px solid var(--border); padding-top:20px;">
-      <h4 style="color:var(--red); margin-bottom:12px;">Danger Zone</h4>
-      <button class="btn-danger" onclick="deleteAccount()">Delete My Account</button>
     </div>
 
     <div class="modal-btns">
@@ -1271,7 +1257,6 @@ body.theme-whitepink {
     </div>
   </div>
 </div>
-
 <!-- Custom RGB Color Picker Modal -->
 <div id="modal-custom-color" class="modal-overlay hidden">
   <div class="modal" style="width:380px;">
@@ -1335,6 +1320,25 @@ body.theme-whitepink {
 </script>
 
 <script>
+  // ========== GLOBAL HELPERS ==========
+  function applyTheme(theme) {
+    document.body.className = document.body.className.replace(/theme-\w+/g, '');
+    document.body.classList.add(`theme-${theme || 'dark'}`);
+  }
+
+  function applyFontSize(size) {
+    document.documentElement.style.setProperty('--msg-font-size', size + 'px');
+    const el = document.getElementById('fontsize-value');
+    if (el) el.innerText = size + 'px';
+  }
+
+  // live slider update
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'settings-fontsize') {
+      document.getElementById('fontsize-value').innerText = e.target.value + 'px';
+    }
+  });
+
   // ========== GROUPING LOGIC and MESSAGING ==========
   const GROUP_TIME_MS = 300000; // 5 minutes
 
@@ -1363,62 +1367,64 @@ body.theme-whitepink {
   
   // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
   async function loadCensorList() {
-  const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
-  try {
-    const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    const match = text.match(/\[([\s\S]*)\]/);
-    if (!match) throw new Error('Could not find word array in censor list');
-    const words = JSON.parse('[' + match[1] + ']');
-    const sorted = [...words].sort((a, b) => b.length - a.length);
+    const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
+    try {
+      const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const match = text.match(/\[([\s\S]*)\]/);
+      if (!match) throw new Error('Could not find word array in censor list');
+      const words = JSON.parse('[' + match[1] + ']');
+      const sorted = [...words].sort((a, b) => b.length - a.length);
 
-    const parts = sorted.map(word => {
-      if (word.includes('*')) {
-        return word.split('*').map(seg => {
+      const parts = sorted.map(word => {
+        if (word.includes('*')) {
+          return word.split('*').map(seg => {
+            let pattern = '';
+            for (const ch of seg) {
+              const lower = ch.toLowerCase();
+              if (LEET_MAP[lower]) {
+                pattern += '[' + LEET_MAP[lower] + ']';
+              } else {
+                pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              }
+            }
+            return pattern;
+          }).join('\\w*');
+        } else {
           let pattern = '';
-          for (const ch of seg) {
+          for (let i = 0; i < word.length; i++) {
+            const ch = word[i];
             const lower = ch.toLowerCase();
             if (LEET_MAP[lower]) {
               pattern += '[' + LEET_MAP[lower] + ']';
             } else {
               pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             }
+            if (i < word.length - 1) {
+              pattern += '[^a-zA-Z]*';
+            }
           }
           return pattern;
-        }).join('\\w*');
-      } else {
-        let pattern = '';
-        for (let i = 0; i < word.length; i++) {
-          const ch = word[i];
-          const lower = ch.toLowerCase();
-          if (LEET_MAP[lower]) {
-            pattern += '[' + LEET_MAP[lower] + ']';
-          } else {
-            pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          }
-          if (i < word.length - 1) {
-            pattern += '[^a-zA-Z]*';
-          }
         }
-        return pattern;
-      }
-    });
+      });
 
-    const finalParts = parts.map(p => {
-      const hasLetter = /[a-zA-Z]/.test(p);
-      return hasLetter
-        ? '(?<![a-zA-Z0-9])' + p + '(?![a-zA-Z0-9])'
-        : p;
-    });
+      const finalParts = parts.map(p => {
+        const hasLetter = /[a-zA-Z]/.test(p);
+        return hasLetter
+          ? '(?<![a-zA-Z0-9])' + p + '(?![a-zA-Z0-9])'
+          : p;
+      });
 
-    window.censorRegex = new RegExp(finalParts.join('|'), 'gi');
-    console.log(`Chorde: censor list loaded (${words.length} entries)`);
-  } catch (err) {
-    console.warn('Chorde: censor list failed to load —', err.message);
+      window.censorRegex = new RegExp(finalParts.join('|'), 'gi');
+      console.log(`Chorde: censor list loaded (${words.length} entries)`);
+    } catch (err) {
+      console.warn('Chorde: censor list failed to load —', err.message);
+    }
   }
-}
-  // New color palette: 11 preset hex colors + custom
+  loadCensorList();
+  setInterval(loadCensorList, 30 * 60 * 1000);
+
   const PRESET_COLORS = [
     '#FF0000', '#FF4500', '#FF8C00', '#FFD700', '#FFFF00',
     '#ADFF2F', '#008000', '#00CED1', '#0000FF', '#4B0082', '#8A2BE2'
@@ -1456,24 +1462,6 @@ body.theme-whitepink {
   const MSG_RATE_LIMIT = 10;
   const MSG_RATE_WINDOW = 60000;
 
-  // ========== GLOBAL THEME HELPER ==========
-  function applyTheme(theme) {
-    document.body.className = document.body.className.replace(/theme-\w+/g, '');
-    document.body.classList.add(`theme-${theme || 'dark'}`);
-  }
-
-  function applyFontSize(size) {
-    document.body.style.fontSize = size + 'px';
-  }
-
-  function applyTimestamps(show) {
-    if (show) {
-      document.body.classList.remove('hide-timestamps');
-    } else {
-      document.body.classList.add('hide-timestamps');
-    }
-  }
-
   // Helper: get contrast text color (black or white) based on background luminance
   function getContrastColor(hex) {
     const h = hex.replace('#', '');
@@ -1484,7 +1472,6 @@ body.theme-whitepink {
     return luminance > 0.5 ? '#000000' : '#ffffff';
   }
 
-  // Helper to get the effective color for a user (preset or custom)
   function getUserColor(user) {
     if (user && user.colorHex) return user.colorHex;
     if (user && user.colorIdx !== undefined) {
@@ -1493,16 +1480,13 @@ body.theme-whitepink {
     return AVATAR_COLORS[0];
   }
 
-  // Apply background and contrast-aware text color to an avatar element
   function styleAvatarElement(el, bgColor, text) {
     el.style.background = bgColor;
     el.style.color = getContrastColor(bgColor);
     if (text !== undefined) el.textContent = text;
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  AUTH LOGIC
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ AUTH LOGIC ════════════════════════════════
   function toggleAuth(isLogin) {
     document.getElementById('login-view').classList.toggle('hidden', !isLogin);
     document.getElementById('reg-view').classList.toggle('hidden', isLogin);
@@ -1521,7 +1505,6 @@ body.theme-whitepink {
         colorIdx: selectedRegColor,
         createdAt: Date.now(),
         statusText: "",
-        nickname: "",
         theme: "dark",
         showTimestamps: true,
         fontSize: 14
@@ -1547,92 +1530,84 @@ body.theme-whitepink {
   }
 
   function logout() {
-  if (currentUser) {
-    window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}`), null);
-    if (currentChannelId) {
-      window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
+    if (currentUser) {
+      window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}`), null);
+      if (currentChannelId) {
+        window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`), null);
+      }
     }
+    window.fbSignOut(window.auth).then(() => location.reload());
   }
-  window.fbSignOut(window.auth).then(() => location.reload());
-}
 
   function setupApp(userData) {
-  let needsUpdate = false;
-  applyTheme(userData.theme || 'dark');
-  applyFontSize(userData.fontSize || 14);
-  applyTimestamps(userData.showTimestamps !== false);
-  
-  if (!userData.createdAt) {
-    userData.createdAt = Date.now();
-    needsUpdate = true;
-  }
-  if (userData.statusText === undefined) {
-    userData.statusText = "";
-    needsUpdate = true;
-  }
-  if (userData.nickname === undefined) {
-    userData.nickname = "";
-    needsUpdate = true;
-  }
-  if (!userData.theme) {
-    userData.theme = "dark";
-    needsUpdate = true;
-  }
-  if (userData.showTimestamps === undefined) {
-    userData.showTimestamps = true;
-    needsUpdate = true;
-  }
-  if (userData.fontSize === undefined) {
-    userData.fontSize = 14;
-    needsUpdate = true;
-  }
+    let needsUpdate = false;
+    applyTheme(userData.theme || 'dark');
+    applyFontSize(userData.fontSize || 14);
+    
+    if (!userData.createdAt) {
+      userData.createdAt = Date.now();
+      needsUpdate = true;
+    }
+    if (userData.statusText === undefined) {
+      userData.statusText = "";
+      needsUpdate = true;
+    }
+    if (!userData.theme) {
+      userData.theme = "dark";
+      needsUpdate = true;
+    }
+    if (userData.showTimestamps === undefined) {
+      userData.showTimestamps = true;
+      needsUpdate = true;
+    }
+    if (userData.fontSize === undefined) {
+      userData.fontSize = 14;
+      needsUpdate = true;
+    }
+    if (needsUpdate) {
+      window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
+        createdAt: userData.createdAt,
+        statusText: userData.statusText,
+        theme: userData.theme,
+        showTimestamps: userData.showTimestamps,
+        fontSize: userData.fontSize
+      });
+    }
 
-  if (needsUpdate) {
-    window.fbUpdate(window.fbRef(window.db, `users/${userData.uid}`), {
-      createdAt: userData.createdAt,
-      statusText: userData.statusText,
-      nickname: userData.nickname,
-      theme: userData.theme,
-      showTimestamps: userData.showTimestamps,
-      fontSize: userData.fontSize
+    currentUser = userData;
+    currentUser.lastChannelId = userData.lastChannel || null;   
+    window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
+      currentUser.mutedUntil = snap.val() || 0;
     });
-  }
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('chat-screen').classList.remove('hidden');
+    document.getElementById('my-name').innerText = userData.username;
+    const av = document.getElementById('my-avatar');
+    const bgColor = getUserColor(userData);
+    styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
+    updateOwnStatusDisplay(currentUser.statusText);
+    setupPresence(userData);
+    initMemberList();
+    startTypingCleanup();
 
-  currentUser = userData;
-  currentUser.lastChannelId = userData.lastChannel || null;   
-  window.fbOnValue(window.fbRef(window.db, `users/${userData.uid}/mutedUntil`), (snap) => {
-    currentUser.mutedUntil = snap.val() || 0;
-  });
-  document.getElementById('auth-screen').classList.add('hidden');
-  document.getElementById('chat-screen').classList.remove('hidden');
-  document.getElementById('my-name').innerText = userData.nickname || userData.username;
-  const av = document.getElementById('my-avatar');
-  const bgColor = getUserColor(userData);
-  styleAvatarElement(av, bgColor, userData.username[0].toUpperCase());
-  updateOwnStatusDisplay(currentUser.statusText);
-  setupPresence(userData);
-  initMemberList();
-  startTypingCleanup();
-
-  const createBtn = document.getElementById('create-channel-btn');
-  if (createBtn) {
-    createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
-  }
-  if (currentUser.uid === ADMIN_UID) {
-    rulesAccepted = true;
-    initChannels();
-    checkRulesStatus();
-  } else {
-    window.fbOnValue(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), (snap) => {
-      rulesAccepted = snap.val() === true;
+    const createBtn = document.getElementById('create-channel-btn');
+    if (createBtn) {
+      createBtn.style.display = (currentUser.uid === ADMIN_UID) ? 'block' : 'none';
+    }
+    if (currentUser.uid === ADMIN_UID) {
+      rulesAccepted = true;
       initChannels();
       checkRulesStatus();
-    }, { onlyOnce: true });
+    } else {
+      window.fbOnValue(window.fbRef(window.db, `users/${currentUser.uid}/rulesRead`), (snap) => {
+        rulesAccepted = snap.val() === true;
+        initChannels();
+        checkRulesStatus();
+      }, { onlyOnce: true });
+    }
   }
-}
-  // ═══════════════════════════════════════════════════════
-  //  CHANNELS
-  // ═══════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════ CHANNELS ════════════════════════════════
   function initChannels() {
     const chRef = window.fbRef(window.db, 'channels');
     window.fbOnValue(chRef, (snap) => {
@@ -1789,9 +1764,7 @@ body.theme-whitepink {
     updateRulesUI(id);
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  RULES GATE
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ RULES GATE ════════════════════════════════
   function checkRulesStatus() {
     if (currentUser.uid === ADMIN_UID) { rulesAccepted = true; return; }
     window.fbOnValue(
@@ -1900,9 +1873,7 @@ body.theme-whitepink {
     }
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  MARKDOWN
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ MARKDOWN ════════════════════════════════
   function parseMarkdown(html) {
     html = html.replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`);
     html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
@@ -1916,9 +1887,7 @@ body.theme-whitepink {
     return html;
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  PRESENCE
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ PRESENCE ════════════════════════════════
   function setupPresence(userData) {
     const connRef = window.fbRef(window.db, '.info/connected');
     window.fbOnValue(connRef, (snap) => {
@@ -1990,7 +1959,6 @@ body.theme-whitepink {
         const member = {
           uid,
           username: user.username,
-          nickname: user.nickname,
           colorIdx: user.colorIdx,
           colorHex: user.colorHex,
           isOnline: onlineUids.has(uid),
@@ -2002,7 +1970,7 @@ body.theme-whitepink {
       const sort = (a, b) => {
         if (a.uid === currentUser?.uid) return -1;
         if (b.uid === currentUser?.uid) return  1;
-        return (a.nickname || a.username).localeCompare(b.nickname || b.username);
+        return a.username.localeCompare(b.username);
       };
       onlineList.sort(sort);
       offlineList.sort(sort);
@@ -2014,7 +1982,7 @@ body.theme-whitepink {
       offlineList.forEach(m => offlineContainer.appendChild(createMemberElement(m)));
       const offlineCountSpan = document.getElementById('offline-count');
       if (offlineCountSpan) {
-      offlineCountSpan.innerText = offlineList.length;
+        offlineCountSpan.innerText = offlineList.length;
       }
     }
 
@@ -2034,7 +2002,6 @@ body.theme-whitepink {
     const div = document.createElement('div');
     div.className = 'member-item';
 
-    const displayName = member.nickname || member.username;
     const youTag = member.uid === currentUser?.uid ? ' <span class="you-tag">(you)</span>' : '';
     const statusColor = member.isOnline ? 'var(--green)' : 'var(--text-muted)';
     const avatarColor = getUserColor(member);
@@ -2045,12 +2012,12 @@ body.theme-whitepink {
 
     div.innerHTML = `
       <div class="member-avatar" style="background:${avatarColor}; color:${contrastText}">
-        ${escHtml(displayName[0].toUpperCase())}
+        ${escHtml(member.username[0].toUpperCase())}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;">
           <span class="member-name" style="cursor:pointer;">
-            ${escHtml(displayName)}${youTag}
+            ${escHtml(member.username)}${youTag}
           </span>
           <span style="margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${statusColor}"></span>
         </div>
@@ -2062,28 +2029,19 @@ body.theme-whitepink {
     return div;
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  TYPING INDICATORS
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ TYPING INDICATORS ═══════════════════════════
   function handleTypingInput() {
-  if (!currentChannelId || !currentUser) return;
-  
-  const typingRef = window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`);
-  
-  // Set typing data
-  window.fbSet(typingRef, {
-    username: currentUser.username,
-    color: getUserColor(currentUser),
-    ts: Date.now()
-  });
-  
-  // Ensure it's removed on disconnect
-  window.fbOnDisconnect(typingRef).remove();
-  
-  // Clear local timeout and set a new one
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(clearTyping, 1250);
-}
+    if (!currentChannelId || !currentUser) return;
+    const typingRef = window.fbRef(window.db, `typing/${currentChannelId}/${currentUser.uid}`);
+    window.fbSet(typingRef, {
+      username: currentUser.username,
+      color: getUserColor(currentUser),
+      ts: Date.now()
+    });
+    window.fbOnDisconnect(typingRef).remove();
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(clearTyping, 1250);
+  }
 
   function clearTyping() {
     clearTimeout(typingTimer);
@@ -2092,33 +2050,29 @@ body.theme-whitepink {
   }
 
   function subscribeTyping(channelId) {
-  if (typingUnsubscribe) typingUnsubscribe();
-  let lastTypingKey = '';
-  const ref = window.fbRef(window.db, `typing/${channelId}`);
-  typingUnsubscribe = window.fbOnValue(ref, (snap) => {
-    const data = snap.val() || {};
-    const now = Date.now();
-    const others = Object.values(data).filter(t => {
-      return t.uid !== currentUser?.uid && (now - t.ts) < 3000;   // <-- age check
+    if (typingUnsubscribe) typingUnsubscribe();
+    let lastTypingKey = '';
+    const ref = window.fbRef(window.db, `typing/${channelId}`);
+    typingUnsubscribe = window.fbOnValue(ref, (snap) => {
+      const data = snap.val() || {};
+      const now = Date.now();
+      const others = Object.values(data).filter(t => {
+        return t.uid !== currentUser?.uid && (now - t.ts) < 3000;
+      });
+      const typingKey = others.map(t => t.username).sort().join(',');
+      if (typingKey === lastTypingKey) return;
+      lastTypingKey = typingKey;
+
+      const box = document.getElementById('typing-box');
+      const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
+      if (others.length === 0)      box.innerHTML = '';
+      else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
+      else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
+      else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
     });
-    
-    const typingKey = others.map(t => t.username).sort().join(',');
-    
-    if (typingKey === lastTypingKey) return;
-    lastTypingKey = typingKey;
+  }
 
-    const box = document.getElementById('typing-box');
-    const dots = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-    if (others.length === 0)      box.innerHTML = '';
-    else if (others.length === 1) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> is typing…`;
-    else if (others.length === 2) box.innerHTML = `${dots} <strong>${escHtml(others[0].username)}</strong> and <strong>${escHtml(others[1].username)}</strong> are typing…`;
-    else                          box.innerHTML = `${dots} <strong>Several people</strong> are typing…`;
-  });
-}
-
-  // ═══════════════════════════════════════════════════════
-  //  CENSORING
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ CENSORING ════════════════════════════════
   function censorFull() {
     if (!window.censorRegex) return;
     const input = document.getElementById('chat-input');
@@ -2139,9 +2093,7 @@ body.theme-whitepink {
     censorFull();
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  MESSAGES (WITH GROUPING & EDITING)
-  // ═══════════════════════════════════════════════════════
+  // ════════════════════════════════ MESSAGES (WITH GROUPING & EDITING) ═══════════════
   function handleChatKey(e) {
     if (e.key === 'Enter') {
       if (e.shiftKey) {
@@ -2212,7 +2164,7 @@ body.theme-whitepink {
 
     const msgData = {
       text,
-      sender: currentUser.nickname || currentUser.username,
+      sender: currentUser.username,
       senderUid: currentUser.uid,
       color: getUserColor(currentUser),
       ts: Date.now(),
@@ -2335,75 +2287,75 @@ body.theme-whitepink {
   }
 
   async function handleCommand(raw) {
-  const input = document.getElementById('chat-input');
-  const parts = raw.split(/\s+/);
-  const cmd = parts[0].toLowerCase();
+    const input = document.getElementById('chat-input');
+    const parts = raw.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
 
-  if (cmd === '/mute') {
-    const targetName = parts[1];
-    const minutes = parseInt(parts[2]);
-    if (!targetName || isNaN(minutes) || minutes < 1) {
-      alert('Usage: /mute username minutes\nExample: /mute crow 10');
-      return;
-    }
-    const user = await findUserByUsername(targetName);
-    if (!user) { alert(`User "${targetName}" not found.`); return; }
-    const mutedUntil = Date.now() + minutes * 60 * 1000;
-    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
-    input.value = '';
-    input.style.height = 'auto';
-    alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
+    if (cmd === '/mute') {
+      const targetName = parts[1];
+      const minutes = parseInt(parts[2]);
+      if (!targetName || isNaN(minutes) || minutes < 1) {
+        alert('Usage: /mute username minutes\nExample: /mute crow 10');
+        return;
+      }
+      const user = await findUserByUsername(targetName);
+      if (!user) { alert(`User "${targetName}" not found.`); return; }
+      const mutedUntil = Date.now() + minutes * 60 * 1000;
+      await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil });
+      input.value = '';
+      input.style.height = 'auto';
+      alert(`${user.username} muted for ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
 
-  } else if (cmd === '/unmute') {
-    const targetName = parts[1];
-    if (!targetName) { alert('Usage: /unmute username'); return; }
-    const user = await findUserByUsername(targetName);
-    if (!user) { alert(`User "${targetName}" not found.`); return; }
-    await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
-    input.value = '';
-    input.style.height = 'auto';
-    alert(`${user.username} has been unmuted.`);
+    } else if (cmd === '/unmute') {
+      const targetName = parts[1];
+      if (!targetName) { alert('Usage: /unmute username'); return; }
+      const user = await findUserByUsername(targetName);
+      if (!user) { alert(`User "${targetName}" not found.`); return; }
+      await window.fbUpdate(window.fbRef(window.db, `users/${user.uid}`), { mutedUntil: 0 });
+      input.value = '';
+      input.style.height = 'auto';
+      alert(`${user.username} has been unmuted.`);
 
-  } else if (cmd === '/ban') {
-    const targetName = parts[1];
-    if (!targetName) { alert('Usage: /ban username'); return; }
-    const user = await findUserByUsername(targetName);
-    if (!user) { alert(`User "${targetName}" not found.`); return; }
-    const uid = user.uid;
+    } else if (cmd === '/ban') {
+      const targetName = parts[1];
+      if (!targetName) { alert('Usage: /ban username'); return; }
+      const user = await findUserByUsername(targetName);
+      if (!user) { alert(`User "${targetName}" not found.`); return; }
+      const uid = user.uid;
 
-    await window.fbSet(window.fbRef(window.db, `presence/${uid}`), null);
-    if (currentChannelId) {
-      await window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
-    }
+      await window.fbSet(window.fbRef(window.db, `presence/${uid}`), null);
+      if (currentChannelId) {
+        await window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
+      }
 
-    await window.fbSet(window.fbRef(window.db, `users/${uid}`), null);
+      await window.fbSet(window.fbRef(window.db, `users/${uid}`), null);
 
-    const channelsSnap = await new Promise(resolve => {
-      window.fbOnValue(window.fbRef(window.db, 'channels'), resolve, { onlyOnce: true });
-    });
-    const channels = channelsSnap.val() || {};
-    const channelIds = Object.keys(channels);
-
-    for (const chId of channelIds) {
-      const messagesSnap = await new Promise(resolve => {
-        window.fbOnValue(window.fbRef(window.db, `messages/${chId}`), resolve, { onlyOnce: true });
+      const channelsSnap = await new Promise(resolve => {
+        window.fbOnValue(window.fbRef(window.db, 'channels'), resolve, { onlyOnce: true });
       });
-      const messages = messagesSnap.val() || {};
-      for (const msgId of Object.keys(messages)) {
-        if (messages[msgId].senderUid === uid) {
-          await window.fbSet(window.fbRef(window.db, `messages/${chId}/${msgId}`), null);
+      const channels = channelsSnap.val() || {};
+      const channelIds = Object.keys(channels);
+
+      for (const chId of channelIds) {
+        const messagesSnap = await new Promise(resolve => {
+          window.fbOnValue(window.fbRef(window.db, `messages/${chId}`), resolve, { onlyOnce: true });
+        });
+        const messages = messagesSnap.val() || {};
+        for (const msgId of Object.keys(messages)) {
+          if (messages[msgId].senderUid === uid) {
+            await window.fbSet(window.fbRef(window.db, `messages/${chId}/${msgId}`), null);
+          }
         }
       }
+
+      input.value = '';
+      input.style.height = 'auto';
+      alert(`${targetName} has been banned and all data removed.`);
+
+    } else {
+      alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username, /ban username`);
     }
-
-    input.value = '';
-    input.style.height = 'auto';
-    alert(`${targetName} has been banned and all data removed.`);
-
-  } else {
-    alert(`Unknown command: ${cmd}\nAvailable: /mute username minutes, /unmute username, /ban username`);
   }
-}
 
   function findUserByUsername(username) {
     return new Promise((resolve) => {
@@ -2459,9 +2411,7 @@ body.theme-whitepink {
     document.getElementById('reply-bar').classList.add('hidden');
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  USER PROFILE & SETTINGS
-  // ═══════════════════════════════════════════════════════
+  // ═══════════════════════════ SETTINGS & PROFILE ═════════════════════════
   let settingsSelectedColor = 0;
   let settingsSelectedCustomHex = null;
   let isSettingsCustomMode = false;
@@ -2479,8 +2429,6 @@ body.theme-whitepink {
     buildColorGridForSettings();
     document.getElementById('settings-theme').value = currentUser.theme || 'dark';
     document.getElementById('settings-status').value = currentUser.statusText || '';
-    document.getElementById('settings-nickname').value = currentUser.nickname || '';
-    document.getElementById('settings-timestamps').checked = currentUser.showTimestamps !== false;
     document.getElementById('settings-fontsize').value = currentUser.fontSize || 14;
     document.getElementById('fontsize-value').innerText = (currentUser.fontSize || 14) + 'px';
     document.getElementById('modal-settings').classList.remove('hidden');
@@ -2577,7 +2525,6 @@ body.theme-whitepink {
     if (currentUser) {
       currentUser.colorHex = hex;
       currentUser.colorIdx = -1;
-      
       const updates = { colorHex: hex, colorIdx: -1 };
       await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
       await window.fbSet(window.fbRef(window.db, `presence/${currentUser.uid}/color`), hex);
@@ -2589,16 +2536,13 @@ body.theme-whitepink {
       if (settingsGrid) {
         settingsGrid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
         const customSwatch = settingsGrid.querySelector('.custom-swatch');
-        if (customSwatch) {
-          customSwatch.classList.add('selected');
-        }
+        if (customSwatch) customSwatch.classList.add('selected');
       }
       
       settingsSelectedCustomHex = hex;
       settingsSelectedColor = -1;
       isSettingsCustomMode = true;
     }
-    
     closeModals();
   }
 
@@ -2619,20 +2563,14 @@ body.theme-whitepink {
     }
     
     const newStatus = document.getElementById('settings-status').value.trim();
-    const newNickname = document.getElementById('settings-nickname').value.trim();
-    const showTimestamps = document.getElementById('settings-timestamps').checked;
     const newFontSize = parseInt(document.getElementById('settings-fontsize').value);
     
     updates.statusText = newStatus;
-    updates.nickname = newNickname;
-    updates.showTimestamps = showTimestamps;
     updates.fontSize = newFontSize;
     
     currentUser.colorIdx = settingsSelectedColor;
     currentUser.colorHex = updates.colorHex || null;
     currentUser.statusText = newStatus;
-    currentUser.nickname = newNickname;
-    currentUser.showTimestamps = showTimestamps;
     currentUser.fontSize = newFontSize;
     
     await window.fbUpdate(window.fbRef(window.db, `users/${currentUser.uid}`), updates);
@@ -2640,17 +2578,16 @@ body.theme-whitepink {
     
     const av = document.getElementById('my-avatar');
     styleAvatarElement(av, newColor, currentUser.username[0].toUpperCase());
-    document.getElementById('my-name').innerText = newNickname || currentUser.username;
     updateOwnStatusDisplay(newStatus);
-    applyTimestamps(showTimestamps);
     applyFontSize(newFontSize);
-    closeModals();
 
     const newTheme = document.getElementById('settings-theme').value;
     updates.theme = newTheme;
     currentUser.theme = newTheme;
     applyTheme(newTheme);
-      
+    
+    closeModals();
+
     const settingsGrid = document.getElementById('settings-color-grid');
     if (settingsGrid) {
       const customSwatch = settingsGrid.querySelector('.custom-swatch');
@@ -2659,41 +2596,6 @@ body.theme-whitepink {
         customSwatch.innerHTML = '<i class="fa fa-plus" style="font-size:16px;"></i>';
       }
     }
-  }
-
-  async function deleteAccount() {
-    if (!currentUser) return;
-    if (!confirm('This will permanently delete your account and all messages. Are you sure?')) return;
-    const uid = currentUser.uid;
-    
-    // remove presence & typing
-    await window.fbSet(window.fbRef(window.db, `presence/${uid}`), null);
-    if (currentChannelId) {
-      await window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
-    }
-    
-    // delete user account
-    await window.fbSet(window.fbRef(window.db, `users/${uid}`), null);
-    
-    // delete all messages
-    const channelsSnap = await new Promise(resolve => {
-      window.fbOnValue(window.fbRef(window.db, 'channels'), resolve, { onlyOnce: true });
-    });
-    const channels = channelsSnap.val() || {};
-    const channelIds = Object.keys(channels);
-    for (const chId of channelIds) {
-      const messagesSnap = await new Promise(resolve => {
-        window.fbOnValue(window.fbRef(window.db, `messages/${chId}`), resolve, { onlyOnce: true });
-      });
-      const messages = messagesSnap.val() || {};
-      for (const msgId of Object.keys(messages)) {
-        if (messages[msgId].senderUid === uid) {
-          await window.fbSet(window.fbRef(window.db, `messages/${chId}/${msgId}`), null);
-        }
-      }
-    }
-    
-    window.fbSignOut(window.auth).then(() => location.reload());
   }
 
   function updateOwnStatusDisplay(statusText) {
@@ -2729,7 +2631,7 @@ body.theme-whitepink {
       profileAv.style.color = contrastText;
       profileAv.innerText = user.username[0].toUpperCase();
       
-      document.getElementById('profile-username').innerText = user.nickname || user.username;
+      document.getElementById('profile-username').innerText = user.username;
       document.getElementById('profile-joined').innerText = user.createdAt
         ? new Date(user.createdAt).toLocaleDateString()
         : 'Unknown';
@@ -2743,7 +2645,7 @@ body.theme-whitepink {
       statusLine.style.padding = '0';
       statusLine.style.marginLeft = '0';
       statusLine.style.color = 'var(--text-dim)';
-      statusLine.innerHTML = `<strong>Nickname:</strong> ${escHtml(user.nickname || '—')}<br><strong>Username:</strong> ${escHtml(user.username)}<br><strong>Status:</strong> ${escHtml(statusDisplay)}`;
+      statusLine.innerHTML = `<strong>Status:</strong> ${escHtml(statusDisplay)}`;
 
       const statusSpan = document.getElementById('profile-status');
       statusSpan.parentNode.insertBefore(statusLine, statusSpan);
@@ -2758,10 +2660,7 @@ body.theme-whitepink {
     }, { onlyOnce: true });
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  INIT
-  // ═══════════════════════════════════════════════════════
-
+  // ═══════════════════════════ INIT ══════════════════════════════════════
   function buildColorGrid() {
     const grid = document.getElementById('reg-color-grid');
     if (!grid) return;
@@ -2811,28 +2710,20 @@ body.theme-whitepink {
   }
 
   function startTypingCleanup() {
-  setInterval(() => {
-    if (!currentChannelId) return;
-    const typingRef = window.fbRef(window.db, `typing/${currentChannelId}`);
-    window.fbOnValue(typingRef, (snap) => {
-      const data = snap.val() || {};
-      const now = Date.now();
-      Object.entries(data).forEach(([uid, entry]) => {
-        if (now - entry.ts > 15000) {
-          window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
-        }
-      });
-    }, { onlyOnce: true });
-  }, 30000);
-}
-
-  // Font size slider live update
-  document.addEventListener('input', (e) => {
-    if (e.target.id === 'settings-fontsize') {
-      const val = e.target.value;
-      document.getElementById('fontsize-value').innerText = val + 'px';
-    }
-  });
+    setInterval(() => {
+      if (!currentChannelId) return;
+      const typingRef = window.fbRef(window.db, `typing/${currentChannelId}`);
+      window.fbOnValue(typingRef, (snap) => {
+        const data = snap.val() || {};
+        const now = Date.now();
+        Object.entries(data).forEach(([uid, entry]) => {
+          if (now - entry.ts > 15000) {
+            window.fbSet(window.fbRef(window.db, `typing/${currentChannelId}/${uid}`), null);
+          }
+        });
+      }, { onlyOnce: true });
+    }, 30000);
+  }
 
   window.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
@@ -2880,22 +2771,21 @@ body.theme-whitepink {
     });
 
     setTimeout(() => {
-  if (window.auth) {
-    window.auth.onAuthStateChanged((user) => {
-      if (user) {
-        window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
-          if (snap.exists()) {
-            setupApp(snap.val());
-          } else {
-            // User was deleted (banned) – force sign‑out
-            window.fbSignOut(window.auth).then(() => location.reload());
+      if (window.auth) {
+        window.auth.onAuthStateChanged((user) => {
+          if (user) {
+            window.fbOnValue(window.fbRef(window.db, 'users/' + user.uid), (snap) => {
+              if (snap.exists()) {
+                setupApp(snap.val());
+              } else {
+                window.fbSignOut(window.auth).then(() => location.reload());
+              }
+            }, { onlyOnce: true });
           }
-        }, { onlyOnce: true });
+        });
       }
-    });
-  }
-}, 1000);
-});
+    }, 1000);
+  });
 </script>
 </body>
 </html>
