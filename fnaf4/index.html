@@ -150,7 +150,7 @@
     let gametitle, runtimecanvas
     gametitle = document.title;
     runtimecanvas = "resources/fnaf 4.cch";
-    // Prevents touchscreen move
+
     window.addEventListener("scroll", preventMotion, false);
     window.addEventListener("touchmove", preventMotion, false);
     function preventMotion(event) {
@@ -158,7 +158,7 @@
         event.preventDefault();
         event.stopPropagation();
     }
-    // Fullscreen Key
+
     const pressedKeys = {};
     document.addEventListener('keydown', event => {
         pressedKeys[event.key] = true;
@@ -170,7 +170,7 @@
     document.addEventListener('keyup', (event) => {
         delete pressedKeys[event.key];
     });
-    // -----------------
+
     window.onload = function () {
         const map = new Map();
 
@@ -185,9 +185,8 @@
             const ogfetch = window.fetch;
             window.fetch = async function (input, init) {
                 if (typeof input === 'string' && input.startsWith('resources/')) {
-                    const fileName = input.split('/').pop();
-                    if (map.has(fileName)) {
-                        return ogfetch(map.get(fileName), init);
+                    if (map.has(input)) {
+                        return ogfetch(map.get(input), init);
                     }
                 }
                 return ogfetch(input, init);
@@ -195,10 +194,9 @@
 
             const ogopen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function (method, url) {
-                if (url.startsWith('resources/')) {
-                    const fileName = url.split('/').pop();
-                    if (map.has(fileName)) {
-                        url = map.get(fileName);
+                if (typeof url === 'string' && url.startsWith('resources/')) {
+                    if (map.has(url)) {
+                        url = map.get(url);
                     }
                 }
                 return ogopen.apply(this, arguments);
@@ -214,9 +212,8 @@
                         get: descriptor.get,
                         set: function (val) {
                             if (typeof val === 'string' && val.startsWith('resources/')) {
-                                const fileName = val.split('/').pop();
-                                if (map.has(fileName)) {
-                                    val = map.get(fileName);
+                                if (map.has(val)) {
+                                    val = map.get(val);
                                 }
                             }
                             descriptor.set.call(this, val);
@@ -228,7 +225,6 @@
 
         async function extract() {
             const res = await fetch("resources.zip");
-
             const contentLength = res.headers.get("Content-Length");
             const total = parseInt(contentLength, 10);
             const reader = res.body.getReader();
@@ -252,7 +248,7 @@
                 const file = zip.files[files[i]];
                 const blob = await file.async("blob");
                 const url = URL.createObjectURL(blob);
-                map.set(files[i], url);
+                map.set(files[i], url);   // files[i] is the full path, e.g. "resources/fnaf 4.cch"
                 updateProgress('BOOTING UP ARCHIVE...', Math.floor(((i + 1) / totalFiles / 2) * 100 + 50));
             }
         }
@@ -281,11 +277,9 @@
                 let loadedSize = 0;
                 Promise.all(fileParts.map(part =>
                     fetch(part, { method: 'HEAD' }).then(res => {
-                        try {
-                            if (!res.ok) throw new Error("Missing part: " + part);
-                            return parseInt(res.headers.get("Content-Length") || "0", 10);
-                        } catch (error) { document.getElementById('stage').innerHTML = "ERROR: MISSING FILE(S)..." }
-                    })
+                        if (!res.ok) throw new Error("Missing part: " + part);
+                        return parseInt(res.headers.get("Content-Length") || "0", 10);
+                    }).catch(() => { document.getElementById('stage').innerHTML = "ERROR: MISSING FILE(S)..." })
                 )).then(sizes => {
                     totalSize = sizes.reduce((a, b) => a + b, 0);
                     function fetchPart(index) {
@@ -295,18 +289,16 @@
                             resolve(mergedFileUrl);
                             return;
                         }
-
-                        fetch(fileParts[index]).then((response) => {
+                        fetch(fileParts[index]).then(response => {
                             if (!response.ok) throw new Error("Missing part: " + fileParts[index]);
                             return response.arrayBuffer();
-                        }).then((data) => {
+                        }).then(data => {
                             buffers.push(data);
                             loadedSize += data.byteLength;
                             updateProgress('LOCATING ARCHIVE...', Math.floor((loadedSize / totalSize / 2) * 100));
                             fetchPart(index + 1);
                         }).catch(reject);
                     }
-
                     fetchPart(0);
                 }).catch(reject);
             });
@@ -319,6 +311,7 @@
             }
             return parts;
         }
+
         Promise.all([
             mergeFiles(getParts("src/resources.zip", 1, parts))
         ]).then(([resources]) => {
