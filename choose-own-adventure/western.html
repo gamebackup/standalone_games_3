@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dust and Lead</title>
+    <style>
+        :root {
+            --western-glow: #ff8800;
+            --western-bg: #0d0702;
+            --western-dim: #7a4a1a;
+            --western-red: #cc3311;
+            --glow-desert: rgba(255, 136, 0, 0.3);
+            --glow-saloon: rgba(230, 180, 80, 0.25);
+            --glow-canyon: rgba(200, 120, 40, 0.2);
+            --glow-danger: rgba(255, 51, 17, 0.35);
+            --glow-legend: rgba(255, 200, 50, 0.35);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0a0400;
+            color: var(--western-glow);
+            font-family: 'Courier New', 'Courier', 'Lucida Console', monospace;
+            margin: 0;
+            padding: 16px;
+            line-height: 1.55;
+            min-height: 100vh;
+            background-image:
+                repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(100, 60, 10, 0.03) 2px,
+                    rgba(100, 60, 10, 0.03) 4px);
+            background-size: 100% 4px;
+        }
+        .game-container {
+            max-width: 720px;
+            margin: 0 auto;
+            border: 2px solid var(--western-glow);
+            padding: 28px 22px;
+            min-height: 82vh;
+            box-shadow: 0 0 20px var(--glow-desert);
+            position: relative;
+            background: radial-gradient(ellipse at center,
+                    rgba(50, 25, 5, 0.7) 0%,
+                    rgba(5, 3, 1, 0.95) 70%);
+            transition: box-shadow 0.6s, border-color 0.6s, color 0.6s;
+        }
+        .env-desert { box-shadow: 0 0 20px var(--glow-desert); border-color: #cc7700; color: #f0b060; }
+        .env-saloon { box-shadow: 0 0 20px var(--glow-saloon); border-color: #bb9933; color: #f8d090; }
+        .env-canyon { box-shadow: 0 0 20px var(--glow-canyon); border-color: #aa6600; color: #e0b070; }
+        .env-danger { box-shadow: 0 0 20px var(--glow-danger); border-color: #992211; color: #ff8866; }
+        .env-legend { box-shadow: 0 0 20px var(--glow-legend); border-color: #dd9900; color: #ffe090; }
+
+        pre {
+            font-size: 13px;
+            white-space: pre;
+            text-align: center;
+            margin-bottom: 24px;
+            text-shadow: 0 0 6px currentColor;
+            letter-spacing: 0;
+            line-height: 1.25;
+            overflow-x: auto;
+            padding: 4px 0;
+            animation: flickerIn 1.2s ease-out;
+        }
+        @keyframes flickerIn {
+            0% { opacity: 0; text-shadow: 0 0 20px currentColor; }
+            15% { opacity: 0.4; text-shadow: 0 0 2px currentColor; }
+            25% { opacity: 0.7; text-shadow: 0 0 14px currentColor; }
+            35% { opacity: 0.5; }
+            50% { opacity: 0.9; text-shadow: 0 0 8px currentColor; }
+            100% { opacity: 1; text-shadow: 0 0 6px currentColor; }
+        }
+        .story-text {
+            font-size: 1.15rem;
+            margin-bottom: 28px;
+            text-align: center;
+            padding: 0 8px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .choices { display: flex; flex-direction: column; gap: 13px; align-items: center; }
+        label {
+            display: inline-block;
+            border: 1px solid currentColor;
+            padding: 13px 26px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.25s;
+            width: 82%;
+            text-align: center;
+            background: #0a0300;
+            font-weight: bold;
+            font-size: 0.9rem;
+            position: relative;
+            user-select: none;
+        }
+        label:hover {
+            background-color: currentColor;
+            color: #0a0300;
+            font-weight: bold;
+            box-shadow: 0 0 18px currentColor;
+            transform: scale(1.02);
+            letter-spacing: 2px;
+        }
+        label:active { transform: scale(0.97); }
+        label::before { content: '> '; opacity: 0; transition: opacity 0.2s; }
+        label:hover::before { opacity: 1; animation: blink 0.7s infinite; }
+        @keyframes blink { 0%,100%{ opacity:1; } 50%{ opacity:0.2; } }
+        input[type="radio"] { display: none; }
+        .scene { display: none; animation: fadeIn 0.5s ease-out; }
+
+        /* STATE MACHINE */
+        #s0:checked ~ .game-container #scene0,
+        #s1_saloon:checked ~ .game-container #scene1_saloon,
+        #s1_sheriff:checked ~ .game-container #scene1_sheriff,
+        #s1_outskirts:checked ~ .game-container #scene1_outskirts,
+        #s2_gamble:checked ~ .game-container #scene2_gamble,
+        #s2_barfight:checked ~ .game-container #scene2_barfight,
+        #s2_take_badge:checked ~ .game-container #scene2_take_badge,
+        #s2_infiltrate:checked ~ .game-container #scene2_infiltrate,
+        #s2_snake_hill:checked ~ .game-container #scene2_snake_hill,
+        #s3_win_gamble:checked ~ .game-container #scene3_win_gamble,
+        #s3_lose_gamble:checked ~ .game-container #scene3_lose_gamble,
+        #s3_fight_win:checked ~ .game-container #scene3_fight_win,
+        #s3_fight_lose:checked ~ .game-container #scene3_fight_lose,
+        #s3_track_gang:checked ~ .game-container #scene3_track_gang,
+        #s3_warn_sheriff:checked ~ .game-container #scene3_warn_sheriff,
+        #s3_dynamite:checked ~ .game-container #scene3_dynamite,
+        #s4_duel_blackwood:checked ~ .game-container #scene4_duel_blackwood,
+        #s4_ambush:checked ~ .game-container #scene4_ambush,
+        #s4_horse_chase:checked ~ .game-container #scene4_horse_chase,
+        #s4_hidden_gold:checked ~ .game-container #scene4_hidden_gold,
+        #s5_legend:checked ~ .game-container #scene5_legend,
+        #s5_outlaw:checked ~ .game-container #scene5_outlaw,
+        #s5_sheriff_end:checked ~ .game-container #scene5_sheriff_end,
+        #s5_dead:checked ~ .game-container #scene5_dead {
+            display: block;
+        }
+        @media (max-width: 500px) {
+            .game-container { padding: 16px 10px; min-height: 88vh; }
+            pre { font-size: 10px; }
+            .story-text { font-size: 0.95rem; }
+            label { width: 94%; padding: 11px 14px; font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="radio" name="cyoa" id="s0" checked>
+    <input type="radio" name="cyoa" id="s1_saloon">
+    <input type="radio" name="cyoa" id="s1_sheriff">
+    <input type="radio" name="cyoa" id="s1_outskirts">
+    <input type="radio" name="cyoa" id="s2_gamble">
+    <input type="radio" name="cyoa" id="s2_barfight">
+    <input type="radio" name="cyoa" id="s2_take_badge">
+    <input type="radio" name="cyoa" id="s2_infiltrate">
+    <input type="radio" name="cyoa" id="s2_snake_hill">
+    <input type="radio" name="cyoa" id="s3_win_gamble">
+    <input type="radio" name="cyoa" id="s3_lose_gamble">
+    <input type="radio" name="cyoa" id="s3_fight_win">
+    <input type="radio" name="cyoa" id="s3_fight_lose">
+    <input type="radio" name="cyoa" id="s3_track_gang">
+    <input type="radio" name="cyoa" id="s3_warn_sheriff">
+    <input type="radio" name="cyoa" id="s3_dynamite">
+    <input type="radio" name="cyoa" id="s4_duel_blackwood">
+    <input type="radio" name="cyoa" id="s4_ambush">
+    <input type="radio" name="cyoa" id="s4_horse_chase">
+    <input type="radio" name="cyoa" id="s4_hidden_gold">
+    <input type="radio" name="cyoa" id="s5_legend">
+    <input type="radio" name="cyoa" id="s5_outlaw">
+    <input type="radio" name="cyoa" id="s5_sheriff_end">
+    <input type="radio" name="cyoa" id="s5_dead">
+
+    <div class="game-container env-desert" id="gameBox">
+
+        <!-- START -->
+        <div id="scene0" class="scene">
+            <pre>
+        .   .   .
+      .   .   .   .
+    .   .   |   .   .
+      .   . | .   .
+        .   |   .
+      .   . | .   .
+    .   .   |   .   .
+      .   . | .   .
+        .   |   .
+    ---+---+---+---
+       /   |   \
+      /    |    \
+    </pre>
+            <div class="story-text">
+                You ride into the sun-bleached town of Dry Gulch, the dust swirling around your boots. The notorious Blackwood Gang controls these parts, and the sheriff seems powerless. You hitch your horse. A saloon piano drifts on the wind. The sheriff's office stands across the street. Out beyond the town lie the badlands.
+            </div>
+            <div class="choices">
+                <label for="s1_saloon">Enter the Dusty Spur Saloon</label>
+                <label for="s1_sheriff">Head to the Sheriff's Office</label>
+                <label for="s1_outskirts">Ride into the badlands alone</label>
+            </div>
+        </div>
+
+        <!-- SALOON BRANCH -->
+        <div id="scene1_saloon" class="scene">
+            <pre>
+     .-------.
+    /  _____  \
+    | |     | |
+    | |     | |
+    | |_____| |
+    \       /
+     '-----'
+       | |
+       | |
+    </pre>
+            <div class="story-text">
+                The saloon is thick with smoke and the smell of whiskey. A man in a black hat is dealing cards at a back table, a pile of gold coins in front of him. At the bar, a drunk miner is spoiling for a fight. You spot a wanted poster for Blackwood himself — dead or alive, $5000.
+            </div>
+            <div class="choices">
+                <label for="s2_gamble">Sit down and gamble with the stranger</label>
+                <label for="s2_barfight">Challenge the drunk miner to a fight</label>
+            </div>
+        </div>
+
+        <!-- SHERIFF BRANCH -->
+        <div id="scene1_sheriff" class="scene">
+            <pre>
+      .-------.
+      |       |
+      |  STAR |
+      |       |
+      '-------'
+        |   |
+        |   |
+    </pre>
+            <div class="story-text">
+                Sheriff Dalton is a tired man with a grizzled beard. He offers you a deputy badge: "Help me bring Blackwood in, and the reward is yours." But his deputy whispers that the gang has a spy in town. You can take the badge or pretend to join the gang as an informant.
+            </div>
+            <div class="choices">
+                <label for="s2_take_badge">Pin on the deputy star</label>
+                <label for="s2_infiltrate">Refuse the badge and offer to infiltrate the gang</label>
+            </div>
+        </div>
+
+        <!-- BADLANDS BRANCH -->
+        <div id="scene1_outskirts" class="scene">
+            <pre>
+       ~   ~
+      ~   ~   ~
+     ~   ~   ~
+      ~   ~   ~
+       ~   ~
+    ---+   +---
+       |   |
+    </pre>
+            <div class="story-text">
+                The badlands are harsh and red. You come across an abandoned mine entrance, a rattlesnake coiled on a rock nearby, and, oddly, a satchel of dynamite sticks left behind by a careless prospector.
+            </div>
+            <div class="choices">
+                <label for="s2_snake_hill">Try to grab the dynamite without disturbing the snake</label>
+                <label for="s4_hidden_gold">Head deeper into the abandoned mine</label>
+            </div>
+        </div>
+
+        <!-- GAMBLE -->
+        <div id="scene2_gamble" class="scene">
+            <pre>
+      .-"""-.
+     /  Ace  \
+     |  of   |
+     \ Spades/
+      '-...-'
+    </pre>
+            <div class="story-text">
+                The stranger is Deadeye Jack, a former gunslinger. He offers a high-stakes game: if you win, he gives you his prized custom revolver. If you lose, you owe him a favor. You can play fair or try to cheat.
+            </div>
+            <div class="choices">
+                <label for="s3_win_gamble">Play honestly and trust your luck</label>
+                <label for="s3_lose_gamble">Try to palm an ace</label>
+            </div>
+        </div>
+
+        <!-- BARFIGHT -->
+        <div id="scene2_barfight" class="scene">
+            <pre>
+      ( )   ( )
+       |     |
+       |     |
+      / \   / \
+    </pre>
+            <div class="story-text">
+                You and the miner trade blows. He's strong but slow. You can use a bottle on the bar, or fight him fair. The winner gets the respect of the saloon — and a clue about Blackwood's hideout.
+            </div>
+            <div class="choices">
+                <label for="s3_fight_win">Fight fair and square</label>
+                <label for="s3_fight_lose">Smash a bottle over his head</label>
+            </div>
+        </div>
+
+        <!-- TAKE BADGE -->
+        <div id="scene2_take_badge" class="scene">
+            <pre>
+      .-"""-.
+     /  STAR  \
+     |   OF   |
+     \  LAW   /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                As a deputy, you get a rifle and the authority to form a posse. The sheriff tells you the gang is hiding in Rattlesnake Canyon. You can lead a direct assault or try to cut them off at the pass.
+            </div>
+            <div class="choices">
+                <label for="s3_track_gang">Lead the posse into the canyon</label>
+                <label for="s3_warn_sheriff">Set up an ambush at the pass</label>
+            </div>
+        </div>
+
+        <!-- INFILTRATE -->
+        <div id="scene2_infiltrate" class="scene">
+            <pre>
+      .-"""-.
+     /  MASK  \
+     |   OF   |
+     \  LIES /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You ride into Blackwood's camp pretending to be an outlaw. Blackwood is suspicious but offers you a place if you help rob the stagecoach. You can go along with the robbery or try to warn the sheriff.
+            </div>
+            <div class="choices">
+                <label for="s3_dynamite">Join the stagecoach robbery and earn their trust</label>
+                <label for="s3_warn_sheriff">Slip away and warn Sheriff Dalton</label>
+            </div>
+        </div>
+
+        <!-- SNAKE HILL -->
+        <div id="scene2_snake_hill" class="scene">
+            <pre>
+      .-"""-.
+     /  ~o~  \
+     |   /|   |
+     \  / \  /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You carefully reach for the dynamite. The rattlesnake uncoils but doesn't strike. You now have three sticks of dynamite. With these, you could blow the gang's hideout or sell them for a small fortune.
+            </div>
+            <div class="choices">
+                <label for="s4_ambush">Use the dynamite to ambush Blackwood's hideout</label>
+                <label for="s4_horse_chase">Ride to town and sell the dynamite</label>
+            </div>
+        </div>
+
+        <!-- GAMBLE WIN -->
+        <div id="scene3_win_gamble" class="scene">
+            <pre>
+      .-"""-.
+     /  = =  \
+     |   ~   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You win fairly. Jack slides you a polished silver revolver engraved with "Last Word". He tells you: "Blackwood's hiding in the old Spanish mission. Use that iron wisely." Armed and informed, you head out.
+            </div>
+            <div class="choices">
+                <label for="s4_duel_blackwood">Ride to the mission and confront Blackwood</label>
+                <label for="s4_ambush">Gather a posse and surround the mission</label>
+            </div>
+        </div>
+
+        <!-- GAMBLE LOSE -->
+        <div id="scene3_lose_gamble" class="scene">
+            <pre>
+      .-"""-.
+     /  X X  \
+     |   ^   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                Jack catches you cheating. He doesn't kill you, but you now owe him a blood debt. He forces you to ride with him to rob the Dry Gulch bank. You can go through with it or try to double-cross him.
+            </div>
+            <div class="choices">
+                <label for="s3_dynamite">Reluctantly agree to the bank job</label>
+                <label for="s3_warn_sheriff">Try to warn the sheriff about the robbery</label>
+            </div>
+        </div>
+
+        <!-- FIGHT WIN -->
+        <div id="scene3_fight_win" class="scene">
+            <pre>
+      .-"""-.
+     /  WIN  \
+     |   !   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You knock the miner out cold. The saloon erupts in cheers. The bartender slides you a map: it shows a hidden trail to Blackwood's canyon hideout, a route the gang thinks no one knows.
+            </div>
+            <div class="choices">
+                <label for="s3_track_gang">Follow the hidden trail alone</label>
+                <label for="s4_ambush">Take the map to the sheriff and plan a trap</label>
+            </div>
+        </div>
+
+        <!-- FIGHT LOSE -->
+        <div id="scene3_fight_lose" class="scene">
+            <pre>
+      .-"""-.
+     /  LOSE \
+     |   x   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                The bottle shatters and the miner goes down hard. The crowd turns on you for fighting dirty. You are thrown out of the saloon. As you dust yourself off, you notice a figure watching from the shadows — one of Blackwood's men, impressed by your ruthlessness.
+            </div>
+            <div class="choices">
+                <label for="s2_infiltrate">Follow the gang member to their camp</label>
+                <label for="s4_horse_chase">Ignore him and ride out of town</label>
+            </div>
+        </div>
+
+        <!-- TRACK GANG (posse) -->
+        <div id="scene3_track_gang" class="scene">
+            <pre>
+      .-.   .-.
+     /   \ /   \
+     |   | |   |
+     \   / \   /
+      '-'   '-'
+    </pre>
+            <div class="story-text">
+                Your posse corners the gang in the canyon. A fierce gunfight erupts. Blackwood challenges you to a duel — one shot each, winner takes all. You can accept or order your men to fire.
+            </div>
+            <div class="choices">
+                <label for="s4_duel_blackwood">Accept the duel</label>
+                <label for="s4_ambush">Open fire with the posse</label>
+            </div>
+        </div>
+
+        <!-- WARN SHERIFF -->
+        <div id="scene3_warn_sheriff" class="scene">
+            <pre>
+      .-"""-.
+     /  WARN \
+     |   !   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You get word to the sheriff just in time. He sets up an ambush on the main road. You can join the ambush with a rifle or try to capture Blackwood alone for the full reward.
+            </div>
+            <div class="choices">
+                <label for="s4_ambush">Join the sheriff's ambush</label>
+                <label for="s4_duel_blackwood">Sneak away to face Blackwood one-on-one</label>
+            </div>
+        </div>
+
+        <!-- DYNAMITE -->
+        <div id="scene3_dynamite" class="scene">
+            <pre>
+      .___.
+      |!!!|
+      '---'
+    </pre>
+            <div class="story-text">
+                With dynamite in hand, you have options. You can blow the entrance to the gang's hideout, trapping them inside, or use it during the stagecoach robbery to create chaos and steal the loot.
+            </div>
+            <div class="choices">
+                <label for="s4_ambush">Blow the hideout entrance</label>
+                <label for="s4_horse_chase">Use it to rob the stagecoach yourself</label>
+            </div>
+        </div>
+
+        <!-- DUEL BLACKWOOD -->
+        <div id="scene4_duel_blackwood" class="scene">
+            <pre>
+      \   /
+       \ /
+        O
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE LAST GUNSLINGER</strong><br><br>
+                You and Blackwood face off at high noon. Your hand blurs to your holster. One shot rings out. Blackwood falls. You become the legend they'll sing about for generations: the drifter who brought justice to Dry Gulch.
+            </div>
+            <div class="choices"><label for="s5_legend">Continue</label></div>
+        </div>
+
+        <!-- AMBUSH -->
+        <div id="scene4_ambush" class="scene">
+            <pre>
+      .-"""-.
+     /  BANG \
+     |   *   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                The ambush works perfectly. The gang is captured or killed. The sheriff thanks you and hands you the full reward. You have enough money to buy a ranch and hang up your guns — but the West has a way of calling you back.
+            </div>
+            <div class="choices"><label for="s5_sheriff_end">Continue</label></div>
+        </div>
+
+        <!-- HORSE CHASE -->
+        <div id="scene4_horse_chase" class="scene">
+            <pre>
+      .-"-. .-"-.
+     /     X     \
+     \   / \   /
+      '-'   '-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE OUTLAW TRAIL</strong><br><br>
+                You take the money and run, leaving Dry Gulch behind. With a fast horse and a satchel of cash, you become a wanted man yourself — but a rich one. The open range is yours.
+            </div>
+            <div class="choices"><label for="s5_outlaw">Continue</label></div>
+        </div>
+
+        <!-- HIDDEN GOLD -->
+        <div id="scene4_hidden_gold" class="scene">
+            <pre>
+      .___. .___. .___.
+      |Au| |Au| |Au|
+      '---' '---' '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: GOLD FEVER</strong><br><br>
+                Deep in the mine, you strike a vein of gold. You become the wealthiest man in the territory, buying up the entire town. But wealth can't buy back the thrill of the gunfight. You often stand on your porch, staring at the sunset, wondering what could have been.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- LEGEND -->
+        <div id="scene5_legend" class="scene">
+            <pre>
+      * * * * *
+       *  *  *
+        *   *
+         * *
+          *
+    </pre>
+            <div class="story-text">
+                <strong>TRUE ENDING: DUST AND LEAD</strong><br><br>
+                Your name becomes synonymous with justice in the frontier. Years later, a young boy asks you about the day you faced Blackwood. You just smile, tip your hat, and ride into the sunset. The legend never dies.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- OUTLAW -->
+        <div id="scene5_outlaw" class="scene">
+            <pre>
+      .-.   .-.
+     /   \_/   \
+     |         |
+     \_________/
+    </pre>
+            <div class="story-text">
+                <strong>TRUE ENDING: THE OUTLAW KING</strong><br><br>
+                You become the most feared outlaw in the West, always one step ahead of the law. The reward on your head climbs higher, but no jail can hold you. You live fast and free, the way the desert intended.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- SHERIFF END -->
+        <div id="scene5_sheriff_end" class="scene">
+            <pre>
+      .-------.
+      |       |
+      |  STAR |
+      |       |
+      '-------'
+    </pre>
+            <div class="story-text">
+                <strong>TRUE ENDING: THE LAWMAN</strong><br><br>
+                You settle down as the new sheriff of Dry Gulch. The town thrives under your protection. Every so often, a young outlaw thinks they can take you. They're wrong. You wear the star with pride.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- DEAD (back to start) -->
+        <div id="scene5_dead" class="scene">
+            <pre>
+      .-"""-.
+     /  RIP  \
+     |   |   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: BURIED IN BOOT HILL</strong><br><br>
+                The desert takes another soul. Your story ends here, but someone else will ride into Dry Gulch someday. Maybe they'll have better luck.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+    </div>
+</body>
+</html>
