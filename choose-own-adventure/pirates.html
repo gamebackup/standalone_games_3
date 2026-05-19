@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pirate's Plunder: The Lost Treasure of Isla Calavera</title>
+    <style>
+        :root {
+            --term-amber: #ffb000;
+            --term-bg: #0a0703;
+            --term-dim: #7a5c1a;
+            --term-red: #ff4422;
+            --glow-ship: rgba(255, 176, 0, 0.3);
+            --glow-jungle: rgba(100, 200, 50, 0.2);
+            --glow-temple: rgba(255, 200, 0, 0.25);
+            --glow-danger: rgba(255, 68, 34, 0.3);
+            --glow-treasure: rgba(255, 215, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #050302;
+            color: var(--term-amber);
+            font-family: 'Courier New', 'Courier', 'Lucida Console', monospace;
+            margin: 0;
+            padding: 16px;
+            line-height: 1.55;
+            min-height: 100vh;
+            background-image:
+                repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(80, 60, 10, 0.03) 2px,
+                    rgba(80, 60, 10, 0.03) 4px);
+            background-size: 100% 4px;
+        }
+
+        .game-container {
+            max-width: 720px;
+            margin: 0 auto;
+            border: 2px solid var(--term-amber);
+            padding: 28px 22px;
+            min-height: 82vh;
+            box-shadow: 0 0 20px var(--glow-ship);
+            position: relative;
+            background: radial-gradient(ellipse at center,
+                    rgba(40, 25, 5, 0.6) 0%,
+                    rgba(5, 3, 2, 0.95) 70%);
+            transition: box-shadow 0.6s ease, border-color 0.6s ease, color 0.6s ease;
+        }
+
+        .env-ship { box-shadow: 0 0 20px var(--glow-ship); border-color: #cc8800; color: #f0c070; }
+        .env-jungle { box-shadow: 0 0 20px var(--glow-jungle); border-color: #558833; color: #c0e0a0; }
+        .env-temple { box-shadow: 0 0 20px var(--glow-temple); border-color: #aa8800; color: #ffe080; }
+        .env-danger { box-shadow: 0 0 20px var(--glow-danger); border-color: #aa3322; color: #ff7755; }
+        .env-treasure { box-shadow: 0 0 20px var(--glow-treasure); border-color: #ddbb00; color: #ffd700; }
+
+        pre {
+            font-size: 13px;
+            white-space: pre;
+            text-align: center;
+            margin-bottom: 24px;
+            text-shadow: 0 0 6px currentColor;
+            letter-spacing: 0;
+            line-height: 1.25;
+            overflow-x: auto;
+            padding: 4px 0;
+            animation: flickerIn 1.2s ease-out;
+        }
+
+        @keyframes flickerIn {
+            0% { opacity: 0; text-shadow: 0 0 20px currentColor; }
+            15% { opacity: 0.4; text-shadow: 0 0 2px currentColor; }
+            25% { opacity: 0.7; text-shadow: 0 0 14px currentColor; }
+            35% { opacity: 0.5; }
+            50% { opacity: 0.9; text-shadow: 0 0 8px currentColor; }
+            100% { opacity: 1; text-shadow: 0 0 6px currentColor; }
+        }
+
+        .story-text {
+            font-size: 1.15rem;
+            margin-bottom: 28px;
+            text-align: center;
+            padding: 0 8px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+            align-items: center;
+        }
+
+        label {
+            display: inline-block;
+            border: 1px solid currentColor;
+            padding: 13px 26px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.25s;
+            width: 82%;
+            text-align: center;
+            background: #0a0500;
+            font-weight: bold;
+            font-size: 0.9rem;
+            position: relative;
+            user-select: none;
+        }
+
+        label:hover {
+            background-color: currentColor;
+            color: #0a0500;
+            font-weight: bold;
+            box-shadow: 0 0 18px currentColor;
+            transform: scale(1.02);
+            letter-spacing: 2px;
+        }
+
+        label:active { transform: scale(0.97); transition: transform 0.08s; }
+
+        label::before {
+            content: '> ';
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        label:hover::before {
+            opacity: 1;
+            animation: blink 0.7s infinite;
+        }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        input[type="radio"] { display: none; }
+        .scene { display: none; animation: fadeIn 0.5s ease-out; }
+
+        /* START */
+        #s0:checked ~ .game-container #scene0,
+        /* BEACH BRANCH */
+        #s1_beach_take:checked ~ .game-container #scene1_beach_take,
+        #s1_beach_inland:checked ~ .game-container #scene1_beach_inland,
+        #s2_follow_map:checked ~ .game-container #scene2_follow_map,
+        #s2_explore_jungle:checked ~ .game-container #scene2_explore_jungle,
+        #s2_shipwreck:checked ~ .game-container #scene2_shipwreck,
+        #s3_temple_enter:checked ~ .game-container #scene3_temple_enter,
+        #s3_temple_climb:checked ~ .game-container #scene3_temple_climb,
+        #s3_cutlass_fight:checked ~ .game-container #scene3_cutlass_fight,
+        #s3_sneak_camp:checked ~ .game-container #scene3_sneak_camp,
+        #s3_grapple_hook:checked ~ .game-container #scene3_grapple_hook,
+        #s3_swim_wreck:checked ~ .game-container #scene3_swim_wreck,
+        #s4_treasure_room:checked ~ .game-container #scene4_treasure_room,
+        #s4_cursed_gold:checked ~ .game-container #scene4_cursed_gold,
+        #s4_fight_captain:checked ~ .game-container #scene4_fight_captain,
+        #s4_join_crew:checked ~ .game-container #scene4_join_crew,
+        #s4_steal_ship:checked ~ .game-container #scene4_steal_ship,
+        #s4_kraken:checked ~ .game-container #scene4_kraken,
+        /* ENDINGS */
+        #s5_legend:checked ~ .game-container #scene5_legend,
+        #s5_curse:checked ~ .game-container #scene5_curse,
+        #s5_king:checked ~ .game-container #scene5_king,
+        #s5_castaway:checked ~ .game-container #scene5_castaway {
+            display: block;
+        }
+
+        @media (max-width: 500px) {
+            .game-container { padding: 16px 10px; min-height: 88vh; }
+            pre { font-size: 10px; letter-spacing: -0.5px; }
+            .story-text { font-size: 0.95rem; }
+            label { width: 94%; padding: 11px 14px; font-size: 0.78rem; letter-spacing: 1px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- STATE INPUTS -->
+    <input type="radio" name="cyoa" id="s0" checked>
+    <input type="radio" name="cyoa" id="s1_beach_take">
+    <input type="radio" name="cyoa" id="s1_beach_inland">
+    <input type="radio" name="cyoa" id="s2_follow_map">
+    <input type="radio" name="cyoa" id="s2_explore_jungle">
+    <input type="radio" name="cyoa" id="s2_shipwreck">
+    <input type="radio" name="cyoa" id="s3_temple_enter">
+    <input type="radio" name="cyoa" id="s3_temple_climb">
+    <input type="radio" name="cyoa" id="s3_cutlass_fight">
+    <input type="radio" name="cyoa" id="s3_sneak_camp">
+    <input type="radio" name="cyoa" id="s3_grapple_hook">
+    <input type="radio" name="cyoa" id="s3_swim_wreck">
+    <input type="radio" name="cyoa" id="s4_treasure_room">
+    <input type="radio" name="cyoa" id="s4_cursed_gold">
+    <input type="radio" name="cyoa" id="s4_fight_captain">
+    <input type="radio" name="cyoa" id="s4_join_crew">
+    <input type="radio" name="cyoa" id="s4_steal_ship">
+    <input type="radio" name="cyoa" id="s4_kraken">
+    <input type="radio" name="cyoa" id="s5_legend">
+    <input type="radio" name="cyoa" id="s5_curse">
+    <input type="radio" name="cyoa" id="s5_king">
+    <input type="radio" name="cyoa" id="s5_castaway">
+
+    <div class="game-container env-ship" id="gameBox">
+
+        <!-- START SCENE -->
+        <div id="scene0" class="scene">
+            <pre>
+       ~~~  ~~~~  ~~~
+    ~~~~  ~~~~~~~~  ~~~~
+    ~~~~~  ~~~~~~  ~~~~~
+    ~~~~~~  ~~~~  ~~~~~~
+    ~~~~~~~  ~~  ~~~~~~~
+    ~~~~~~~~~~~~~~~~~~~~~
+    ~~~~~~~~~~~~~~~~~~~~~
+    ~~~~~  ISLA  ~~~~~~~~
+    ~~~~~ CALAVERA ~~~~~~
+    ~~~~~~~~~~~~~~~~~~~~~
+    </pre>
+            <div class="story-text">
+                You awaken on a tropical beach, the wreckage of your ship scattered along the sand. Clutched in your hand is a torn treasure map pointing to the heart of <strong>Isla Calavera</strong>. A rusty <strong>cutlass</strong> lies half-buried nearby. Inland, dense jungle obscures the island's interior. To the north, you spot the mast of a beached <strong>shipwreck</strong>.
+            </div>
+            <div class="choices">
+                <label for="s1_beach_take">Grab the cutlass and study the map</label>
+                <label for="s1_beach_inland">Head inland without a weapon</label>
+            </div>
+        </div>
+
+        <!-- BEACH: TAKE CUTLASS -->
+        <div id="scene1_beach_take" class="scene">
+            <pre>
+       ____
+      /    \
+     |  ()  |
+      \____/
+        ||
+        ||
+       /  \
+      /    \
+    </pre>
+            <div class="story-text">
+                Armed with the cutlass, you follow the map into the jungle. The trail splits. To the left, ancient stone steps climb toward a <strong>crumbling temple</strong>. To the right, you hear the sounds of a <strong>pirate camp</strong> and drunken shanties.
+            </div>
+            <div class="choices">
+                <label for="s2_follow_map">Climb toward the temple</label>
+                <label for="s2_explore_jungle">Sneak toward the pirate camp</label>
+            </div>
+        </div>
+
+        <!-- BEACH: INLAND WITHOUT WEAPON -->
+        <div id="scene1_beach_inland" class="scene">
+            <pre>
+       ~~~~  ~~~~
+      ~~~~~~~~~~~~
+     ~~~~~  o  ~~~~
+      ~~~~ ~|~ ~~~~
+       ~~~~~|~~~~~
+         ~~~~|~~~~
+            ||
+    </pre>
+            <div class="story-text">
+                Unarmed, you stumble upon the <strong>beached shipwreck</strong> before reaching the treeline. The hull is cracked open. Inside, you spot a <strong>grappling hook</strong> dangling from a broken mast and a chest that might contain supplies. The tide is rising fast.
+            </div>
+            <div class="choices">
+                <label for="s2_shipwreck">Enter the wreck and grab the grappling hook</label>
+                <label for="s3_swim_wreck">Swim around to the other side of the hull</label>
+            </div>
+        </div>
+
+        <!-- TEMPLE PATH -->
+        <div id="scene2_follow_map" class="scene">
+            <pre>
+        /\
+       /  \
+      /    \
+     /  __  \
+    /  /  \  \
+   /__/    \__\
+       |  |
+       |  |
+    </pre>
+            <div class="story-text">
+                The temple is overgrown with vines. At its entrance, a stone altar holds a golden idol, but the floor is covered in pressure plates. You can either <strong>enter carefully</strong> or <strong>climb the outer wall</strong> to bypass the traps.
+            </div>
+            <div class="choices">
+                <label for="s3_temple_enter">Step carefully through the trapped entrance</label>
+                <label for="s3_temple_climb">Scale the outer wall with the grappling hook (if you have it)</label>
+            </div>
+        </div>
+
+        <!-- PIRATE CAMP -->
+        <div id="scene2_explore_jungle" class="scene">
+            <pre>
+     .-.   .-.
+    /   \ /   \
+    |   | |   |
+    \   / \   /
+     '-'   '-'
+      |     |
+      |     |
+    </pre>
+            <div class="story-text">
+                You creep close to the camp. A gang of pirates guards a captive navigator and a chest of stolen goods. The pirate captain, a hulking brute with a mechanical hand, barks orders. You can <strong>fight them with the cutlass</strong> or <strong>try to sneak past and free the navigator</strong>.
+            </div>
+            <div class="choices">
+                <label for="s3_cutlass_fight">Charge in swinging! For freedom!</label>
+                <label for="s3_sneak_camp">Sneak around to the navigator's cage</label>
+            </div>
+        </div>
+
+        <!-- SHIPWRECK -->
+        <div id="scene2_shipwreck" class="scene">
+            <pre>
+      ._____.
+      |/   \|
+      |/   \|
+      '-----'
+        | |
+        | |
+    </pre>
+            <div class="story-text">
+                You climb into the dark, creaking wreck. A skeleton still clutching a flintlock pistol grins at you from the corner. You can take the <strong>pistol</strong> (it might still work) or secure the <strong>grappling hook</strong> hanging above.
+            </div>
+            <div class="choices">
+                <label for="s3_grapple_hook">Take the grappling hook</label>
+                <label for="s4_fight_captain">Pocket the flintlock and head back to the pirate camp</label>
+            </div>
+        </div>
+
+        <!-- TEMPLE ENTER -->
+        <div id="scene3_temple_enter" class="scene">
+            <pre>
+      .-"""-.
+     /  ! !  \
+     |   ~   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You avoid the pressure plates and reach the inner chamber. A massive stone golem awakens, demanding a treasure offering. You have no gold — but the cutlass might work as a trade. Or you can try to <strong>fight the golem</strong>.
+            </div>
+            <div class="choices">
+                <label for="s4_treasure_room">Offer the cutlass as tribute</label>
+                <label for="s4_cursed_gold">Fight the stone golem</label>
+            </div>
+        </div>
+
+        <!-- TEMPLE CLIMB -->
+        <div id="scene3_temple_climb" class="scene">
+            <pre>
+       |  |
+       |  |
+       |  |
+       |  |
+      /    \
+     /      \
+    </pre>
+            <div class="story-text">
+                You scale the temple wall and enter through a shattered window. Inside is a treasure trove, but the idol on the pedestal radiates dark energy. You can <strong>grab the treasure and run</strong> or <strong>examine the idol more closely</strong>.
+            </div>
+            <div class="choices">
+                <label for="s4_treasure_room">Fill your pockets with gold and escape</label>
+                <label for="s4_cursed_gold">Touch the cursed golden idol</label>
+            </div>
+        </div>
+
+        <!-- CUTLASS FIGHT -->
+        <div id="scene3_cutlass_fight" class="scene">
+            <pre>
+      O   O
+     /|   |\
+     / \ / \
+    </pre>
+            <div class="story-text">
+                You clash with the pirate captain. Steel rings out. You disarm him, but he triggers the ship's cannons aimed at the island. You can <strong>finish him</strong> or <strong>spare him and take his ship</strong>.
+            </div>
+            <div class="choices">
+                <label for="s4_fight_captain">End the pirate captain once and for all</label>
+                <label for="s4_join_crew">Spare him and demand to join his crew</label>
+            </div>
+        </div>
+
+        <!-- SNEAK CAMP -->
+        <div id="scene3_sneak_camp" class="scene">
+            <pre>
+      .-"""-.
+     /  o o  \
+     |   <   |
+     \  ___  /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You free the navigator undetected. Grateful, he tells you the location of a hidden cove where the pirates keep a swift ship. You can <strong>steal the ship together</strong> or <strong>sail away with the navigator</strong> and leave the island.
+            </div>
+            <div class="choices">
+                <label for="s4_steal_ship">Steal the pirate ship and become captain</label>
+                <label for="s5_legend">Set sail with the navigator to chart new waters</label>
+            </div>
+        </div>
+
+        <!-- GRAPPLE HOOK -->
+        <div id="scene3_grapple_hook" class="scene">
+            <pre>
+      .___.
+      | _ |>
+      '---'
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                With the grappling hook, you climb to the temple's upper level and bypass all traps. You find the treasure room filled with gold and jewels, but also a cursed idol. You can <strong>take the gold</strong> or <strong>touch the idol</strong>.
+            </div>
+            <div class="choices">
+                <label for="s4_treasure_room">Take the gold and leave</label>
+                <label for="s4_cursed_gold">Touch the cursed idol</label>
+            </div>
+        </div>
+
+        <!-- SWIM WRECK -->
+        <div id="scene3_swim_wreck" class="scene">
+            <pre>
+      ~~~~ ~~~~
+      ~~~~o~~~~
+      ~~~~|~~~~
+      ~~~~|~~~~
+      ~~~~~~~~
+    </pre>
+            <div class="story-text">
+                Swimming around, you spot a hidden cave beneath the wreck. Inside rests a skeleton clutching a worn journal. It tells of a <strong>sea monster</strong> guarding the greatest treasure. You can <strong>sail toward the monster's lair</strong> or <strong>return to shore</strong>.
+            </div>
+            <div class="choices">
+                <label for="s4_kraken">Seek the sea monster's lair</label>
+                <label for="s5_castaway">Return to shore and live as a castaway</label>
+            </div>
+        </div>
+
+        <!-- TREASURE ROOM -->
+        <div id="scene4_treasure_room" class="scene">
+            <pre>
+      .___. .___. .___.
+      |Au| |Ag| |Cu|
+      '---' '---' '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: LORD OF THE ISLAND</strong><br><br>
+                You claim the treasure and escape the temple just before it collapses. With your new wealth, you buy a ship and a loyal crew. You become the most feared and respected pirate lord in the Caribbean.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- CURSED GOLD -->
+        <div id="scene4_cursed_gold" class="scene">
+            <pre>
+      .-"""-.
+     /  X X  \
+     |   ^   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE CURSED SKULL</strong><br><br>
+                The moment you touch the idol, your flesh turns to gold. You become a living statue, forever guarding the treasure you sought. Your golden form will stare at the next adventurer who dares enter.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- FIGHT CAPTAIN -->
+        <div id="scene4_fight_captain" class="scene">
+            <pre>
+      \   /
+       \ /
+        O
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: PIRATE SLAYER</strong><br><br>
+                You defeat the captain in single combat. His crew, impressed by your strength, swears loyalty to you. You commandeer the ship and sail off as the new captain, ready to plunder the Spanish Main.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- JOIN CREW -->
+        <div id="scene4_join_crew" class="scene">
+            <pre>
+      .___.
+      |CREW|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: QUARTERMASTER'S HONOR</strong><br><br>
+                You spare the captain and earn his respect. You join the crew as quartermaster, and together you become the most successful pirate partnership on the seas. Adventure and rum await every horizon.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- STEAL SHIP -->
+        <div id="scene4_steal_ship" class="scene">
+            <pre>
+      .-.   .-.
+     /   \_/   \
+     |         |
+     \_________/
+        |_|_|
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE GREAT ESCAPE</strong><br><br>
+                You and the navigator steal the pirate ship under cover of darkness. With a fast vessel and a skilled navigator, you sail beyond the known world, discovering islands no European has ever seen.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- KRAKEN -->
+        <div id="scene4_kraken" class="scene">
+            <pre>
+      \|/  \|/  \|/
+       O    O    O
+      /|\  /|\  /|\
+         \ | /
+           *
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: KRAKEN'S PREY</strong><br><br>
+                You sail into the monster's territory. A massive tentacle rises from the deep and crushes your boat. You sink into the abyss, but as you drown, you glimpse the greatest treasure — a pearl the size of a cannonball — forever out of reach.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- LEGEND -->
+        <div id="scene5_legend" class="scene">
+            <pre>
+      .   .   .
+     \   |   /
+      \  |  /
+       \ | /
+         *
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: NAVIGATOR'S TALE</strong><br><br>
+                You and the navigator become inseparable. Together you map uncharted waters and discover a new continent. Your journals will inspire explorers for centuries. You didn't just find treasure — you found a friend.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- CASTAWAY -->
+        <div id="scene5_castaway" class="scene">
+            <pre>
+      ~~~~ ~~~~
+      ~~~~~~~~
+      ~~~~~~~~
+      ~~~~~~~~
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: ETERNAL CASTAWAY</strong><br><br>
+                You return to the beach and build a shelter. Days turn into years. You survive, but the treasure remains a dream. Sometimes, when the tide is low, you still see the map's X marked on the sand.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+    </div>
+
+</body>
+</html>

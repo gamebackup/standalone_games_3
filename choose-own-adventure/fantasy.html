@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Adventure: The Lost Relics</title>
+    <style>
+        :root {
+            --term-green: #33ff33;
+            --term-bg: #050505;
+            --term-dim: #1a7a1a;
+            --term-amber: #ffaa33;
+            --term-blue: #33aaff;
+            --term-red: #ff4433;
+            --glow-forest: rgba(51, 255, 51, 0.25);
+            --glow-mountain: rgba(150, 200, 255, 0.2);
+            --glow-cavern: rgba(255, 170, 51, 0.2);
+            --glow-danger: rgba(255, 68, 51, 0.3);
+            --glow-magic: rgba(180, 130, 255, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #020202;
+            color: var(--term-green);
+            font-family: 'Courier New', 'Courier', 'Lucida Console', monospace;
+            margin: 0;
+            padding: 16px;
+            line-height: 1.55;
+            min-height: 100vh;
+            background-image:
+                repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.03) 3px,
+                    rgba(0, 0, 0, 0.03) 6px);
+            background-size: 100% 6px;
+        }
+
+        .game-container {
+            max-width: 720px;
+            margin: 0 auto;
+            border: 2px solid var(--term-green);
+            padding: 28px 22px;
+            min-height: 82vh;
+            box-shadow:
+                0 0 20px var(--glow-forest),
+                inset 0 0 40px rgba(51, 255, 51, 0.03);
+            position: relative;
+            background: radial-gradient(ellipse at center,
+                    rgba(10, 28, 10, 0.5) 0%,
+                    rgba(2, 2, 2, 0.95) 70%);
+            transition: box-shadow 0.6s ease;
+        }
+
+        /* Environment-specific glows */
+        .env-forest {
+            box-shadow: 0 0 20px var(--glow-forest), inset 0 0 40px rgba(51, 255, 51, 0.03) !important;
+            border-color: var(--term-green) !important;
+        }
+        .env-mountain {
+            box-shadow: 0 0 20px var(--glow-mountain), inset 0 0 40px rgba(150, 200, 255, 0.03) !important;
+            border-color: #5599cc !important;
+            color: #c8ddf8 !important;
+        }
+        .env-cavern {
+            box-shadow: 0 0 20px var(--glow-cavern), inset 0 0 40px rgba(255, 170, 51, 0.03) !important;
+            border-color: #cc8833 !important;
+            color: #f0c878 !important;
+        }
+        .env-danger {
+            box-shadow: 0 0 20px var(--glow-danger), inset 0 0 40px rgba(255, 68, 51, 0.03) !important;
+            border-color: #cc3322 !important;
+            color: #ff7766 !important;
+        }
+        .env-magic {
+            box-shadow: 0 0 20px var(--glow-magic), inset 0 0 40px rgba(180, 130, 255, 0.03) !important;
+            border-color: #9966dd !important;
+            color: #c8a8f8 !important;
+        }
+
+        pre {
+            font-size: 13px;
+            white-space: pre;
+            text-align: center;
+            margin-bottom: 24px;
+            text-shadow: 0 0 6px currentColor;
+            letter-spacing: 0;
+            line-height: 1.25;
+            overflow-x: auto;
+            padding: 4px 0;
+            animation: flickerIn 1.2s ease-out;
+        }
+
+        @keyframes flickerIn {
+            0% {
+                opacity: 0;
+                text-shadow: 0 0 20px currentColor;
+            }
+            15% {
+                opacity: 0.4;
+                text-shadow: 0 0 2px currentColor;
+            }
+            25% {
+                opacity: 0.7;
+                text-shadow: 0 0 14px currentColor;
+            }
+            35% {
+                opacity: 0.5;
+            }
+            50% {
+                opacity: 0.9;
+                text-shadow: 0 0 8px currentColor;
+            }
+            100% {
+                opacity: 1;
+                text-shadow: 0 0 6px currentColor;
+            }
+        }
+
+        .story-text {
+            font-size: 1.15rem;
+            margin-bottom: 28px;
+            text-align: center;
+            padding: 0 8px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+            align-items: center;
+        }
+
+        label {
+            display: inline-block;
+            border: 1px solid currentColor;
+            padding: 13px 26px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.25s;
+            width: 82%;
+            text-align: center;
+            background: #000;
+            font-weight: bold;
+            font-size: 0.9rem;
+            position: relative;
+            user-select: none;
+        }
+
+        label:hover {
+            background-color: currentColor;
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 18px currentColor;
+            transform: scale(1.02);
+            letter-spacing: 2px;
+        }
+
+        label:active {
+            transform: scale(0.97);
+            transition: transform 0.08s;
+        }
+
+        /* Cursor blink indicator on labels */
+        label::before {
+            content: '> ';
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        label:hover::before {
+            opacity: 1;
+            animation: blink 0.7s infinite;
+        }
+        @keyframes blink {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.2;
+            }
+        }
+
+        /* --- THE CSS STATE MACHINE --- */
+        input[type="radio"] {
+            display: none;
+        }
+        .scene {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* START */
+        #s0:checked~.game-container #scene0,
+        /* FOREST BRANCH */
+        #s1_forest:checked~.game-container #scene1_forest,
+        #s2_draw:checked~.game-container #scene2_draw,
+        #s2_ignore:checked~.game-container #scene2_ignore,
+        #s2_talk_jester:checked~.game-container #scene2_talk_jester,
+        #s3_burn:checked~.game-container #scene3_burn,
+        #s3_walk:checked~.game-container #scene3_walk,
+        #s3_lights:checked~.game-container #scene3_lights,
+        #s3_hut:checked~.game-container #scene3_hut,
+        #s3_wade:checked~.game-container #scene3_wade,
+        #s3_riddle_right:checked~.game-container #scene3_riddle_right,
+        #s3_riddle_wrong:checked~.game-container #scene3_riddle_wrong,
+        #s4_crown:checked~.game-container #scene4_crown,
+        #s4_crystal:checked~.game-container #scene4_crystal,
+        #s4_explore_castle:checked~.game-container #scene4_explore_castle,
+        #s4_bandit_fight:checked~.game-container #scene4_bandit_fight,
+        #s4_surrender:checked~.game-container #scene4_surrender,
+        #s4_trick_bandits:checked~.game-container #scene4_trick_bandits,
+        #s4_willowisp:checked~.game-container #scene4_willowisp,
+        /* MOUNTAIN BRANCH */
+        #s1_mountain:checked~.game-container #scene1_mountain,
+        #s2_mallet:checked~.game-container #scene2_mallet,
+        #s2_sword:checked~.game-container #scene2_sword,
+        #s2_search_camp:checked~.game-container #scene2_search_camp,
+        #s3_smash:checked~.game-container #scene3_smash,
+        #s3_talk:checked~.game-container #scene3_talk,
+        #s3_fight:checked~.game-container #scene3_fight,
+        #s3_flee:checked~.game-container #scene3_flee,
+        #s3_secret_pass:checked~.game-container #scene3_secret_pass,
+        #s3_ignore_map:checked~.game-container #scene3_ignore_map,
+        #s4_sneak:checked~.game-container #scene4_sneak,
+        #s4_bonk:checked~.game-container #scene4_bonk,
+        #s4_befriend:checked~.game-container #scene4_befriend,
+        #s4_map_treasure:checked~.game-container #scene4_map_treasure,
+        #s4_map_trap:checked~.game-container #scene4_map_trap,
+        #s4_griffon_nest:checked~.game-container #scene4_griffon_nest,
+        /* CAVERN BRANCH */
+        #s1_cavern:checked~.game-container #scene1_cavern,
+        #s2_cave_river:checked~.game-container #scene2_cave_river,
+        #s2_cave_crystals:checked~.game-container #scene2_cave_crystals,
+        #s3_underground_lake:checked~.game-container #scene3_underground_lake,
+        #s3_crystal_mine:checked~.game-container #scene3_crystal_mine,
+        #s4_lake_spirit:checked~.game-container #scene4_lake_spirit,
+        #s4_lake_dive:checked~.game-container #scene4_lake_dive,
+        #s4_mine_golem:checked~.game-container #scene4_mine_golem,
+        #s4_mine_steal:checked~.game-container #scene4_mine_steal,
+        /* SECRET ENDING */
+        #s5_true_ending:checked~.game-container #scene5_true_ending {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 500px) {
+            .game-container {
+                padding: 16px 10px;
+                min-height: 88vh;
+            }
+            pre {
+                font-size: 10px;
+                letter-spacing: -0.5px;
+            }
+            .story-text {
+                font-size: 0.95rem;
+            }
+            label {
+                width: 94%;
+                padding: 11px 14px;
+                font-size: 0.78rem;
+                letter-spacing: 1px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== STATE INPUTS ==================== -->
+    <!-- Start -->
+    <input type="radio" name="cyoa" id="s0" checked>
+
+    <!-- Forest -->
+    <input type="radio" name="cyoa" id="s1_forest">
+    <input type="radio" name="cyoa" id="s2_draw">
+    <input type="radio" name="cyoa" id="s2_ignore">
+    <input type="radio" name="cyoa" id="s2_talk_jester">
+    <input type="radio" name="cyoa" id="s3_burn">
+    <input type="radio" name="cyoa" id="s3_walk">
+    <input type="radio" name="cyoa" id="s3_lights">
+    <input type="radio" name="cyoa" id="s3_hut">
+    <input type="radio" name="cyoa" id="s3_wade">
+    <input type="radio" name="cyoa" id="s3_riddle_right">
+    <input type="radio" name="cyoa" id="s3_riddle_wrong">
+    <input type="radio" name="cyoa" id="s4_crown">
+    <input type="radio" name="cyoa" id="s4_crystal">
+    <input type="radio" name="cyoa" id="s4_explore_castle">
+    <input type="radio" name="cyoa" id="s4_bandit_fight">
+    <input type="radio" name="cyoa" id="s4_surrender">
+    <input type="radio" name="cyoa" id="s4_trick_bandits">
+    <input type="radio" name="cyoa" id="s4_willowisp">
+
+    <!-- Mountain -->
+    <input type="radio" name="cyoa" id="s1_mountain">
+    <input type="radio" name="cyoa" id="s2_mallet">
+    <input type="radio" name="cyoa" id="s2_sword">
+    <input type="radio" name="cyoa" id="s2_search_camp">
+    <input type="radio" name="cyoa" id="s3_smash">
+    <input type="radio" name="cyoa" id="s3_talk">
+    <input type="radio" name="cyoa" id="s3_fight">
+    <input type="radio" name="cyoa" id="s3_flee">
+    <input type="radio" name="cyoa" id="s3_secret_pass">
+    <input type="radio" name="cyoa" id="s3_ignore_map">
+    <input type="radio" name="cyoa" id="s4_sneak">
+    <input type="radio" name="cyoa" id="s4_bonk">
+    <input type="radio" name="cyoa" id="s4_befriend">
+    <input type="radio" name="cyoa" id="s4_map_treasure">
+    <input type="radio" name="cyoa" id="s4_map_trap">
+    <input type="radio" name="cyoa" id="s4_griffon_nest">
+
+    <!-- Cavern -->
+    <input type="radio" name="cyoa" id="s1_cavern">
+    <input type="radio" name="cyoa" id="s2_cave_river">
+    <input type="radio" name="cyoa" id="s2_cave_crystals">
+    <input type="radio" name="cyoa" id="s3_underground_lake">
+    <input type="radio" name="cyoa" id="s3_crystal_mine">
+    <input type="radio" name="cyoa" id="s4_lake_spirit">
+    <input type="radio" name="cyoa" id="s4_lake_dive">
+    <input type="radio" name="cyoa" id="s4_mine_golem">
+    <input type="radio" name="cyoa" id="s4_mine_steal">
+
+    <!-- Secret -->
+    <input type="radio" name="cyoa" id="s5_true_ending">
+
+
+    <!-- ==================== GAME CONTAINER ==================== -->
+    <div class="game-container env-forest" id="gameBox">
+
+        <!-- ========== START SCENE ========== -->
+        <div id="scene0" class="scene">
+            <pre>
+        .    *    .
+    .       |       .
+        .   /|\   .
+    .     /  |  \     .
+        /    |    \
+    .  /     |     \  .
+      /      |      \
+     /       |       \
+    /   __   |   __   \
+   /   /  \  |  /  \   \
+  /   /    \ | /    \   \
+ /___/______\|/______\___\
+     |       |       |
+     |       |       |
+     |_______|_______|
+    </pre>
+            <div class="story-text">
+                You stand at the crossroads of the Eldritch Valley, where three ancient paths diverge under a bruised purple sky. To the west, the <strong>Whispering Woods</strong> pulse with fey magic and the scent of ozone. To the east, the jagged peaks of <strong>Mount Dread</strong> claw at heavy gray clouds. Before you, a <strong>Dark Cavern</strong> yawns open like a sleeping beast's mouth, exhaling warm, mineral-scented air. Your destiny beckons.
+            </div>
+            <div class="choices">
+                <label for="s1_forest">West: Enter the Whispering Woods</label>
+                <label for="s1_mountain">East: Climb Mount Dread</label>
+                <label for="s1_cavern">Down: Descend into the Dark Cavern</label>
+            </div>
+        </div>
+
+        <!-- ==================== FOREST BRANCH ==================== -->
+        <div id="scene1_forest" class="scene">
+            <pre>
+      ) \     ( /
+     / (       ) \
+    ( * )     ( * )
+     | |       | |
+     | |       | |
+    /   \     /   \
+   /     \   /     \
+  /       \_/       \
+ /                   \
+    </pre>
+            <div class="story-text">
+                The trees close in, their bark etched with faintly glowing runes. In a small moonlit clearing, a spectral jester in a patched motley hat sits cross-legged on a mossy stump. He says nothing, but his long fingers expertly shuffle a deck of cards that shimmer with inner light. He fans them out with a knowing grin, inviting you to choose. Something about his silent gaze suggests he knows more than he lets on.
+            </div>
+            <div class="choices">
+                <label for="s2_draw">Draw a card from the glowing deck</label>
+                <label for="s2_talk_jester">Ask the jester who he is</label>
+                <label for="s2_ignore">Ignore him and walk deeper into the woods</label>
+            </div>
+        </div>
+
+        <!-- --- Draw Card --- -->
+        <div id="scene2_draw" class="scene">
+            <pre>
+   +---------+
+   | \     / |
+   |  \   /  |
+   |   \ /   |
+   |    X    |
+   |   / \   |
+   |  /   \  |
+   | /     \ |
+   +---------+
+   |  FLAME  |
+   +---------+
+    </pre>
+            <div class="story-text">
+                You pull a card. It's the <strong>Joker of Flames</strong>! The card sears itself onto the back of your hand in a flash of heat, leaving a glowing mark. You feel raw fire magic coursing through your veins. Further down the path, you encounter an impassable wall of thorny black vines, pulsing with malevolent life, guarding a crystalline castle beyond.
+            </div>
+            <div class="choices">
+                <label for="s3_burn">Unleash fire magic: Burn the thorn wall down</label>
+                <label for="s3_walk">Conserve your magic: Find another way around</label>
+            </div>
+        </div>
+
+        <!-- --- Talk to Jester --- -->
+        <div id="scene2_talk_jester" class="scene">
+            <pre>
+      .-""""-.
+     /   __   \
+    |   /  \   |
+    |   \__/   |
+     \   __   /
+      '-....-'
+       /    \
+      /      \
+    </pre>
+            <div class="story-text">
+                The jester's grin widens. He speaks in a voice like wind chimes: <em>"I am the keeper of riddles, wanderer. Answer true and the forest shall open its heart to you. Answer false..."</em> He trails off, tapping his chin. <em>"What has roots that nobody sees, is taller than trees, up, up it goes, and yet never grows?"</em>
+            </div>
+            <div class="choices">
+                <label for="s3_riddle_right">A mountain</label>
+                <label for="s3_riddle_wrong">The wind</label>
+            </div>
+        </div>
+
+        <!-- --- Ignore Jester --- -->
+        <div id="scene2_ignore" class="scene">
+            <pre>
+     .~~~.
+    /     \    ~~~~
+   |  @ @  |  ~~~~~~
+    \  ~  /  ~~~~ ~~~
+     '._.'   ~~ ~~~~
+       |    ~~~~ ~~
+     ~~|~~ ~~~~ ~~~~
+    ~~~~|~~~~~~~~~~~
+    </pre>
+            <div class="story-text">
+                You brush past the jester. He sighs dramatically, and with a snap of his fingers, the forest around you warps into a dark, bubbling swamp. Bioluminescent mushrooms cast eerie pools of light. In the distance, a crooked witch's hut leans precariously over the muck, while ghostly willow-o'-the-wisps dance over the water, beckoning you toward deeper marsh.
+            </div>
+            <div class="choices">
+                <label for="s3_hut">Approach the witch's hut</label>
+                <label for="s3_wade">Wade through the swamp muck</label>
+                <label for="s3_lights">Follow the willow-o'-the-wisps</label>
+            </div>
+        </div>
+
+        <!-- --- Burn Thorns --- -->
+        <div id="scene3_burn" class="scene">
+            <pre>
+      (  .  )
+       ) . (
+     (  (  )  )
+      )  .  (
+        \|/
+     --- * ---
+        /|\
+       / | \
+    </pre>
+            <div class="story-text">
+                With a flick of your wrist, the Joker's magic erupts! A torrent of flame engulfs the thorn wall, reducing it to ash in seconds. You step through into the glittering <strong>Crystal Castle</strong>. In the center of the grand hall, on a pedestal of frozen light, rests the legendary <strong>Crown of Glass</strong>. It hums with ancient, terrible power.
+            </div>
+            <div class="choices">
+                <label for="s4_crown">Place the Crown of Glass upon your head</label>
+                <label for="s4_crystal">Smash the crown to end its curse forever</label>
+                <label for="s4_explore_castle">Explore the castle further before deciding</label>
+            </div>
+        </div>
+
+        <!-- --- Walk Around --- -->
+        <div id="scene3_walk" class="scene">
+            <pre>
+       /\    /\
+      /  \  /  \
+     /    \/    \
+    /     /\     \
+   /     /  \     \
+  /_____/    \_____\
+      |        |
+      |  BANDITS  |
+      |___________|
+    </pre>
+            <div class="story-text">
+                You decide to save your magic and trek around the thorn wall via a narrow gorge. As you squeeze through, three heavily armed bandits drop from the rocks above, surrounding you. <em>"Your gold or your life, stranger! And we'd prefer the gold — it's less messy."</em>
+            </div>
+            <div class="choices">
+                <label for="s4_bandit_fight">Use the Joker of Flames: Fight them off</label>
+                <label for="s4_surrender">Hand over your coin purse peacefully</label>
+                <label for="s4_trick_bandits">Bluff: Claim you're a powerful wizard</label>
+            </div>
+        </div>
+
+        <!-- --- Follow Wisps --- -->
+        <div id="scene3_lights" class="scene">
+            <pre>
+      .  ~  .  ~  .
+     ~   o   o   ~
+    .  o  \_/  o  .
+     ~  o  |  o  ~
+      .  ~  |  ~  .
+         ~  |  ~
+    ~~~~~~  |  ~~~~~~
+    ~~~~~~~~~~~~~~~~~
+    </pre>
+            <div class="story-text">
+                The wisps lead you deeper into the marsh, their glow pulsing rhythmically. They circle around an ancient stone altar half-sunken in the bog. On the altar lies a pulsating green gem, radiating pure life energy. But the wisps grow agitated, swirling faster — this place is sacred, and you are an intruder.
+            </div>
+            <div class="choices">
+                <label for="s4_willowisp">Take the glowing gem from the altar</label>
+                <label for="s3_wade">Leave it be and wade back to safety</label>
+            </div>
+        </div>
+
+        <!-- --- Riddles --- -->
+        <div id="scene3_riddle_right" class="scene">
+            <pre>
+      \   /
+       \ /
+        *
+       / \
+      /   \
+     /     \
+    /       \
+    </pre>
+            <div class="story-text">
+                <em>"Correct!"</em> the jester beams, clapping his hands. <em>"A mountain indeed! You have a sharp mind, traveler."</em> He reaches behind his ear and produces a tiny silver key that grows to full size in his palm. <em>"This unlocks the hidden grove. Go — and may the old magic guide you."</em> The trees part, revealing a sunlit path to a secret sanctuary. You have found the <strong>Grove of Eternal Spring</strong>, a paradise hidden from the world. You live out your days in peace and wonder.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene3_riddle_wrong" class="scene">
+            <pre>
+      .   .
+     \_____/
+     /     \
+    /  X X  \
+    |   ^   |
+    \_______/
+    </pre>
+            <div class="story-text">
+                The jester's face falls. <em>"Oh, dear. Wrong answer."</em> He snaps his fingers once. The world spins, and you find yourself shrunk to the size of a beetle, trapped under a glass jar in the jester's collection. <em>"Don't worry,"</em> he whispers, peering down at you, <em>"I'll feed you crumbs."</em>
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Swamp Hut --- -->
+        <div id="scene3_hut" class="scene">
+            <pre>
+       @..@
+      (----)
+     ( >__< )
+     ^^ ~~ ^^
+      |    |
+     /|    |\
+    / |____| \
+    </pre>
+            <div class="story-text">
+                You push open the creaking door. The witch looks up from her cauldron, furious at the intrusion. <em>"No manners at all!"</em> she shrieks. Before you can apologize, her wand lashes out with a crackle of green energy. Your body shrinks, your skin turns warty, and the world grows enormous around you. You are now a swamp toad. Ribbit.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Wade in Swamp --- -->
+        <div id="scene3_wade" class="scene">
+            <pre>
+    ~~~~~~~~~~~~~~~~
+    ~~~~~~~ ~~~~~~~~
+    ~~~~~  o  ~~~~~~
+    ~~~~  \_/  ~~~~~
+    ~~~~~~ | ~~~~~~~
+    ~~~~~~ | ~~~~~~~
+    ~~~~~~~~~~~~~~~~
+    </pre>
+            <div class="story-text">
+                You step into the murky water. It's far deeper than it looked. Before you can react, massive reptilian forms surge from beneath the surface. The swamp crocodiles have lived here for centuries, and they are always hungry. The murky water churns red, then stills.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Crown Endings --- -->
+        <div id="scene4_crown" class="scene">
+            <pre>
+       _/\_
+      /    \
+      \    /
+       \  /
+        \/
+        /\
+       /  \
+      /    \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE CRYSTAL MONARCH</strong><br><br>
+                The moment the crown touches your brow, your skin hardens into living crystal. You gain infinite power over the valley — but you are forever fused to the throne, a beautiful, terrible statue-king, watching centuries pass in silence.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_crystal" class="scene">
+            <pre>
+       \ | /
+     --- * ---
+       / | \
+      /  |  \
+         |
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: LIBERATOR OF THE VALLEY</strong><br><br>
+                You raise the heavy mallet (or your fist) and shatter the crown! A massive shockwave of purified energy surges outward. The curse lifts, the sky clears, the jester bows to you from afar, and the valley blooms into spring. You return home a true hero.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_explore_castle" class="scene">
+            <pre>
+      /|   |\
+     / |   | \
+    /  |   |  \
+   /___|___|___\
+       |   |
+       |   |
+       |___|
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE HIDDEN ARCHIVE</strong><br><br>
+                You explore deeper into the castle and discover an ancient library filled with crystallized books. Among them, a tome reveals the true history of the valley — and a spell to free the land without destroying the crown. You become the realm's wisest scholar-king, ruling with knowledge instead of power.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Bandit Endings --- -->
+        <div id="scene4_bandit_fight" class="scene">
+            <pre>
+      (   )   (   )
+     (  FIRE  )
+      (   )   (   )
+         \   /
+          \ /
+           *
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE FEARSOME PYROMANCER</strong><br><br>
+                You unleash a roaring wave of flame! The bandits scream and scatter into the hills. Word spreads fast — nobody in the valley ever dares cross the wandering fire-wielder again. You walk the roads freely, respected and feared.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_surrender" class="scene">
+            <pre>
+      ._____.
+      | EMPTY |
+      '-----'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: PENNILESS BUT ALIVE</strong><br><br>
+                You hand over your coin purse with a sigh. The bandits laugh and leave you in the dirt. You survive, but the long walk back to civilization with empty pockets teaches you a hard lesson about preparedness.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_trick_bandits" class="scene">
+            <pre>
+      .___.
+      | ? |
+      '---'
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE GREAT BLUFF</strong><br><br>
+                You raise your marked hand and speak in a booming voice: <em>"I am the Flame-Keeper of the Jester's Court! Flee or be ash!"</em> The Joker's mark glows menacingly. The bandits' eyes widen — they drop their weapons and run. You didn't spend a single coin or spark. Sometimes a good bluff is the sharpest weapon.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Willowisp Ending --- -->
+        <div id="scene4_willowisp" class="scene">
+            <pre>
+      *  .  *  .  *
+     .  \ | /  .
+      * - O - *
+     .  / | \  .
+      *  .  *  .  *
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: KEEPER OF THE MARSH</strong><br><br>
+                You grasp the glowing gem. The wisps swirl around you in a frenzy — then suddenly calm. The gem bonds to your spirit, and you become the new guardian of the marsh, protecting its ancient magic for all eternity, accompanied by your floating wisp companions.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- ==================== MOUNTAIN BRANCH ==================== -->
+        <div id="scene1_mountain" class="scene">
+            <pre>
+        /\
+       /  \/\
+      /    \ \
+     /      \ \
+    /        \ \
+   /__________\ \
+   \          /  \
+    \        /    \
+     \      /      \
+      \    /        \
+    </pre>
+            <div class="story-text">
+                The air thins as you ascend. You stumble upon the remains of a long-dead adventurer's camp. A rusted iron sword lies half-buried in the scree. Nearby, sitting inexplicably pristine on a flat rock, is a heavy <strong>red croquet mallet</strong> with a polished oak handle. A torn journal peeks out from under a rotted bedroll.
+            </div>
+            <div class="choices">
+                <label for="s2_mallet">Take the red croquet mallet</label>
+                <label for="s2_sword">Take the iron sword</label>
+                <label for="s2_search_camp">Search the journal and bedroll</label>
+            </div>
+        </div>
+
+        <!-- --- Mallet --- -->
+        <div id="scene2_mallet" class="scene">
+            <pre>
+       _____
+      [_____]
+        | |
+        | |
+        | |
+        | |
+       /   \
+      /     \
+    </pre>
+            <div class="story-text">
+                You heft the mallet. It's surprisingly well-balanced and feels almost eager in your grip. As you continue upward, a massive <strong>Mountain Troll</strong> leaps from behind a boulder, blocking the narrow pass. Its stone-gray hide looks impenetrable, and its club is the size of a small tree.
+            </div>
+            <div class="choices">
+                <label for="s3_smash">Swing the mallet with all your might</label>
+                <label for="s3_talk">Raise a hand and try to negotiate</label>
+            </div>
+        </div>
+
+        <!-- --- Sword --- -->
+        <div id="scene2_sword" class="scene">
+            <pre>
+          /| ________________
+    O|===|* >________________>
+          \|
+           \\
+            \\
+    </pre>
+            <div class="story-text">
+                You pull the rusty sword from the dirt. It feels flimsy, the blade pitted with age. Before you can test its edge, a massive <strong>Mountain Troll</strong> crashes down from the cliffs, roaring and blocking your path entirely.
+            </div>
+            <div class="choices">
+                <label for="s3_fight">Stand your ground and fight the troll</label>
+                <label for="s3_flee">Drop the sword and flee back down the trail</label>
+            </div>
+        </div>
+
+        <!-- --- Search Camp --- -->
+        <div id="scene2_search_camp" class="scene">
+            <pre>
+      .-------.
+      | JOURNAL |
+      '-------'
+       /     \
+      /       \
+     /  MAP    \
+    /___________\
+    </pre>
+            <div class="story-text">
+                You flip through the journal. The last entry describes a <strong>secret mountain pass</strong> leading to an ancient griffon's nest, said to contain treasure beyond measure. Tucked in the back cover is a faded but legible map. The journal also warns of unstable rockfalls along the pass.
+            </div>
+            <div class="choices">
+                <label for="s3_secret_pass">Follow the map to the secret pass</label>
+                <label for="s3_ignore_map">Ignore it — maps from dead adventurers are bad omens</label>
+            </div>
+        </div>
+
+        <!-- --- Smash Troll --- -->
+        <div id="scene3_smash" class="scene">
+            <pre>
+        O
+       /|\
+       / \
+      /   \
+     /     \
+    /       \
+    </pre>
+            <div class="story-text">
+                You swing with everything you have. <strong>CRACK!</strong> The mallet releases a burst of strange kinetic energy on impact. The troll goes flying over the cliff edge, howling all the way down. You press on and discover a cavern entrance. Inside, a <strong>massive dragon</strong> sleeps atop a glittering hoard of gold and jewels, its breath rising and falling in smoky puffs.
+            </div>
+            <div class="choices">
+                <label for="s4_sneak">Set down the mallet and sneak past to steal gold</label>
+                <label for="s4_bonk">Bonk the dragon on the snout with the mallet</label>
+                <label for="s4_befriend">Try to befriend the sleeping dragon</label>
+            </div>
+        </div>
+
+        <!-- --- Talk to Troll --- -->
+        <div id="scene3_talk" class="scene">
+            <pre>
+      .___.
+      |RIP|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: DIPLOMACY FAILED</strong><br><br>
+                You raise your hands peacefully. The troll, who skipped breakfast, sees not a diplomat but a convenient snack. It picks you up, sniffs you once, and swallows you whole. Negotiations were brief.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Fight Troll --- -->
+        <div id="scene3_fight" class="scene">
+            <pre>
+      ___
+     /   \
+    |  X  |
+     \___/
+      | |
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: SHATTERED STEEL</strong><br><br>
+                You lunge and strike the troll's leg. The ancient sword snaps clean in half against its stone-like hide. The troll looks down, almost offended, then brings its club down with a thunderous crash. The stars go out.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Flee --- -->
+        <div id="scene3_flee" class="scene">
+            <pre>
+      .___.
+      |RUN|
+      '---'
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE COWARD'S TALE</strong><br><br>
+                You drop the worthless sword and sprint back down the mountain, heart pounding. You survive, and eventually become a tavern keeper, entertaining patrons with wildly exaggerated stories of monsters you definitely, absolutely, heroically defeated.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Secret Pass --- -->
+        <div id="scene3_secret_pass" class="scene">
+            <pre>
+       /\
+      /  \
+     /    \
+    /  __  \
+   /  /  \  \
+  /  /    \  \
+ /__/______\__\
+    </pre>
+            <div class="story-text">
+                You follow the crumbling map through a narrow, wind-blasted defile. The pass opens onto a high ledge overlooking a magnificent valley. Before you lies a <strong>griffon's nest</strong>, empty — the great beast is out hunting. Golden artifacts glint among the twigs and bones.
+            </div>
+            <div class="choices">
+                <label for="s4_griffon_nest">Quickly grab treasure from the nest</label>
+                <label for="s4_map_treasure">The map also marks a hidden cave nearby — investigate</label>
+            </div>
+        </div>
+
+        <!-- --- Ignore Map --- -->
+        <div id="scene3_ignore_map" class="scene">
+            <pre>
+      .___.
+      | NOPE |
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE PRUDENT CLIMBER</strong><br><br>
+                You decide the map is cursed and the dead adventurer's fate is warning enough. You climb back down the mountain, sell the journal to a historian for a modest sum, and live a quiet, uneventful life. Safe, but utterly unremarkable.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Dragon Endings --- -->
+        <div id="scene4_sneak" class="scene">
+            <pre>
+      .___. .___. .___.
+      |Au| |Ag| |Cu|
+      '---' '---' '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE SILENT HOARDER</strong><br><br>
+                You leave the mallet by the entrance and tiptoe through the cavern. You fill every pocket with gold coins and precious gems, then slip away as silently as a shadow. You retire wealthy beyond measure, though sometimes you dream of the red mallet you left behind.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_bonk" class="scene">
+            <pre>
+        \|/
+       - O -
+        /|\
+       / | \
+      /  |  \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE LEGENDARY DRAGON-BONKER</strong><br><br>
+                You leap from a stalactite and bring the mallet down squarely on the dragon's snout. The beast's eyes fly open — not in rage, but in utter, bewildered shock. Never in its 3,000 years has anything dared to <em>bonk</em> it. It lets out a yelp like a startled puppy and flees the cavern, crying. The entire hoard is yours.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_befriend" class="scene">
+            <pre>
+      .-""""-.
+     /  _  _  \
+     |   __   |
+     \  '--'  /
+      '-....-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: DRAGONKIN</strong><br><br>
+                You approach slowly, mallet lowered, and hum an old lullaby your grandmother taught you. The dragon stirs, fixes you with one enormous golden eye — and then rumbles with what sounds almost like a purr. You have made a friend for life. Together, you soar the skies of the Eldritch Valley, an unbreakable bond between human and dragon.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Map Endings --- -->
+        <div id="scene4_map_treasure" class="scene">
+            <pre>
+      .___.
+      | X |
+      '---'
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE HIDDEN CAVE FORTUNE</strong><br><br>
+                The map's second marking leads you to a hidden cave behind a waterfall. Inside, you find the original adventurer's stash — a chest of gold, preserved rations, and a perfectly forged steel longsword. With wealth and a proper weapon, you carve out a legendary career as a monster hunter.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_map_trap" class="scene">
+            <pre>
+      .___. .___. .___.
+      | B | | O | | M |
+      '---' '---' '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: TRIGGERED</strong><br><br>
+                The "hidden cave" was a trap all along. As you step onto the pressure plate, the entire ledge gives way. You tumble down the mountainside in a cascade of rocks and debris. The adventurer's journal was bait, and you took it. At least the view on the way down was spectacular.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- --- Griffon Nest --- -->
+        <div id="scene4_griffon_nest" class="scene">
+            <pre>
+      ^\    /^
+      ) \  / (
+      )  \/  (
+      )  /\  (
+      ) /  \ (
+      )/    \)
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: FLIGHT OF THE GRIFFON</strong><br><br>
+                You grab a gleaming golden torc from the nest just as a shadow falls over you. The griffon has returned. But instead of attacking, it cocks its head and lets out a curious chirp. The torc, it seems, was a gift meant for you — a bond between species. You mount the great beast and take to the skies, the valley sprawling beneath you in all its glory.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- ==================== CAVERN BRANCH ==================== -->
+        <div id="scene1_cavern" class="scene">
+            <pre>
+       _______
+      /       \
+     /  .   .  \
+    /    ___    \
+    |   /   \   |
+    |   \___/   |
+    |           |
+    \___________/
+         | |
+         | |
+         | |
+    </pre>
+            <div class="story-text">
+                You descend into the cool darkness. The air smells of damp stone and minerals. After a short crawl, the tunnel opens into a vast underground chamber. To your left, an <strong>underground river</strong> glows faintly with bioluminescent algae. To your right, a forest of <strong>glowing crystal formations</strong> casts prismatic light across the cavern walls.
+            </div>
+            <div class="choices">
+                <label for="s2_cave_river">Follow the glowing underground river</label>
+                <label for="s2_cave_crystals">Explore the crystal forest</label>
+            </div>
+        </div>
+
+        <!-- --- Cave River --- -->
+        <div id="scene2_cave_river" class="scene">
+            <pre>
+    ~~~~ ~~~~ ~~~~ ~~~~
+    ~~~~ ~~~~ ~~~~ ~~~~
+    ~~~~ ~~~~ ~~~~ ~~~~
+        ~~~~ ~~~~
+            ~~~~
+             ~~~~
+    </pre>
+            <div class="story-text">
+                The river's gentle current leads you to a vast <strong>underground lake</strong>. The ceiling above is encrusted with glowing crystals that mirror the stars. At the lake's center, a small island holds what appears to be a shrine. The water is crystal clear, revealing ancient carvings on the lakebed far below.
+            </div>
+            <div class="choices">
+                <label for="s3_underground_lake">Swim to the island shrine</label>
+                <label for="s4_lake_dive">Dive down to examine the carvings</label>
+            </div>
+        </div>
+
+        <!-- --- Cave Crystals --- -->
+        <div id="scene2_cave_crystals" class="scene">
+            <pre>
+      /\    /\    /\
+     /  \  /  \  /  \
+    /    \/    \/    \
+    \    /\    /\    /
+     \  /  \  /  \  /
+      \/    \/    \/
+    </pre>
+            <div class="story-text">
+                The crystal forest hums with ancient energy. At its heart, you find a <strong>crystal mine</strong> abandoned by dwarves centuries ago. Pickaxes still lean against the walls. A faint rhythmic thumping echoes from deeper within — something large, made of stone and crystal, still guards this place.
+            </div>
+            <div class="choices">
+                <label for="s3_crystal_mine">Enter the mine cautiously</label>
+                <label for="s4_mine_steal">Grab a few loose crystals and retreat</label>
+            </div>
+        </div>
+
+        <!-- --- Underground Lake --- -->
+        <div id="scene3_underground_lake" class="scene">
+            <pre>
+      .  *  .  *  .
+     *   o   o   *
+    .  o  \_/  o  .
+     *  o  |  o  *
+      .  *  |  *  .
+         *  |  *
+    ~~~~~~~ | ~~~~~~~
+    ~~~~~~~~~~~~~~~~~
+    </pre>
+            <div class="story-text">
+                You swim across the cold, clear water and pull yourself onto the island. The shrine is dedicated to an ancient water spirit. A chalice filled with shimmering liquid sits at its base. A carved inscription reads: <em>"Drink and know the depths of all things."</em>
+            </div>
+            <div class="choices">
+                <label for="s4_lake_spirit">Drink from the chalice</label>
+                <label for="s4_lake_dive">Leave it and dive to explore the lakebed</label>
+            </div>
+        </div>
+
+        <!-- --- Crystal Mine --- -->
+        <div id="scene3_crystal_mine" class="scene">
+            <pre>
+      /\/\/\
+     /      \
+    /   __   \
+    |  /  \  |
+    |  \__/  |
+    \        /
+     \/\/\/\/
+    </pre>
+            <div class="story-text">
+                You step into the mine. The thumping grows louder. Around a corner, you come face-to-face with a <strong>Crystal Golem</strong> — a towering humanoid made of living gemstone. It regards you with faceted eyes that glow like embers. It does not attack, but it blocks the path to a vein of pure, priceless diamond.
+            </div>
+            <div class="choices">
+                <label for="s4_mine_golem">Attempt to communicate with the golem</label>
+                <label for="s4_mine_steal">Dash past it and grab a diamond</label>
+            </div>
+        </div>
+
+        <!-- --- Lake Endings --- -->
+        <div id="scene4_lake_spirit" class="scene">
+            <pre>
+      *   *   *
+       \  |  /
+        \ | /
+          *
+         /|\
+        / | \
+       /  |  \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE DEEP KNOWLEDGE</strong><br><br>
+                You drink the shimmering liquid. In an instant, all the hidden truths of the world flood your mind — past, present, and future. You understand everything. You become the new water spirit of the underground lake, a font of wisdom for those brave enough to find you.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_lake_dive" class="scene">
+            <pre>
+      ~~~~ ~~~~ ~~~~
+      ~~~~ .o. ~~~~
+      ~~~~ /|\ ~~~~
+      ~~~~ / \ ~~~~
+      ~~~~~~~~~~~~~~
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE SUNKEN SECRET</strong><br><br>
+                You dive deep. The carvings on the lakebed form a map — a map to a surface location where a true relic lies buried. You memorize it, surface gasping, and emerge from the cavern with purpose. The adventure is only beginning. This is the <strong>TRUE ENDING</strong> — the lost relic of Eldritch Valley awaits above, and you now know exactly where to dig.
+            </div>
+            <div class="choices"><label for="s5_true_ending">Claim your destiny</label></div>
+        </div>
+
+        <!-- --- Mine Endings --- -->
+        <div id="scene4_mine_golem" class="scene">
+            <pre>
+      .-"""-.
+     /  _  _  \
+     |   __   |
+     \  '--'  /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: THE GOLEM'S FRIEND</strong><br><br>
+                You speak softly to the golem, showing respect for its ancient duty. It rumbles in response and steps aside, allowing you to take a single perfect diamond. More importantly, it gifts you a shard of its own crystal heart — a charm of protection that will guard you for life.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <div id="scene4_mine_steal" class="scene">
+            <pre>
+      .___.
+      |CRASH|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: CRYSTAL CRUSH</strong><br><br>
+                You dart past the golem and snatch a diamond. Bad move. The golem's fist comes down like a hammer of judgment. The mine collapses around you, and you become a permanent part of the underground — a cautionary tale for future treasure hunters.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- ==================== TRUE ENDING ==================== -->
+        <div id="scene5_true_ending" class="scene">
+            <pre>
+         *
+        /|\
+       / | \
+      /  |  \
+     /   |   \
+    /    |    \
+   /     |     \
+  /______|______\
+     |   |   |
+     |   |   |
+     |___|___|
+      \     /
+       \   /
+        \ /
+         *
+    </pre>
+            <div class="story-text">
+                <strong>TRUE ENDING: THE LOST RELIC</strong><br><br>
+                Armed with the underwater map, you journey to a forgotten corner of the Eldritch Valley. There, beneath an ancient oak split by lightning, you dig. Your shovel strikes something solid — a chest of weathered oak, bound in iron. Inside lies the <strong>Lost Relic of Eldritch</strong>: a crystal orb that hums with the combined magic of forest, mountain, and cavern. You hold the heart of the valley in your hands. The land recognizes you as its true guardian. Every creature, every spirit, every stone knows your name. You have not just survived the adventure — you have <em>won</em> it.
+            </div>
+            <div class="choices"><label for="s0">Play Again: A New Destiny Awaits</label></div>
+        </div>
+
+    </div>
+</body>
+</html>

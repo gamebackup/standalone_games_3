@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Your Adventure</title>
+    <style>
+        :root {
+            --fantasy-glow: #33ff33;
+            --scifi-glow: #33eeff;
+            --pirate-glow: #ffb000;
+            --western-glow: #924A36;
+            --detective-glow: #ff44aa;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #050510;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        /* ---- Starfield layers (pure CSS, no JS) ---- */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .stars-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .layer1 { animation: twinkle1 3s infinite alternate; }
+        .layer2 { animation: twinkle2 4s infinite alternate; }
+        .layer3 { animation: twinkle3 5s infinite alternate; }
+
+        @keyframes twinkle1 { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+        @keyframes twinkle2 { 0% { opacity: 0.5; } 100% { opacity: 0.9; } }
+        @keyframes twinkle3 { 0% { opacity: 0.4; } 100% { opacity: 0.85; } }
+
+        .layer1::before,
+        .layer2::before,
+        .layer3::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .layer1::before {
+            box-shadow:
+                10vw 15vh 2px #fff, 45vw 23vh 1px #fff, 70vw 10vh 3px #fff,
+                25vw 65vh 1px #fff, 60vw 75vh 2px #fff, 85vw 45vh 1px #fff,
+                15vw 85vh 3px #fff, 40vw 40vh 2px #fff, 90vw 80vh 1px #fff,
+                5vw 50vh 2px #fff, 55vw 8vh 1px #fff, 75vw 55vh 3px #fff,
+                33vw 33vh 1px #fff, 68vw 68vh 2px #fff, 82vw 20vh 1px #fff,
+                20vw 5vh 2px #fff, 95vw 60vh 1px #fff, 48vw 90vh 3px #fff,
+                12vw 72vh 1px #fff, 88vw 35vh 2px #fff;
+        }
+        .layer2::before {
+            box-shadow:
+                2vw 30vh 1px #fff, 38vw 12vh 2px #fff, 65vw 28vh 1px #fff,
+                80vw 5vh 3px #fff, 18vw 55vh 2px #fff, 52vw 80vh 1px #fff,
+                72vw 62vh 2px #fff, 8vw 40vh 1px #fff, 95vw 85vh 3px #fff,
+                30vw 75vh 1px #fff, 58vw 45vh 2px #fff, 78vw 18vh 1px #fff,
+                42vw 3vh 2px #fff, 62vw 90vh 1px #fff, 85vw 72vh 2px #fff,
+                10vw 20vh 3px #fff, 25vw 50vh 1px #fff, 70vw 38vh 2px #fff,
+                50vw 95vh 1px #fff, 92vw 15vh 2px #fff;
+        }
+        .layer3::before {
+            box-shadow:
+                5vw 8vh 2px #fff, 35vw 18vh 1px #fff, 60vw 5vh 2px #fff,
+                75vw 40vh 1px #fff, 15vw 45vh 3px #fff, 48vw 75vh 1px #fff,
+                68vw 58vh 2px #fff, 85vw 68vh 1px #fff, 22vw 80vh 2px #fff,
+                55vw 28vh 1px #fff, 80vw 85vh 3px #fff, 12vw 60vh 2px #fff,
+                32vw 95vh 1px #fff, 88vw 22vh 2px #fff, 95vw 50vh 1px #fff,
+                42vw 42vh 3px #fff, 72vw 15vh 1px #fff, 8vw 32vh 2px #fff,
+                28vw 68vh 1px #fff, 65vw 88vh 2px #fff;
+        }
+
+        /* ---- Hub content ---- */
+        .hub {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+        h1 {
+            color: #fff;
+            font-size: 2.8rem;
+            text-shadow: 0 0 20px rgba(255,255,255,0.4);
+            letter-spacing: 3px;
+        }
+        .subtitle {
+            color: #aaa;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+        }
+        .button-group {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        a.game-btn {
+            text-decoration: none;
+            border: 2px solid;
+            padding: 1.2rem 2.8rem;
+            font-size: 1.4rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: rgba(0,0,0,0.5);
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        a.fantasy {
+            color: var(--fantasy-glow);
+            border-color: var(--fantasy-glow);
+            box-shadow: 0 0 15px rgba(51,255,51,0.3);
+        }
+        a.scifi {
+            color: var(--scifi-glow);
+            border-color: var(--scifi-glow);
+            box-shadow: 0 0 15px rgba(51,238,255,0.3);
+        }
+        a.pirates {
+            color: var(--pirate-glow);
+            border-color: var(--pirate-glow);
+            box-shadow: 0 0 15px rgba(255,176,0,0.3);
+        }
+        a.western {
+        	color: var(--western-glow);
+            border-color: var(western-glow);
+            box-shadow: 0 0 15px rgba(146, 74, 54, 0.3)
+        }
+        a.detective {
+        	color: var(--detective-glow);
+            border-color: var(detective-glow);
+            box-shadow: 0 0 15px rgba(255, 68, 170, 0.3)
+        }
+        a.game-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px currentColor;
+        }
+        a.fantasy:hover { background: rgba(51,255,51,0.15); }
+        a.scifi:hover { background: rgba(51,238,255,0.15); }
+        a.pirates:hover { background: rgba(255,176,0,0.15); }
+        a.western:hover { background: rgba(146,74,54,0.15); }
+        a.detective:hover { background: rgba(255, 68, 170, 0.15); }
+        a.game-btn:active { transform: scale(0.96); }
+
+        @media (max-width: 500px) {
+            h1 { font-size: 1.8rem; }
+            .subtitle { font-size: 1rem; }
+            a.game-btn { padding: 1rem 1.8rem; font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars">
+        <div class="stars-layer layer1"></div>
+        <div class="stars-layer layer2"></div>
+        <div class="stars-layer layer3"></div>
+    </div>
+
+    <div class="hub">
+        <h1>CHOOSE YOUR ADVENTURE</h1>
+        <p class="subtitle">Select a story to begin<br> To pick a new story, refresh the page</p>
+        <div class="button-group">
+            <a href="fantasy.html" class="game-btn fantasy">The Eldritch Valley</a>
+            <a href="scifi.html" class="game-btn scifi">Station Omega-7</a>
+            <a href="pirates.html" class="game-btn pirates">Isla Calavera</a>
+            <a href="western.html" class="game-btn western">Dust & Lead</a>
+            <a href="detective.html" class="game-btn detective">Neon Shadows</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Adventure: Void Station Omega-7</title>
+    <style>
+        :root {
+            --term-cyan: #33eeff;
+            --term-bg: #020a10;
+            --term-dim: #1a5c6e;
+            --term-amber: #ffb444;
+            --term-red: #ff4455;
+            --term-plasma: #bb55ff;
+            --glow-ship: rgba(51, 238, 255, 0.25);
+            --glow-lab: rgba(100, 200, 255, 0.2);
+            --glow-alien: rgba(160, 220, 50, 0.25);
+            --glow-danger: rgba(255, 68, 85, 0.3);
+            --glow-hack: rgba(187, 85, 255, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #02060a;
+            color: var(--term-cyan);
+            font-family: 'Courier New', 'Courier', 'Lucida Console', monospace;
+            margin: 0;
+            padding: 16px;
+            line-height: 1.55;
+            min-height: 100vh;
+            background-image:
+                repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 20, 30, 0.03) 2px,
+                    rgba(0, 20, 30, 0.03) 4px);
+            background-size: 100% 4px;
+        }
+
+        .game-container {
+            max-width: 720px;
+            margin: 0 auto;
+            border: 2px solid var(--term-cyan);
+            padding: 28px 22px;
+            min-height: 82vh;
+            box-shadow:
+                0 0 20px var(--glow-ship),
+                inset 0 0 40px rgba(51, 238, 255, 0.03);
+            position: relative;
+            background: radial-gradient(ellipse at center,
+                    rgba(8, 20, 35, 0.6) 0%,
+                    rgba(2, 4, 8, 0.95) 70%);
+            transition: box-shadow 0.6s ease, border-color 0.6s ease, color 0.6s ease;
+        }
+
+        .env-ship {
+            box-shadow: 0 0 20px var(--glow-ship), inset 0 0 40px rgba(51, 238, 255, 0.03) !important;
+            border-color: var(--term-cyan) !important;
+            color: #c0f0ff !important;
+        }
+        .env-lab {
+            box-shadow: 0 0 20px var(--glow-lab), inset 0 0 40px rgba(100, 200, 255, 0.03) !important;
+            border-color: #5599cc !important;
+            color: #c8e0ff !important;
+        }
+        .env-alien {
+            box-shadow: 0 0 20px var(--glow-alien), inset 0 0 40px rgba(160, 220, 50, 0.03) !important;
+            border-color: #88aa44 !important;
+            color: #d0f0a0 !important;
+        }
+        .env-danger {
+            box-shadow: 0 0 20px var(--glow-danger), inset 0 0 40px rgba(255, 68, 85, 0.03) !important;
+            border-color: #cc3344 !important;
+            color: #ff8899 !important;
+        }
+        .env-hack {
+            box-shadow: 0 0 20px var(--glow-hack), inset 0 0 40px rgba(187, 85, 255, 0.03) !important;
+            border-color: #9944dd !important;
+            color: #d4b8ff !important;
+        }
+
+        pre {
+            font-size: 13px;
+            white-space: pre;
+            text-align: center;
+            margin-bottom: 24px;
+            text-shadow: 0 0 6px currentColor;
+            letter-spacing: 0;
+            line-height: 1.25;
+            overflow-x: auto;
+            padding: 4px 0;
+            animation: flickerIn 1.2s ease-out;
+        }
+
+        @keyframes flickerIn {
+            0% { opacity: 0; text-shadow: 0 0 20px currentColor; }
+            15% { opacity: 0.4; text-shadow: 0 0 2px currentColor; }
+            25% { opacity: 0.7; text-shadow: 0 0 14px currentColor; }
+            35% { opacity: 0.5; }
+            50% { opacity: 0.9; text-shadow: 0 0 8px currentColor; }
+            100% { opacity: 1; text-shadow: 0 0 6px currentColor; }
+        }
+
+        .story-text {
+            font-size: 1.15rem;
+            margin-bottom: 28px;
+            text-align: center;
+            padding: 0 8px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+            align-items: center;
+        }
+
+        label {
+            display: inline-block;
+            border: 1px solid currentColor;
+            padding: 13px 26px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.25s;
+            width: 82%;
+            text-align: center;
+            background: #000a12;
+            font-weight: bold;
+            font-size: 0.9rem;
+            position: relative;
+            user-select: none;
+        }
+
+        label:hover {
+            background-color: currentColor;
+            color: #000a12;
+            font-weight: bold;
+            box-shadow: 0 0 18px currentColor;
+            transform: scale(1.02);
+            letter-spacing: 2px;
+        }
+
+        label:active {
+            transform: scale(0.97);
+            transition: transform 0.08s;
+        }
+
+        label::before {
+            content: '> ';
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        label:hover::before {
+            opacity: 1;
+            animation: blink 0.7s infinite;
+        }
+        @keyframes blink {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+
+        input[type="radio"] { display: none; }
+        .scene { display: none; animation: fadeIn 0.5s ease-out; }
+
+        /* START */
+        #s0:checked ~ .game-container #scene0,
+        /* LAB BRANCH */
+        #s1_lab:checked ~ .game-container #scene1_lab,
+        #s2_take_pistol:checked ~ .game-container #scene2_take_pistol,
+        #s2_read_logs:checked ~ .game-container #scene2_read_logs,
+        #s2_ignore_lab:checked ~ .game-container #scene2_ignore_lab,
+        #s3_fight_mutant:checked ~ .game-container #scene3_fight_mutant,
+        #s3_sneak_lab:checked ~ .game-container #scene3_sneak_lab,
+        #s3_reactor_warn:checked ~ .game-container #scene3_reactor_warn,
+        #s3_shutdown_reactor:checked ~ .game-container #scene3_shutdown_reactor,
+        #s3_bypass_hack:checked ~ .game-container #scene3_bypass_hack,
+        #s4_lab_escape:checked ~ .game-container #scene4_lab_escape,
+        #s4_lab_selfdestruct:checked ~ .game-container #scene4_lab_selfdestruct,
+        #s4_lab_artifact:checked ~ .game-container #scene4_lab_artifact,
+        /* ALIEN DERELICT BRANCH */
+        #s1_alien:checked ~ .game-container #scene1_alien,
+        #s2_take_artifact:checked ~ .game-container #scene2_take_artifact,
+        #s2_scan_ship:checked ~ .game-container #scene2_scan_ship,
+        #s3_hive_awaken:checked ~ .game-container #scene3_hive_awaken,
+        #s3_use_artifact:checked ~ .game-container #scene3_use_artifact,
+        #s3_flee_alien:checked ~ .game-container #scene3_flee_alien,
+        #s4_alien_queen:checked ~ .game-container #scene4_alien_queen,
+        #s4_alien_bond:checked ~ .game-container #scene4_alien_bond,
+        /* MINING COLONY BRANCH */
+        #s1_colony:checked ~ .game-container #scene1_colony,
+        #s2_bribe_pirates:checked ~ .game-container #scene2_bribe_pirates,
+        #s2_fight_pirates:checked ~ .game-container #scene2_fight_pirates,
+        #s3_pirate_alliance:checked ~ .game-container #scene3_pirate_alliance,
+        #s3_pirate_betray:checked ~ .game-container #scene3_pirate_betray,
+        #s3_colony_hack:checked ~ .game-container #scene3_colony_hack,
+        #s4_drone_army:checked ~ .game-container #scene4_drone_army,
+        #s4_mining_blast:checked ~ .game-container #scene4_mining_blast,
+        /* TRUE ENDING */
+        #s5_omega:checked ~ .game-container #scene5_omega {
+            display: block;
+        }
+
+        @media (max-width: 500px) {
+            .game-container { padding: 16px 10px; min-height: 88vh; }
+            pre { font-size: 10px; letter-spacing: -0.5px; }
+            .story-text { font-size: 0.95rem; }
+            label { width: 94%; padding: 11px 14px; font-size: 0.78rem; letter-spacing: 1px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- STATE INPUTS -->
+    <input type="radio" name="cyoa" id="s0" checked>
+    <!-- LAB -->
+    <input type="radio" name="cyoa" id="s1_lab">
+    <input type="radio" name="cyoa" id="s2_take_pistol">
+    <input type="radio" name="cyoa" id="s2_read_logs">
+    <input type="radio" name="cyoa" id="s2_ignore_lab">
+    <input type="radio" name="cyoa" id="s3_fight_mutant">
+    <input type="radio" name="cyoa" id="s3_sneak_lab">
+    <input type="radio" name="cyoa" id="s3_reactor_warn">
+    <input type="radio" name="cyoa" id="s3_shutdown_reactor">
+    <input type="radio" name="cyoa" id="s3_bypass_hack">
+    <input type="radio" name="cyoa" id="s4_lab_escape">
+    <input type="radio" name="cyoa" id="s4_lab_selfdestruct">
+    <input type="radio" name="cyoa" id="s4_lab_artifact">
+    <!-- ALIEN -->
+    <input type="radio" name="cyoa" id="s1_alien">
+    <input type="radio" name="cyoa" id="s2_take_artifact">
+    <input type="radio" name="cyoa" id="s2_scan_ship">
+    <input type="radio" name="cyoa" id="s3_hive_awaken">
+    <input type="radio" name="cyoa" id="s3_use_artifact">
+    <input type="radio" name="cyoa" id="s3_flee_alien">
+    <input type="radio" name="cyoa" id="s4_alien_queen">
+    <input type="radio" name="cyoa" id="s4_alien_bond">
+    <!-- COLONY -->
+    <input type="radio" name="cyoa" id="s1_colony">
+    <input type="radio" name="cyoa" id="s2_bribe_pirates">
+    <input type="radio" name="cyoa" id="s2_fight_pirates">
+    <input type="radio" name="cyoa" id="s3_pirate_alliance">
+    <input type="radio" name="cyoa" id="s3_pirate_betray">
+    <input type="radio" name="cyoa" id="s3_colony_hack">
+    <input type="radio" name="cyoa" id="s4_drone_army">
+    <input type="radio" name="cyoa" id="s4_mining_blast">
+    <!-- TRUE END -->
+    <input type="radio" name="cyoa" id="s5_omega">
+
+    <div class="game-container env-ship" id="gameBox">
+
+        <!-- START SCENE -->
+        <div id="scene0" class="scene">
+            <pre>
+      .    .    .
+    .   .   .   .
+       .   |   .
+     .   . | .   .
+    . -----+----- .
+     .   . | .   .
+       .   |   .
+    .   .  |  .   .
+      .    *    .
+    .   . / \ .   .
+       . /   \ .
+    </pre>
+            <div class="story-text">
+                Your shuttle drifts silently toward the coordinates of <strong>Void Station Omega-7</strong>, a derelict research hub orbiting a dying star. Sensors detect three points of interest: a flickering <strong>Abandoned Research Lab</strong> on the station's lower ring, a dormant <strong>Alien Derelict</strong> docked to the station, and a signal from an <strong>Asteroid Mining Colony</strong> on a nearby rock. Which do you investigate first?
+            </div>
+            <div class="choices">
+                <label for="s1_lab">Dock at the Abandoned Research Lab</label>
+                <label for="s1_alien">Board the Alien Derelict</label>
+                <label for="s1_colony">Head to the Asteroid Mining Colony</label>
+            </div>
+        </div>
+
+        <!-- ==================== LAB BRANCH ==================== -->
+        <div id="scene1_lab" class="scene">
+            <pre>
+     .-----------.
+    /_____________\
+    |  _______  | |
+    | |       | | |
+    | |  BIO  | | |
+    | |_______| | |
+    |___________|_|
+    \_____________/
+       |  |  |  |
+       |  |  |  |
+    </pre>
+            <div class="story-text">
+                The lab corridors are cold and sterile, lit only by emergency strips. Stasis pods line the walls, some shattered, their occupants missing. On a nearby console, a <strong>plasma pistol</strong> lies next to a flickering datapad. An audio log repeats: <em>"Experiment Theta went wrong... containment breach... do not engage..."</em>
+            </div>
+            <div class="choices">
+                <label for="s2_take_pistol">Take the plasma pistol and proceed</label>
+                <label for="s2_read_logs">Read the full datapad logs first</label>
+                <label for="s2_ignore_lab">Ignore everything and head deeper into the lab</label>
+            </div>
+        </div>
+
+        <!-- Take Pistol -->
+        <div id="scene2_take_pistol" class="scene">
+            <pre>
+      .___.
+      |===|>
+      '---'
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                The pistol hums to life in your grip, displaying a charge of 87%. As you round a corner, a grotesque <strong>Mutated Scientist</strong> lunges from the shadows, its limbs elongated and claws dripping with green ichor. It shrieks, blocking the path to the main reactor room.
+            </div>
+            <div class="choices">
+                <label for="s3_fight_mutant">Fire the plasma pistol!</label>
+                <label for="s3_sneak_lab">Try to sneak past it through a vent</label>
+            </div>
+        </div>
+
+        <!-- Read Logs -->
+        <div id="scene2_read_logs" class="scene">
+            <pre>
+      .-------.
+      | DATA  |
+      | LOGS  |
+      '-------'
+       /     \
+      /  BIO  \
+    </pre>
+            <div class="story-text">
+                The logs reveal that the lab was studying a crystalline alien artifact. It caused the mutations. The head researcher, Dr. Voss, activated the self-destruct before vanishing. The reactor is unstable. You also find a <strong>security bypass code</strong> for the lab's blast doors.
+            </div>
+            <div class="choices">
+                <label for="s3_reactor_warn">Rush to the reactor to stop the meltdown</label>
+                <label for="s3_bypass_hack">Use the bypass code to reach the artifact storage</label>
+            </div>
+        </div>
+
+        <!-- Ignore Lab -->
+        <div id="scene2_ignore_lab" class="scene">
+            <pre>
+      .   .   .
+     .   .   .
+    .   .   .   .
+     .   .   .
+      .   .   .
+    </pre>
+            <div class="story-text">
+                You push forward blindly. The lights flicker and die. In the darkness, you hear wet, slithering sounds. You stumble into a maintenance shaft and fall several decks. Miraculously, you land near an emergency escape pod. But the lab's self-destruct sequence has already begun...
+            </div>
+            <div class="choices">
+                <label for="s4_lab_escape">Launch the escape pod immediately</label>
+                <label for="s4_lab_selfdestruct">Try to race back and deactivate the self-destruct</label>
+            </div>
+        </div>
+
+        <!-- Fight Mutant -->
+        <div id="scene3_fight_mutant" class="scene">
+            <pre>
+      (   )   (   )
+     (  PLASMA )
+      (   )   (   )
+         \   /
+          \ /
+           *
+    </pre>
+            <div class="story-text">
+                You squeeze the trigger. Superheated plasma bolts incinerate the mutant mid-lunge. The path is clear, and you access the reactor control room. The core is critical. You can attempt a manual shutdown, or grab the strange crystalline artifact floating in a containment field nearby.
+            </div>
+            <div class="choices">
+                <label for="s3_shutdown_reactor">Shut down the reactor to save the station</label>
+                <label for="s4_lab_artifact">Grab the floating crystalline artifact</label>
+            </div>
+        </div>
+
+        <!-- Sneak Lab -->
+        <div id="scene3_sneak_lab" class="scene">
+            <pre>
+      ___
+     /  _\
+     | | |
+     |_|_|
+    </pre>
+            <div class="story-text">
+                You crawl through the vent and emerge in the artifact storage. The crystalline object floats serenely, pulsing with blue light. The self-destruct warning blares — you have seconds to decide. Take the artifact and flee, or try to deactivate the sequence from here?
+            </div>
+            <div class="choices">
+                <label for="s4_lab_artifact">Take the artifact and run to the escape pod</label>
+                <label for="s4_lab_selfdestruct">Attempt to override the self-destruct sequence</label>
+            </div>
+        </div>
+
+        <!-- Reactor Warn -->
+        <div id="scene3_reactor_warn" class="scene">
+            <pre>
+      .---.
+      |!!!|
+      '---'
+       /|\
+      / | \
+    </pre>
+            <div class="story-text">
+                You race to the reactor room. The core is a swirling vortex of unstable plasma. The control panel is dead. You can try a manual coolant override, but it's risky. Alternatively, the artifact's containment is failing — it might be able to stabilize the reaction if placed in the core.
+            </div>
+            <div class="choices">
+                <label for="s3_shutdown_reactor">Attempt the manual coolant override</label>
+                <label for="s4_lab_artifact">Fetch the artifact and use it on the core</label>
+            </div>
+        </div>
+
+        <!-- Shutdown Reactor -->
+        <div id="scene3_shutdown_reactor" class="scene">
+            <pre>
+      .___.
+      |COOL|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: HERO OF THE STATION</strong><br><br>
+                You pull the manual levers despite the searing heat. Coolant floods the chamber, and the reactor stabilizes. The station is saved, and your actions are recorded by the black box. You'll be remembered as the one who prevented Omega-7 from becoming a supernova.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Bypass Hack -->
+        <div id="scene3_bypass_hack" class="scene">
+            <pre>
+      _   _
+     | | | |
+     | |_| |
+     |  _  |
+     |_| |_|
+    </pre>
+            <div class="story-text">
+                You enter the bypass code. Blast doors slide open, revealing the artifact floating in a magnetic cradle. The device hums with alien energy. You can take it and escape, or interface with it to learn its secrets.
+            </div>
+            <div class="choices">
+                <label for="s4_lab_artifact">Take the artifact and head to your ship</label>
+                <label for="s5_omega">Interface with the artifact directly</label>
+            </div>
+        </div>
+
+        <!-- Lab Escape -->
+        <div id="scene4_lab_escape" class="scene">
+            <pre>
+      .---.
+      |ESC|
+      '---'
+       / \
+      /   \
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: NARROW ESCAPE</strong><br><br>
+                The escape pod rockets away just as the lab module detaches and explodes behind you. You drift in space, alive but empty-handed. The secrets of Omega-7 die with the station. You survive, but the mystery haunts you forever.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Lab Selfdestruct -->
+        <div id="scene4_lab_selfdestruct" class="scene">
+            <pre>
+      * * *
+     * BOOM *
+      * * *
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: VAPORIZED</strong><br><br>
+                You dash back toward the reactor, but the countdown hits zero. A blinding white light consumes everything. Omega-7 becomes a brief, brilliant star in the void. No trace of you remains.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Lab Artifact -->
+        <div id="scene4_lab_artifact" class="scene">
+            <pre>
+      .-"""-.
+     /  ___  \
+     | /   \ |
+     | \___/ |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: ARTIFACT THIEF</strong><br><br>
+                You secure the crystalline artifact and escape before the lab blows. Back on your ship, you realize the artifact contains a star map leading to an uncharted system. The adventure is just beginning, but you have the key.
+            </div>
+            <div class="choices"><label for="s5_omega">Set course for the uncharted system</label></div>
+        </div>
+
+        <!-- ==================== ALIEN DERELICT BRANCH ==================== -->
+        <div id="scene1_alien" class="scene">
+            <pre>
+      .___     ___.
+     /   \   /   \
+     |  o | | o  |
+     \___/   \___/
+      |||     |||
+      |||     |||
+     //|\\   //|\\
+    </pre>
+            <div class="story-text">
+                The alien ship is organic, its walls pulsing with bioluminescence. At its heart, you find a pedestal holding a <strong>psionic resonator</strong>, a device that seems to translate alien thought. Nearby, a corridor leads deeper into what looks like a living hive structure.
+            </div>
+            <div class="choices">
+                <label for="s2_take_artifact">Take the psionic resonator</label>
+                <label for="s2_scan_ship">Scan the ship's bio-network for information</label>
+            </div>
+        </div>
+
+        <!-- Take Resonator -->
+        <div id="scene2_take_artifact" class="scene">
+            <pre>
+      .-"""-.
+     /  ^ ^  \
+     |   @   |
+     \  '-'  /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                As soon as you touch the resonator, a psychic scream echoes in your mind. The hive awakens! Alien drones skitter from the walls. The resonator allows you to command them, but the queen's presence is overwhelming. You can try to dominate the swarm, or flee while you still can.
+            </div>
+            <div class="choices">
+                <label for="s3_hive_awaken">Attempt to dominate the alien swarm</label>
+                <label for="s3_flee_alien">Flee back to the airlock</label>
+            </div>
+        </div>
+
+        <!-- Scan Ship -->
+        <div id="scene2_scan_ship" class="scene">
+            <pre>
+      .-------.
+      | SCAN  |
+      | DATA  |
+      '-------'
+    </pre>
+            <div class="story-text">
+                The scan reveals the ship is a <strong>Xenohive Mothership</strong>, dormant for millennia. The queen is in stasis, but the resonator can awaken her. The data also contains a genetic key that could bond you to the hive. Dangerous, but potentially rewarding.
+            </div>
+            <div class="choices">
+                <label for="s3_use_artifact">Use the resonator to awaken the queen</label>
+                <label for="s3_flee_alien">Leave immediately — this is beyond you</label>
+            </div>
+        </div>
+
+        <!-- Hive Awaken -->
+        <div id="scene3_hive_awaken" class="scene">
+            <pre>
+      \|/  \|/  \|/
+       O    O    O
+      /|\  /|\  /|\
+         \ | /
+           *
+    </pre>
+            <div class="story-text">
+                You focus your will through the resonator. The drones freeze, then bow before you. But the queen's mind pushes back. A mental battle ensues. You can either submit and become part of the hive, or try a desperate psychic counterattack.
+            </div>
+            <div class="choices">
+                <label for="s4_alien_queen">Submit to the queen's will</label>
+                <label for="s4_alien_bond">Launch a psychic counterattack to bond as equals</label>
+            </div>
+        </div>
+
+        <!-- Use Artifact -->
+        <div id="scene3_use_artifact" class="scene">
+            <pre>
+      .-"""-.
+     /  ___  \
+     | /   \ |
+     | \___/ |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                You activate the resonator. The queen stirs. A colossal alien consciousness probes your mind. She offers you a choice: merge with the hive and become a new hybrid lifeform, or be consumed. Do you accept?
+            </div>
+            <div class="choices">
+                <label for="s4_alien_queen">Accept the merge</label>
+                <label for="s4_alien_bond">Refuse and fight back with the resonator</label>
+            </div>
+        </div>
+
+        <!-- Flee Alien -->
+        <div id="scene3_flee_alien" class="scene">
+            <pre>
+      .---.
+      |RUN|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: COWARDICE PRESERVES</strong><br><br>
+                You bolt for the airlock and detach your ship. The alien derelict drifts away. You live, but you know you left behind unimaginable power. Some nights, the psychic whispers still echo in your dreams.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Alien Queen -->
+        <div id="scene4_alien_queen" class="scene">
+            <pre>
+      .---.
+      |MERGE|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: XENOHIVE CONSCIOUSNESS</strong><br><br>
+                You merge with the queen. Your body transforms, but your mind expands across the galaxy. You become the new hive mind, commanding the entire dormant fleet. The universe will learn to fear the name Omega-7.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Alien Bond -->
+        <div id="scene4_alien_bond" class="scene">
+            <pre>
+      .-"""-.
+     /  = =  \
+     |   ~   |
+     \       /
+      '-...-'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: PSIONIC SYMBIOSIS</strong><br><br>
+                You and the queen reach an equilibrium. The resonator binds you as equals. She grants you a fraction of the hive's power and a map to the ancient homeworld. Together, you set out to explore the stars — a partnership unlike any other.
+            </div>
+            <div class="choices"><label for="s5_omega">Set course for the homeworld</label></div>
+        </div>
+
+        <!-- ==================== MINING COLONY BRANCH ==================== -->
+        <div id="scene1_colony" class="scene">
+            <pre>
+      .___. .___. .___.
+      |ORE| |ORE| |ORE|
+      '---' '---' '---'
+         \    |    /
+          \   |   /
+           \  |  /
+            \ | /
+             \|/
+    </pre>
+            <div class="story-text">
+                The mining colony is a rough outpost carved into an asteroid. As you dock, a group of <strong>Space Pirates</strong> intercepts you. Their leader, a scarred woman named Rex, demands payment for "docking rights." You notice her crew is heavily armed but their equipment is patchwork.
+            </div>
+            <div class="choices">
+                <label for="s2_bribe_pirates">Pay the docking fee (you have credits)</label>
+                <label for="s2_fight_pirates">Refuse and draw your weapon</label>
+                <label for="s3_colony_hack">Try to hack the station's defense turrets</label>
+            </div>
+        </div>
+
+        <!-- Bribe -->
+        <div id="scene2_bribe_pirates" class="scene">
+            <pre>
+      .___.
+      |$$$|
+      '---'
+    </pre>
+            <div class="story-text">
+                Rex grins and pockets your credits. "Smart move, spacer." She offers you a drink and a job: help them raid an untouched asteroid cavern full of rare crystals. The payout could make you rich, but it's dangerous.
+            </div>
+            <div class="choices">
+                <label for="s3_pirate_alliance">Accept the job and join the pirate crew</label>
+                <label for="s3_pirate_betray">Take the job but plan to betray them for the full haul</label>
+            </div>
+        </div>
+
+        <!-- Fight Pirates -->
+        <div id="scene2_fight_pirates" class="scene">
+            <pre>
+      ( )
+       *---*
+      (     )
+       \   /
+        \_/
+    </pre>
+            <div class="story-text">
+                You draw your weapon, but Rex is faster. A stun blast hits your chest, and you wake up in the colony's brig. They stripped your ship. Now you must either join them or find another way out.
+            </div>
+            <div class="choices">
+                <label for="s3_pirate_alliance">Reluctantly join the pirate crew</label>
+                <label for="s3_colony_hack">Try to override the brig lock from the terminal</label>
+            </div>
+        </div>
+
+        <!-- Pirate Alliance -->
+        <div id="scene3_pirate_alliance" class="scene">
+            <pre>
+      .___.
+      |CREW|
+      '---'
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: PIRATE LEGEND</strong><br><br>
+                You earn your place among the pirates. Together, you raid the crystal cavern, fighting off rival gangs and alien beasts. You become a notorious space outlaw, living free among the stars with your new family.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Pirate Betray -->
+        <div id="scene3_pirate_betray" class="scene">
+            <pre>
+      .___.
+      |TRAP|
+      '---'
+    </pre>
+            <div class="story-text">
+                During the raid, you set off an explosive you planted. The pirates are caught in the blast, and you grab the crystal haul for yourself. You escape, but now you have a price on your head and no friends in the galaxy.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Colony Hack -->
+        <div id="scene3_colony_hack" class="scene">
+            <pre>
+      _   _
+     | | | |
+     | |_| |
+     |  _  |
+     |_| |_|
+    </pre>
+            <div class="story-text">
+                You access the colony's network. You can activate mining drones to fight the pirates, or trigger a controlled collapse of the entrance tunnel to seal them out. The colony's core systems are yours.
+            </div>
+            <div class="choices">
+                <label for="s4_drone_army">Activate the mining drone army</label>
+                <label for="s4_mining_blast">Trigger the entrance collapse</label>
+            </div>
+        </div>
+
+        <!-- Drone Army -->
+        <div id="scene4_drone_army" class="scene">
+            <pre>
+      [=] [=] [=]
+      | | | | | |
+      |_| |_| |_|
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: DRONE COMMANDER</strong><br><br>
+                Dozens of mining drones swarm the pirates and drive them off. The colonists hail you as a hero. You stay on as the colony's chief of security, using your tech skills to build a thriving, well-defended settlement.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- Mining Blast -->
+        <div id="scene4_mining_blast" class="scene">
+            <pre>
+      * * *
+     * BOOM *
+      * * *
+    </pre>
+            <div class="story-text">
+                <strong>ENDING: COLLATERAL DAMAGE</strong><br><br>
+                You trigger the collapse. The tunnel seals, but the explosion destabilizes a gas pocket. The entire colony module is destroyed. You barely escape in the chaos, alone and responsible for countless deaths.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure</label></div>
+        </div>
+
+        <!-- ==================== TRUE ENDING ==================== -->
+        <div id="scene5_omega" class="scene">
+            <pre>
+         *
+        /|\
+       / | \
+      /  |  \
+     /   |   \
+    /    |    \
+   /  ___|___  \
+  /  /   |   \  \
+ /__/____|____\__\
+     \   |   /
+      \  |  /
+       \ | /
+        \|/
+         *
+    </pre>
+            <div class="story-text">
+                <strong>TRUE ENDING: THE OMEGA KEY</strong><br><br>
+                You gather all the pieces: the lab's artifact, the alien resonator, and the mining colony's crystal data. Together, they form a complete map to the <strong>Omega Gate</strong> — an ancient hyperspace portal capable of reaching any point in the universe instantaneously. You activate the gate and step through, leaving behind the known galaxy. Your destiny is no longer written in the stars — you now write the stars themselves.
+            </div>
+            <div class="choices"><label for="s0">Restart Adventure: New Galaxy Awaits</label></div>
+        </div>
+
+    </div>
+
+</body>
+</html>
