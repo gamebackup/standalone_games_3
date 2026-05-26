@@ -264,8 +264,6 @@
 
         async function InitYSDK() {
             try {
-                if (IsLocalHost()) return;
-
                 ysdk = await YaGames.init();
                 ysdk.on('game_api_pause', PauseCallback);
                 ysdk.on('game_api_resume', ResumeCallback);
