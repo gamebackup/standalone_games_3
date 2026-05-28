@@ -250,10 +250,10 @@ function AppFactory(Circuit, Wire) {
 		addMenuBtn('OR-4', makeOr4);
 		addMenuBtn('LINK', makeDot);
 		addMenuBtn('3x3 PIXEL', makeScreen3x3);
-		addMenuBtn('4x4 PIXEL', makeScreen4x4);
-		addMenuBtn('PROBE', makeProbe);
-		addMenuBtn('SPLIT', makeSplit);
 		addMenuBtn('MERGE', makeMerge);
+		addMenuBtn('4x4 PIXEL', makeScreen4x4);
+		addMenuBtn('SPLIT', makeSplit);
+		addMenuBtn('PROBE', makeProbe);
 		// create gsap animation to open/close menu
 		var menu_tl = new TimelineMax({
 			paused: true,
