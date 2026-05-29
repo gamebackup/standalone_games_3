@@ -254,7 +254,6 @@ function AppFactory(Circuit, Wire) {
 		addMenuBtn('4x4 PIXEL', makeScreen4x4);
 		addMenuBtn('SPLIT', makeSplit);
 		addMenuBtn('PROBE', makeProbe);
-		// create gsap animation to open/close menu
 		var menu_tl = new TimelineMax({
 			paused: true,
 			onStart: function() { Menu.add_dropdown.style.display = 'block'; },
