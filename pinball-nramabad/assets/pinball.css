@@ -1,0 +1,91 @@
+body {
+    background-color: antiquewhite;
+    background-image: url('../assets/1.gif');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: 0px -700px; 
+    display: flex;
+    margin: auto;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 26px;
+    color: white;
+}
+
+body:before {
+    content: "";
+    position: absolute;
+    width : 99%;
+    height: 85%;
+    background: inherit;
+    z-index: -1;
+
+    filter        : blur(10px);
+    -moz-filter   : blur(10px);
+    -webkit-filter: blur(10px);
+    -o-filter     : blur(10px);
+
+    transition        : all 2s linear;
+    -moz-transition   : all 2s linear;
+    -webkit-transition: all 2s linear;
+    -o-transition     : all 2s linear;
+}
+
+.column {
+    flex: row;
+    display: inline-block;
+    width: 50%;
+    margin: 100px auto 0px auto;
+    text-align: center;
+}
+
+.rows-a {
+    margin: 16% 18% 16% 18%;
+    font-weight: bold;
+}
+
+.rows-a:first-child {
+    font-size: 40px;
+}
+
+.rows-a a {
+    text-decoration: none;
+    color: white;
+    font-weight: normal;
+}
+
+.rows-a img {
+    width:40%;
+}
+
+.rows-a img:hover {
+    opacity: 0.8;
+}
+
+.rows-b {
+    margin: 20%;
+    font-weight: bold;
+}
+
+#controls {
+    font-weight: normal;
+    font-size: 16px;
+}
+
+.score {
+    font-weight: normal;
+    font-size: 16px;
+}
+
+#meditative, #balzano, #veil-art, #geom {
+    display: none;
+}
+
+#game-canvas {
+    background-image: url('../assets/1.gif');
+    background-position: center; 
+    display: block;
+    background-repeat: repeat;
+    margin: 0px auto 0px auto;
+    border-radius: 25px;
+}
+

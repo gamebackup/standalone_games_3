@@ -1,0 +1,2 @@
+const n={name:"Adrenaline",type:"skill",energy:0,damage:0,target:"player",actions:[{type:"drawCards",parameter:{amount:2}},{type:"addEnergyToPlayer",parameter:{amount:1}}],description:"Gain 1 Energy. Draw 2 cards. Exhaust.",image:"serpentine-dancer.jpg",exhaust:!0},t=a=>{const e=a.actions.find(r=>r.type==="addEnergyToPlayer");return e.parameter.amount=2,{...a,description:"Gain 2 Energy. Draw 2 cards. Exhaust."}};export{n as default,t as upgrade};
+//# sourceMappingURL=adrenaline.CRfziIP2.js.map

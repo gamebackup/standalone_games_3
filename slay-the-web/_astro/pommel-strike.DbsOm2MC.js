@@ -1,0 +1,2 @@
+const r={name:"Pommel Strike",type:"attack",energy:1,target:"enemy",description:"Deal 9 damage. Draw 1 card.",image:"8.jpg",damage:9,actions:[{type:"drawCards",parameter:{amount:1}}]},m=a=>{const e=a.actions.find(t=>t.type==="drawCards");return e.parameter.amount=2,{...a,damage:10,description:"Deal 10 damage. Draw 2 cards"}};export{r as default,m as upgrade};
+//# sourceMappingURL=pommel-strike.DbsOm2MC.js.map

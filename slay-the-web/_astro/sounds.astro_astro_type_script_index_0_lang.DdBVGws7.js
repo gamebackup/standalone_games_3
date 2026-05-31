@@ -1,0 +1,2 @@
+import{f as n,d as a,a as c,b as r}from"./sounds.CqWdrAEC.js";const l=document.querySelectorAll("menu.sounds button");l.forEach(o=>{o.addEventListener("click",e=>{const t=e.currentTarget.dataset.sound;console.log("playing",t),n[t]()})});document.querySelectorAll("[data-sfx]").forEach(o=>{o.addEventListener("click",()=>{const{sfx:e,coin:s}=o.dataset;if(e==="whoosh")a(.6);else if(s)c(s);else if(e){const t=parseFloat(e);r(t,t*2,.3)}})});
+//# sourceMappingURL=sounds.astro_astro_type_script_index_0_lang.DdBVGws7.js.map

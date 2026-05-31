@@ -1,0 +1,2 @@
+const r={name:"Summer of Sam",type:"skill",energy:1,target:"player",description:"Gain 1 Health. If your health is below 50% draw 2 cards.",image:"bare-feet-of-god.jpg",actions:[{type:"addHealth",parameter:{amount:1}},{type:"drawCards",parameter:{amount:2},conditions:[{type:"healthPercentageBelow",percentage:50}]}]},o=e=>{const a=e.actions.find(t=>t.type==="addHealth");return a.parameter.amount=2,{...e,description:"Gain 2 Health. If your health is below 50% draw 2 cards."}};export{r as default,o as upgrade};
+//# sourceMappingURL=summer-of-sam.DjXrd_no.js.map

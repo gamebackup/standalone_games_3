@@ -1,0 +1,2 @@
+const a={name:"Flourish",type:"skill",energy:2,target:"player",description:"Gain 5 Regen. Can only be played if your health is below 50%.",image:"5.jpg",powers:{regen:5},conditions:[{type:"healthPercentageBelow",percentage:50}]},o=e=>{const n=e.conditions.find(t=>t.type==="healthPercentageBelow");return n.percentage=75,{...e,description:"Gain 5 Regen. Can only be played if your health is below 75%."}};export{a as default,o as upgrade};
+//# sourceMappingURL=flourish.CJwM1BaY.js.map

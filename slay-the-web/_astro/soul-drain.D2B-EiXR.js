@@ -1,0 +1,2 @@
+const n={name:"Soul Drain",type:"attack",energy:1,target:"allEnemies",description:"Apply 3 Weak and Vulnerability to ALL enemies. Drains 3 Health from you.",image:"soul-drain.png",damage:0,powers:{weak:3,vulnerable:3},actions:[{type:"removeHealth",parameter:{amount:3,target:"player"}}]},r=e=>{const a=e.actions.find(t=>t.type==="removeHealth");return a.parameter.amount=4,{...e,powers:{weak:4,vulnerable:4},description:"Apply 4 Weak and Vulnerability to ALL enemies. Drains 3 Health from you."}};export{n as default,r as upgrade};
+//# sourceMappingURL=soul-drain.D2B-EiXR.js.map

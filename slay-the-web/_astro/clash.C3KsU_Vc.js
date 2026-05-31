@@ -1,0 +1,2 @@
+const e={name:"Clash",type:"attack",energy:0,damage:14,target:"enemy",conditions:[{type:"onlyType",cardType:"attack"}],description:"Can only be played if every card in your hand is an Attack. Deal 14 damage.",image:"h-sperling-horrified.jpg"},n=a=>({...a,damage:17,description:"Can only be played if every card in your hand is an Attack. Deal 17 damage."});export{e as default,n as upgrade};
+//# sourceMappingURL=clash.C3KsU_Vc.js.map

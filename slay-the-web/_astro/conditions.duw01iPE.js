@@ -1,0 +1,2 @@
+import{h as o}from"./utils-state.Di1yGzAA.js";function i(e,n){return e.hand.every(r=>r.type===n.cardType)}function l(e,n){return o(e)>n.percentage}function u(e,n){return o(e)<n.percentage}function y(e,n){return n?n.every(t=>{const a=d[t.type];return a(e,t)}):!0}function f(e,n){if(!e?.hand)return!1;const r=!!e.hand.find(c=>c.id===n.id),t=e.player.currentEnergy>=n.energy,a=y(e,n.conditions);return r&&t&&a}const d={onlyType:i,healthPercentageAbove:l,healthPercentageBelow:u};export{y as a,f as c};
+//# sourceMappingURL=conditions.duw01iPE.js.map
