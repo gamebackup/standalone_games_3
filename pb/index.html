@@ -205,8 +205,7 @@ window.YaGames = {
                 });
             };
             
-            if (IsLocalHost() || syncInit)
-                StartUnityInstance_IfUnloaded();
+            StartUnityInstance_IfUnloaded();
         };
 
         function StartUnityInstance_IfUnloaded() {
@@ -306,9 +305,6 @@ LogStyledMessage('Init OpenURL ysdk');
             } catch (e) {
                 console.error('CRASH Initialization SDK: ', e);
             }
-
-            if (!IsLocalHost() && !syncInit)
-                StartUnityInstance_IfUnloaded();
         }
 
         function InitGame() {
