@@ -156,7 +156,7 @@
   </div>
   
   <!-- Matter.js Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="../_lib/matter-js/0.19.0/matter.min.js"></script>
   <script>
     // ----- Matter.js Aliases -----
     const Engine = Matter.Engine,
@@ -180,9 +180,9 @@
     let plungerStartTime = 0;
     
     // ----- Sound Effects (replace URLs if desired) -----
-    const bumperSound = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
-    const springSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-    const teleportSound = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg');
+    const bumperSound = new Audio('../_lib/sounds/google-actions/clang_and_wobble.ogg');
+    const springSound = new Audio('../_lib/sounds/google-actions/beep_short.ogg');
+    const teleportSound = new Audio('../_lib/sounds/google-actions/pop.ogg');
     
     // ----- Canvas Dimensions -----
     const canvasWidth = 600,

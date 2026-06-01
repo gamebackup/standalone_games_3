@@ -1,0 +1,36 @@
+@font-face {
+  font-family: 'Droid Serif';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./tDbK2oqRg1oM3QBjjcaDkOr4nAfcGw.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Droid Serif';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url(./tDbX2oqRg1oM3QBjjcaDkOr4lLz5CwOnTQ.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Droid Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./tDbI2oqRg1oM3QBjjcaDkOr9rAA.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Droid Serif';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(./tDbV2oqRg1oM3QBjjcaDkOJGiRD7OwQ.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Inconsolata';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32kg.ttf) format('truetype');
+}

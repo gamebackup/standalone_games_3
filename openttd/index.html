@@ -860,6 +860,23 @@ document.addEventListener("DOMContentLoaded", () => {
       return ensureIDBMounted().catch(()=>{ });
     });
 
+    Module.preRun.push(function(){
+      const basesetDir = LIVE_ROOT + '/baseset';
+      mkdirp(basesetDir);
+      var tarName = 'opengfx2_8.tar';
+      var tarPath = basesetDir + '/' + tarName;
+      if (!exists(tarPath)) {
+        Module.addRunDependency(tarName);
+        fetch(tarName).then(r=>r.arrayBuffer()).then(buf=>{
+          FS.writeFile(tarPath, new Uint8Array(buf));
+          Module.removeRunDependency(tarName);
+        }).catch(function(){
+          console.error('Failed to preload OpenGFX');
+          Module.removeRunDependency(tarName);
+        });
+      }
+    });
+
     Module.print  = (...a)=>console.log(a.join(' '));
     Module.printErr = (...a)=>console.error(a.join(' '));
 

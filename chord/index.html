@@ -6,8 +6,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chorde — x3e chat</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="../_lib/google-fonts/space-mono-sora.css" rel="stylesheet">
+<link rel="stylesheet" href="../_lib/font-awesome/6.5.1/css/all.min.css">
 <style>
   /* ═══════════════════════════════════════════════
      VARIABLES
@@ -1296,9 +1296,9 @@ body.theme-whitepink {
 </div>
   
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, push, onValue, set, update, onChildAdded, onChildRemoved, onChildChanged, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { initializeApp } from "../_lib/firebase/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, set, update, onChildAdded, onChildRemoved, onChildChanged, onDisconnect } from "../_lib/firebase/10.7.1/firebase-database.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "../_lib/firebase/10.7.1/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCwtdcAJtYC6pPUaC6pdEC4Kr9IUX8wifo",
@@ -1378,7 +1378,7 @@ body.theme-whitepink {
   
   // ── CENSOR LIST LOADER ──────────────────────────────────────────────────
   async function loadCensorList() {
-    const CENSOR_URL = 'https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/chord/censor-list.js';
+    const CENSOR_URL = 'censor-list.js';
     try {
       const res = await fetch(CENSOR_URL + '?bust=' + Date.now());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2755,7 +2755,7 @@ body.theme-whitepink {
     const emojiBtn = document.getElementById('emoji-btn');
     const pickerContainer = document.getElementById('emoji-picker-container');
     let emojiPicker = null;
-    import('https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js')
+    import('../_lib/emoji-picker-element/1/index.js')
       .then(({ Picker }) => {
         emojiPicker = new Picker();
         pickerContainer.appendChild(emojiPicker);

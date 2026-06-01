@@ -322,7 +322,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Error - Gust Browser</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
         
@@ -5353,7 +5353,7 @@ parent.postMessage({ t: 'ready' }, '*');
       "<title>" +
       filename.replace(/</g, "&lt;") +
       "</title>" +
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">' +
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">' +
       "<style>" +
       _VIEWER_BASE_CSS +
       "#viewerWrap{flex:1;overflow-y:auto;overflow-x:auto;background:#252b33;display:flex;flex-direction:column;align-items:center;padding:16px;gap:10px}" +
@@ -5387,8 +5387,8 @@ parent.postMessage({ t: 'ready' }, '*');
       "</div>" +
       '<div id="viewerWrap"></div>' +
       '<script type="module">' +
-      'import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.mjs";' +
-      'pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs";' +
+      'import * as pdfjsLib from "../../_lib/pdf.js/4.2.67/pdf.min.mjs";' +
+      'pdfjsLib.GlobalWorkerOptions.workerSrc = "../../_lib/pdf.js/4.2.67/pdf.worker.min.mjs";' +
       "const B64 = " +
       jB64 +
       ";" +
@@ -5528,7 +5528,7 @@ parent.postMessage({ t: 'ready' }, '*');
       "<title>" +
       filename.replace(/</g, "&lt;") +
       "</title>" +
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">' +
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">' +
       "<style>" +
       _VIEWER_BASE_CSS +
       "#wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:grab;position:relative;user-select:none;background:#0d0f12}" +
@@ -5602,7 +5602,7 @@ parent.postMessage({ t: 'ready' }, '*');
       "<title>" +
       filename.replace(/</g, "&lt;") +
       "</title>" +
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">' +
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">' +
       "<style>" +
       _VIEWER_BASE_CSS +
       "#vwrap{flex:1;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}" +
@@ -5643,7 +5643,7 @@ parent.postMessage({ t: 'ready' }, '*');
       "<title>" +
       filename.replace(/</g, "&lt;") +
       "</title>" +
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">' +
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">' +
       "<style>" +
       _VIEWER_BASE_CSS +
       "#content{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 16px}" +
@@ -5735,7 +5735,7 @@ parent.postMessage({ t: 'ready' }, '*');
     return [
       '<!DOCTYPE html><html><head><meta charset="utf-8">',
       "<title>" + esc_fn + "</title>",
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">',
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">',
       "<style>",
       _VIEWER_BASE_CSS,
       "#codewrap{flex:1;overflow:auto}",
@@ -5774,7 +5774,7 @@ parent.postMessage({ t: 'ready' }, '*');
       "<title>Cannot open " +
       esc_fn +
       "</title>" +
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">' +
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">' +
       "<style>" +
       "*{margin:0;padding:0;box-sizing:border-box}" +
       "html,body{height:100%;background:#0d0f12;font-family:'Space Grotesk','Segoe UI',sans-serif;color:#f0f4f8;display:flex;align-items:center;justify-content:center}" +
@@ -5847,7 +5847,7 @@ parent.postMessage({ t: 'ready' }, '*');
       "<title>" +
       esc_fn +
       "</title>" +
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">' +
+      '<link rel="stylesheet" href="../../_lib/font-awesome/6.5.1/css/all.min.css">' +
       "<style>" +
       "*{margin:0;padding:0;box-sizing:border-box}" +
       "html,body{height:100%;background:#0d0f12;font-family:'Space Grotesk','Segoe UI',sans-serif;color:#f0f4f8;display:flex;align-items:center;justify-content:center}" +

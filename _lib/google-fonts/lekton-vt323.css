@@ -1,0 +1,12 @@
+@font-face {
+  font-family: 'Lekton';
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://fonts.gstatic.com/s/lekton/v21/SZc43FDmLaWmWpBuWB3s.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://fonts.gstatic.com/s/vt323/v18/pxiKyp0ihIEF2isfFJA.ttf) format('truetype');
+}
