@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Math Solver</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<script src="lib/math.min.js"></script>
+<script src="lib/nerdamer.core.min.js"></script>
+<script src="lib/Algebra.min.js"></script>
+<script src="lib/Calculus.min.js"></script>
+<script src="lib/Solve.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #10101a;
+    --card: #14141f;
+    --border: #1e1e30;
+    --accent: #00f5d4;
+    --accent2: #f700ff;
+    --accent3: #ffe600;
+    --text: #e8e8f0;
+    --muted: #6060a0;
+    --glow: 0 0 20px rgba(0,245,212,0.4);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 4rem;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
+    pointer-events:none; z-index:999;
+  }
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background-image: linear-gradient(rgba(0,245,212,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(0,245,212,0.03) 1px,transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none; z-index:0;
+  }
+  .container { width:100%; max-width:780px; position:relative; z-index:1; }
+
+  .header { text-align:center; margin-bottom:2.5rem; animation:fadeDown .6s ease both; }
+  .header-tag { font-size:.7rem; color:var(--accent); letter-spacing:.3em; text-transform:uppercase; margin-bottom:.5rem; opacity:.8; }
+  .header h1 {
+    font-family:'Orbitron',sans-serif; font-size:clamp(2rem,6vw,3.2rem); font-weight:900; letter-spacing:.05em; line-height:1;
+    background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    filter:drop-shadow(0 0 30px rgba(0,245,212,.5));
+  }
+  .header-sub { margin-top:.6rem; font-size:.78rem; color:var(--muted); letter-spacing:.12em; }
+  .header::before,.header::after { content:'◆'; color:var(--accent); font-size:.6rem; margin:0 1rem; opacity:.5; }
+
+  .input-card {
+    background:var(--card); border:1px solid var(--border); border-radius:2px;
+    padding:1.8rem; margin-bottom:1.5rem; position:relative;
+    animation:fadeUp .6s ease .1s both;
+  }
+  .input-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .input-label { font-size:.65rem; color:var(--accent); letter-spacing:.25em; text-transform:uppercase; margin-bottom:.75rem; display:flex; align-items:center; gap:.5rem; }
+  .input-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .input-row { display:flex; gap:.75rem; align-items:stretch; }
+  #math-input {
+    flex:1; background:var(--surface); border:1px solid var(--border); border-radius:2px;
+    color:var(--text); font-family:'Share Tech Mono',monospace; font-size:1.1rem;
+    padding:.85rem 1rem; outline:none; transition:border-color .2s,box-shadow .2s; caret-color:var(--accent);
+  }
+  #math-input:focus { border-color:var(--accent); box-shadow:var(--glow); }
+  #math-input::placeholder { color:var(--muted); }
+
+  .solve-btn {
+    background:transparent; border:1px solid var(--accent); color:var(--accent);
+    font-family:'Orbitron',sans-serif; font-size:.75rem; font-weight:700; letter-spacing:.15em;
+    padding:.85rem 1.5rem; border-radius:2px; cursor:pointer; transition:all .2s;
+    text-transform:uppercase; white-space:nowrap; position:relative; overflow:hidden;
+  }
+  .solve-btn::before { content:''; position:absolute; inset:0; background:var(--accent); transform:translateX(-100%); transition:transform .25s ease; z-index:0; }
+  .solve-btn:hover::before { transform:translateX(0); }
+  .solve-btn:hover { color:var(--bg); box-shadow:var(--glow); }
+  .solve-btn span { position:relative; z-index:1; }
+
+  .examples { margin-top:1rem; display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+  .examples-label { font-size:.6rem; color:var(--muted); letter-spacing:.15em; text-transform:uppercase; }
+  .example-chip {
+    background:var(--surface); border:1px solid var(--border); border-radius:2px;
+    color:var(--muted); font-family:'Share Tech Mono',monospace; font-size:.72rem;
+    padding:.25rem .6rem; cursor:pointer; transition:all .15s;
+  }
+  .example-chip:hover { border-color:var(--accent); color:var(--accent); background:rgba(0,245,212,.05); }
+
+  .result-card { background:var(--card); border:1px solid var(--border); border-radius:2px; overflow:hidden; display:none; animation:fadeUp .4s ease both; }
+  .result-card.visible { display:block; }
+  .result-header { padding:.9rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+  .result-title { font-family:'Orbitron',sans-serif; font-size:.65rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); }
+  .result-badge { font-size:.6rem; letter-spacing:.15em; color:var(--muted); }
+
+  .result-body { padding:1.8rem; line-height:1.8; font-size:.92rem; color:#c8c8e0; }
+  .result-body h3 { font-family:'Orbitron',sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--accent2); margin:1.4rem 0 .6rem; }
+  .result-body h3:first-child { margin-top:0; }
+  .answer-box { background:rgba(0,245,212,.06); border:1px solid rgba(0,245,212,.2); border-left:3px solid var(--accent); padding:.8rem 1.2rem; border-radius:2px; font-size:1.05rem; color:var(--accent); margin:.5rem 0 1rem; font-family:'Share Tech Mono',monospace; word-break:break-all; }
+  .step { display:flex; gap:1rem; margin:.5rem 0; padding:.5rem 0; border-bottom:1px solid rgba(255,255,255,.03); }
+  .step-num { font-family:'Orbitron',sans-serif; font-size:.6rem; font-weight:700; color:var(--accent2); min-width:1.8rem; padding-top:.15rem; opacity:.7; }
+  .step-text { flex:1; color:#b0b0d0; font-size:.88rem; }
+  .result-body code { background:rgba(0,0,0,.4); border:1px solid var(--border); border-radius:2px; padding:.1em .4em; font-family:'Share Tech Mono',monospace; color:var(--accent3); font-size:.9em; }
+
+  .graph-wrap { margin:.5rem 0 1rem; border:1px solid var(--border); border-radius:2px; overflow:hidden; position:relative; }
+  .graph-wrap canvas { display:block; width:100%; height:400px; cursor:grab; }
+  .graph-wrap canvas:active { cursor:grabbing; }
+  .graph-label { position:absolute; bottom:8px; left:10px; font-size:.6rem; color:var(--muted); letter-spacing:.1em; pointer-events:none; }
+  .graph-hint { position:absolute; top:8px; right:10px; font-size:.55rem; color:var(--muted); letter-spacing:.08em; pointer-events:none; opacity:.5; }
+
+  .matrix-display { font-family:'Share Tech Mono',monospace; font-size:.95rem; margin:.3rem 0; color:var(--accent); line-height:1.6; white-space:pre; }
+  .limit-arrow { color:var(--accent3); }
+
+  .caps { margin-top: .8rem; }
+  .caps-toggle { background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:.5rem .8rem; font-size:.7rem; color:var(--muted); letter-spacing:.15em; cursor:pointer; display:inline-flex; align-items:center; gap:.5rem; transition:all .15s; font-family:'Share Tech Mono',monospace; }
+  .caps-toggle:hover { border-color:var(--accent); color:var(--accent); }
+  .caps-toggle::before { content:'▸'; font-size:.6rem; transition:transform .2s; }
+  .caps.open .caps-toggle::before { transform:rotate(90deg); }
+  .caps-body { display:none; margin-top:.5rem; padding:.6rem .8rem; background:var(--surface); border:1px solid var(--border); border-radius:2px; }
+  .caps.open .caps-body { display:block; }
+  .caps-grid { display:grid; grid-template-columns:1fr 1fr; gap:.15rem .6rem; font-size:.68rem; color:var(--muted); line-height:1.9; }
+  .caps-grid .cat { color:var(--accent2); letter-spacing:.12em; font-size:.62rem; text-transform:uppercase; grid-column:1/-1; margin-top:.3rem; padding-top:.3rem; border-top:1px solid var(--border); }
+  .caps-grid .cat:first-child { border-top:none; margin-top:0; padding-top:0; }
+  .caps-grid .item { color:#9090b0; padding-left:.5rem; }
+  .caps-grid .item::before { content:'◆ '; color:var(--accent); font-size:.4rem; vertical-align:middle; opacity:.5; }
+
+  .error-msg { padding:1.5rem 1.8rem; color:#ff6b8a; font-size:.85rem; display:flex; align-items:center; gap:.75rem; }
+  .error-msg::before { content:'⚠'; font-size:1rem; }
+
+  .history-section { margin-top:1.5rem; display:none; animation:fadeUp .5s ease .2s both; }
+  .history-section.visible { display:block; }
+  .history-label { font-size:.6rem; color:var(--muted); letter-spacing:.25em; text-transform:uppercase; margin-bottom:.75rem; display:flex; align-items:center; gap:.5rem; }
+  .history-label::after { content:''; flex:1; height:1px; background:var(--border); }
+  .history-list { display:flex; flex-direction:column; gap:.4rem; }
+  .history-item { background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:.6rem 1rem; font-size:.78rem; color:var(--muted); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:.75rem; }
+  .history-item:hover { border-color:var(--accent); color:var(--text); background:rgba(0,245,212,.04); }
+  .history-item::before { content:'↩'; color:var(--accent); opacity:.5; font-size:.8rem; }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)}  to{opacity:1;transform:translateY(0)} }
+  ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>x3e math solver</h1>
+  </div>
+
+  <div class="input-card">
+    <div class="input-label">Enter Problem</div>
+    <div class="input-row">
+      <input id="math-input" type="text" placeholder="e.g. x^2 - 5x + 6 = 0" autocomplete="off" spellcheck="false"/>
+      <button class="solve-btn" onclick="solve()"><span>SOLVE →</span></button>
+    </div>
+    <div class="examples">
+      <span class="examples-label">Try:</span>
+      <span class="example-chip" onclick="setEx(this)">x^2 - 5x + 6 = 0</span>
+      <span class="example-chip" onclick="setEx(this)">derivative of sin(x)*cos(x)</span>
+      <span class="example-chip" onclick="setEx(this)">graph x^2, sin(x)</span>
+    </div>
+    <div class="caps" id="caps">
+      <button class="caps-toggle" onclick="document.getElementById('caps').classList.toggle('open')">Capabilities</button>
+      <div class="caps-body">
+        <div class="caps-grid">
+          <div class="cat">Algebra</div>
+          <span class="item">Equations (linear, quadratic, cubic, polynomial)</span>
+          <span class="item">Inequalities (&gt;, &lt;, ≥, ≤)</span>
+          <span class="item">Systems of equations</span>
+          <span class="item">Simplify, Expand, Factor</span>
+          <span class="item">Polynomial division</span>
+          <div class="cat">Calculus</div>
+          <span class="item">Derivatives (symbolic)</span>
+          <span class="item">Integrals (indefinite + definite)</span>
+          <span class="item">Limits (two-sided numeric)</span>
+          <span class="item">Function graphing (zoom/pan/multi-trace)</span>
+          <div class="cat">Number Theory</div>
+          <span class="item">GCD, LCM</span>
+          <span class="item">Prime factorization, prime check</span>
+          <span class="item">Complex number arithmetic</span>
+          <div class="cat">Linear Algebra</div>
+          <span class="item">Matrix determinant, inverse, transpose</span>
+          <span class="item">RREF, rank, eigenvalues</span>
+          <div class="cat">Geometry &amp; Evaluation</div>
+          <span class="item">Area of circle, square, rectangle, triangle</span>
+          <span class="item">Numerical evaluation (PEMDAS)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-card" id="result-card">
+    <div class="result-header">
+      <span class="result-title">Solution Output</span>
+      <span class="result-badge" id="result-badge">READY</span>
+    </div>
+    <div id="result-body" class="result-body"></div>
+  </div>
+
+  <div class="history-section" id="history-section">
+    <div class="history-label">Recent Problems</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+</div>
+<script>
+var mathHistory = [];
+
+function setEx(el) {
+  document.getElementById('math-input').value = el.textContent.trim();
+  document.getElementById('math-input').focus();
+}
+document.getElementById('math-input').addEventListener('keydown', function(e) { if (e.key==='Enter') solve(); });
+
+function pp(expr) {
+  if (expr == null) return '';
+  return String(expr)
+    .replace(/\*\*/g,'^').replace(/\*/g,'×').replace(/\bsqrt\b/g,'√')
+    .replace(/\bpi\b/gi,'π').replace(/([a-z])\^2(?!\d)/g,'$1²').replace(/([a-z])\^3(?!\d)/g,'$1³')
+    .replace(/(\d)\^2(?!\d)/g,'$1²').replace(/(\d)\^3(?!\d)/g,'$1³');
+}
+
+function renderSteps(steps) {
+  return steps.map(function(s) { return '<div class="step"><span class="step-num">' + s.n + '</span><span class="step-text">' + s.t + '</span></div>'; }).join('');
+}
+
+function renderResult(r) {
+  var html = '<h3>Problem</h3><div class="answer-box">' + r.problem + '</div>';
+  if (r.answer !== undefined) html += '<h3>Answer</h3><div class="answer-box">' + r.answer + '</div>';
+  if (r.steps && r.steps.length) html += '<h3>Step-by-Step</h3>' + renderSteps(r.steps);
+  if (r.concept) html += '<h3>Key Concept</h3><div class="step"><span class="step-num">✦</span><span class="step-text">' + r.concept + '</span></div>';
+  if (r.graphHtml) html += r.graphHtml;
+  if (r.matrixHtml) html += r.matrixHtml;
+  return html;
+}
+
+// ─── Normalization ────────────────────────────────────────────────────────────
+var FUNC_NAMES = ['sin','cos','tan','asin','acos','atan','sinh','cosh','tanh','sqrt','log','ln','exp','abs'];
+function norm(expr) {
+  if (!expr) return expr;
+  var s = expr;
+  s = s.replace(/(\d)([a-df-zA-DF-Z])/g, '$1*$2');
+  s = s.replace(/([a-zA-Z0-9])\(/g, function(match, pre, offset, str) {
+    var before = str.slice(Math.max(0, offset - 4), offset + 1);
+    for (var i = 0; i < FUNC_NAMES.length; i++) {
+      var fn = FUNC_NAMES[i];
+      if (before.endsWith(fn + '(') || before.slice(-(fn.length)) === fn) return match;
+    }
+    if ('+-*/^,('.includes(str[offset - 1] || '')) return match;
+    return pre + '*(';
+  });
+  s = s.replace(/\)\s*\(/g, ')*(');
+  return s;
+}
+
+// ─── Input Parser ─────────────────────────────────────────────────────────────
+function parseInput(raw) {
+  var t = raw.trim();
+  var lo = t.toLowerCase();
+
+  if (/^(graph|plot)\s+/i.test(t)) {
+    var expr = t.replace(/^(graph|plot)\s+/i,'').trim();
+    return doGraph(expr);
+  }
+  if (/^(limit|lim)\s+/i.test(t) || /\bas\s+\w+\s*->/.test(lo)) {
+    return doLimit(t);
+  }
+  if (/^(derivative\s+(of\s+)?|diff(erentiate\s+(of\s+)?)?|d\/dx\s+)/i.test(t)) {
+    var expr = t.replace(/^(derivative\s+(of\s+)?|diff(erentiate\s+(of\s+)?)?|d\/dx\s+)/i,'').trim();
+    return doDerivative(expr);
+  }
+  if (/^(integrate\s+|integral\s+(of\s+)?|antiderivative\s+of\s+)/i.test(t) && /\bfrom\b\s+\S+\s+to\b/i.test(t)) {
+    return doDefiniteIntegral(t);
+  }
+  if (/^(integrate\s+|integral\s+(of\s+)?|antiderivative\s+of\s+)/i.test(t)) {
+    var expr = t.replace(/^(integrate\s+|integral\s+(of\s+)?|antiderivative\s+of\s+)/i,'').replace(/\s*dx\s*$/i,'').trim();
+    return doIntegral(expr);
+  }
+  if (/^(simplify|expand|factor)\s+/i.test(t)) {
+    var op = lo.match(/^(\w+)/)[1];
+    var expr = t.replace(/^(\w+)\s+/i,'').trim();
+    return doSimplify(expr, op);
+  }
+  if (/^divide\s+/.test(t)) {
+    var divM = t.match(/^divide\s+(.+?)\s+by\s+(.+)/i);
+    if (divM) return doPolyDivide(divM[1].trim(), divM[2].trim());
+    throw new Error('Format: divide x^2 - 5x + 6 by x - 2');
+  }
+  if (/^(gcd|lcm|gcf)\s+/i.test(t)) return doNumberTheory(t);
+  if (/^(factor|primefactor)\s+\d+/.test(lo) || /^(isprime|primes)\s+/i.test(t)) return doNumberTheory(t);
+  if (/^(matrix|det|determinant|inverse|inv|transpose|rref|rank|eig|eigenvalues?)\s+/i.test(t) || /^\[/.test(t)) {
+    return doMatrix(t);
+  }
+  if (/area\s+of\s+(circle|square|rectangle|triangle)/i.test(lo) ||
+      /perimeter\s+of/i.test(lo) || /volume\s+of/i.test(lo)) {
+    return doGeometry(t);
+  }
+  if ((t.match(/=/g) || []).length >= 2) {
+    return doSystem(t);
+  }
+  var ineqM = t.match(/^(.+)\s*(>=|<=|>|<)\s*(.+)$/);
+  if (ineqM && ineqM[2] !== '=' && !(ineqM[2] === '>' && t.indexOf('->') >= 0)) {
+    return doInequality(ineqM[1].trim(), ineqM[2], ineqM[3].trim());
+  }
+  if (t.includes('=')) return doEquation(t);
+  return doEvaluate(t);
+}
+
+// ─── Graphing ─────────────────────────────────────────────────────────────────
+var GRAPH_COLORS = ['#00f5d4', '#f700ff', '#ffe600', '#ff6b8a', '#00b4ff', '#ff9500', '#00ff88'];
+
+function doGraph(input) {
+  var parts = input.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+  var display = parts.join(', ');
+  var graphId = 'graph-' + Date.now();
+  return {
+    problem: 'Graph: ' + display,
+    answer: '',
+    steps: parts.map(function(expr, i) {
+      return { n: String(i + 1).padStart(2,'0'), t: 'Plot <code>' + expr + '</code> in ' + GRAPH_COLORS[i % GRAPH_COLORS.length] };
+    }),
+    concept: 'The graph shows y = f(x) for each expression. Scroll to zoom, click-and-drag to pan, double-click to reset view.',
+    graphHtml: '<h3>Plot</h3><div class="graph-wrap"><canvas id="' + graphId + '" width="700" height="400"></canvas><span class="graph-label">◆ scroll=zoom · drag=pan · dblclick=reset</span></div>',
+    graph: { id: graphId, expressions: parts }
+  };
+}
+
+function initGraph(cfg) {
+  var canvas = document.getElementById(cfg.id);
+  if (!canvas) return;
+  var container = canvas.parentElement;
+  var dpr = window.devicePixelRatio || 1;
+  var rect = container.getBoundingClientRect();
+
+  var W, H;
+  function resize() {
+    var r = container.getBoundingClientRect();
+    W = r.width - 2;
+    H = 400;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    draw();
+  }
+
+  var state = {
+    xMin: -10, xMax: 10,
+    yMin: -10, yMax: 10,
+    exprs: cfg.expressions,
+    dragging: false,
+    lastX: 0, lastY: 0
+  };
+
+  function evalFn(expr, x) {
+    try {
+      return math.evaluate(expr, { x: x });
+    } catch(e) {
+      return NaN;
+    }
+  }
+
+  function draw() {
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, W, H);
+
+    var xMin = state.xMin, xMax = state.xMax, yMin = state.yMin, yMax = state.yMax;
+
+    // Grid
+    function niceStep(lo, hi) {
+      var range = hi - lo;
+      var raw = range / 8;
+      var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+      var norm = raw / mag;
+      var step;
+      if (norm < 1.5) step = 1;
+      else if (norm < 3.5) step = 2;
+      else if (norm < 7.5) step = 5;
+      else step = 10;
+      return step * mag;
+    }
+    var xStep = niceStep(xMin, xMax);
+    var yStep = niceStep(yMin, yMax);
+    ctx.strokeStyle = '#14141f';
+    ctx.lineWidth = 1;
+    for (var x = Math.ceil(xMin / xStep) * xStep; x <= xMax; x += xStep) {
+      var px = (x - xMin) / (xMax - xMin) * W;
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+    }
+    for (var y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
+      var py = H - (y - yMin) / (yMax - yMin) * H;
+      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+    }
+
+    // Axes
+    ctx.strokeStyle = '#303050';
+    ctx.lineWidth = 1.5;
+    if (xMin <= 0 && xMax >= 0) {
+      var ax = (0 - xMin) / (xMax - xMin) * W;
+      ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, H); ctx.stroke();
+    }
+    if (yMin <= 0 && yMax >= 0) {
+      var ay = H - (0 - yMin) / (yMax - yMin) * H;
+      ctx.beginPath(); ctx.moveTo(0, ay); ctx.lineTo(W, ay); ctx.stroke();
+    }
+
+    // Tick labels
+    ctx.fillStyle = '#505080';
+    ctx.font = '10px Share Tech Mono, monospace';
+    for (var x2 = Math.ceil(xMin / xStep) * xStep; x2 <= xMax; x2 += xStep) {
+      if (Math.abs(x2) < xStep * 0.01) continue;
+      var px2 = (x2 - xMin) / (xMax - xMin) * W;
+      ctx.fillText(formatNum(x2), px2 + 3, ay !== undefined ? ay + 14 : H - 5);
+    }
+    for (var y2 = Math.ceil(yMin / yStep) * yStep; y2 <= yMax; y2 += yStep) {
+      if (Math.abs(y2) < yStep * 0.01) continue;
+      var py2 = H - (y2 - yMin) / (yMax - yMin) * H;
+      ctx.fillText(formatNum(y2), ax !== undefined ? ax + 5 : 5, py2 - 4);
+    }
+
+    // Plots
+    for (var i = 0; i < state.exprs.length; i++) {
+      ctx.strokeStyle = GRAPH_COLORS[i % GRAPH_COLORS.length];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      var started = false;
+      var steps = Math.min(W * 2, 800);
+      for (var s = 0; s <= steps; s++) {
+        var xv = xMin + (xMax - xMin) * s / steps;
+        var yv = evalFn(state.exprs[i], xv);
+        var pv = H - (yv - yMin) / (yMax - yMin) * H;
+        if (!isFinite(yv) || isNaN(yv) || pv < -500 || pv > H + 500) {
+          started = false;
+          continue;
+        }
+        var pxv = s / steps * W;
+        if (!started) { ctx.moveTo(pxv, pv); started = true; }
+        else ctx.lineTo(pxv, pv);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function formatNum(v) {
+    if (Math.abs(v) < 1e-10) return '0';
+    if (Math.abs(v) >= 1000) return v.toExponential(1);
+    if (Number.isInteger(v)) return String(v);
+    return parseFloat(v.toFixed(4)).toString();
+  }
+
+  // Zoom
+  canvas.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var r = canvas.getBoundingClientRect();
+    var mx = e.clientX - r.left;
+    var my = e.clientY - r.top;
+    var cx = state.xMin + (state.xMax - state.xMin) * mx / W;
+    var cy = state.yMin + (state.yMax - state.yMin) * (1 - my / H);
+    var factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+    var dx = (state.xMax - state.xMin) * (factor - 1) / 2;
+    var dy = (state.yMax - state.yMin) * (factor - 1) / 2;
+    state.xMin = cx - (cx - state.xMin) * factor;
+    state.xMax = cx + (state.xMax - cx) * factor;
+    state.yMin = cy - (cy - state.yMin) * factor;
+    state.yMax = cy + (state.yMax - cy) * factor;
+    draw();
+  });
+
+  // Pan
+  canvas.addEventListener('mousedown', function(e) {
+    state.dragging = true;
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+  });
+  window.addEventListener('mousemove', function(e) {
+    if (!state.dragging) return;
+    var dx = e.clientX - state.lastX;
+    var dy = e.clientY - state.lastY;
+    var xRange = state.xMax - state.xMin;
+    var yRange = state.yMax - state.yMin;
+    state.xMin -= dx / W * xRange;
+    state.xMax -= dx / W * xRange;
+    state.yMin += dy / H * yRange;
+    state.yMax += dy / H * yRange;
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+    draw();
+  });
+  window.addEventListener('mouseup', function() { state.dragging = false; });
+
+  // Reset double-click
+  canvas.addEventListener('dblclick', function() {
+    state.xMin = -10; state.xMax = 10;
+    state.yMin = -10; state.yMax = 10;
+    draw();
+  });
+
+  resize();
+  window.addEventListener('resize', resize);
+}
+
+// ─── Systems of Equations ─────────────────────────────────────────────────────
+function doSystem(raw) {
+  var parts = raw.split(/[,;]/).map(function(s) { return s.trim(); }).filter(Boolean);
+  if (parts.length < 2) throw new Error('For a system, separate equations with commas. Example: 2x + y = 5, x - y = 1');
+
+  // Detect variables across all equations
+  var allText = parts.join(' ');
+  var funcNames = ['sin','cos','tan','asin','acos','atan','sinh','cosh','tanh','sqrt','log','ln','abs','exp','pi'];
+  var stripped = allText;
+  for (var i = 0; i < funcNames.length; i++) stripped = stripped.replace(new RegExp(funcNames[i], 'gi'), ' ');
+  var vars = [];
+  for (var j = 0; j < stripped.length; j++) {
+    var ch = stripped[j];
+    if (/[a-zA-Z]/.test(ch) && !['e','i'].includes(ch.toLowerCase()) && vars.indexOf(ch) === -1) vars.push(ch);
+  }
+  if (vars.length === 0) vars = ['x'];
+
+  // Try solving with nerdamer
+  var eqs = parts.map(function(p) {
+    var sides = p.split('=');
+    if (sides.length !== 2) throw new Error('Each equation must have one = sign. Got: ' + p);
+    var lhs = norm(sides[0].trim()), rhs = norm(sides[1].trim());
+    if (rhs === '0') return lhs;
+    return '(' + lhs + ')-(' + rhs + ')';
+  });
+
+  var solStr = '';
+  try {
+    var sols = nerdamer.solveEquations(eqs, vars);
+    solStr = sols.toString();
+  } catch(e) {
+    // Fallback to linear algebra via mathjs
+    try {
+      var linearResult = solveLinearSystem(parts, vars);
+      if (linearResult) return linearResult;
+    } catch(e2) {}
+    throw new Error('Could not solve the system. Try writing each equation separated by commas. Example: 2x + y = 5, x - y = 1');
+  }
+
+  var ans = '';
+  if (solStr && solStr !== '[]') {
+    var parsed = {};
+    try {
+      var arr = JSON.parse(solStr.replace(/'/g,'"'));
+      for (var k = 0; k < vars.length && k < arr.length; k++) {
+        parsed[vars[k]] = pp(arr[k]);
+      }
+    } catch(e) {
+      parsed[vars[0]] = pp(solStr.replace(/^\[|\]$/g,''));
+    }
+    ans = Object.keys(parsed).map(function(v) { return v + ' = ' + parsed[v]; }).join(',  ');
+  } else {
+    ans = 'No unique solution found';
+  }
+
+  return {
+    problem: raw,
+    answer: ans,
+    steps: [
+      { n:'01', t:'Identify the system of <code>' + parts.length + '</code> equations with variables <code>' + vars.join(', ') + '</code>' },
+      { n:'02', t:'Rewrite each equation as an expression set to zero' },
+      { n:'03', t:'Solve the system using elimination, substitution, or matrix methods' },
+      { n:'04', t:'Solution: <code>' + ans + '</code>' },
+    ],
+    concept: 'A system of linear equations can be solved by substitution, elimination, or matrix inversion (Ax = b → x = A⁻¹b).'
+  };
+}
+
+function solveLinearSystem(parts, vars) {
+  // Build coefficient matrix A and vector b from equations of form a1*x + a2*y + ... = b
+  var n = vars.length;
+  var A = [];
+  var b = [];
+  for (var i = 0; i < n && i < parts.length; i++) {
+    var sides = parts[i].split('=');
+    if (sides.length !== 2) return null;
+    var lhs = sides[0].trim(), rhs = sides[1].trim();
+    var expr = '(' + lhs + ')-(' + rhs + ')';
+    var eqNorm = norm(expr);
+
+    var row = [];
+    for (var j = 0; j < n; j++) {
+      var v = vars[j];
+      // Evaluate coefficient by finite difference: d/dv at v=0
+      var scope0 = {}; scope0[v] = 0;
+      for (var vv in scope0) { if (!scope0.hasOwnProperty(vv)) continue; }
+      for (var kv = 0; kv < vars.length; kv++) scope0[vars[kv]] = 0;
+      var f0 = math.evaluate(eqNorm, scope0);
+      var scope1 = {}; for (var kv2 = 0; kv2 < vars.length; kv2++) scope1[vars[kv2]] = 0;
+      scope1[v] = 1;
+      var f1 = math.evaluate(eqNorm, scope1);
+      row.push(f1 - f0);
+      if (j === 0) b.push(-f0);
+    }
+    A.push(row);
+  }
+
+  // Solve Ax = b via Gaussian elimination
+  var aug = [];
+  for (var r = 0; r < n; r++) {
+    aug[r] = A[r].slice();
+    aug[r].push(b[r]);
+  }
+
+  for (var col = 0; col < n; col++) {
+    var maxRow = col;
+    for (var r2 = col + 1; r2 < n; r2++) {
+      if (Math.abs(aug[r2][col]) > Math.abs(aug[maxRow][col])) maxRow = r2;
+    }
+    var tmp = aug[col]; aug[col] = aug[maxRow]; aug[maxRow] = tmp;
+    if (Math.abs(aug[col][col]) < 1e-12) return null;
+    for (var r3 = col + 1; r3 < n; r3++) {
+      var factor = aug[r3][col] / aug[col][col];
+      for (var c = col; c <= n; c++) aug[r3][c] -= factor * aug[col][c];
+    }
+  }
+
+  var sol = [];
+  for (var r4 = n - 1; r4 >= 0; r4--) {
+    var sum = aug[r4][n];
+    for (var c2 = r4 + 1; c2 < n; c2++) sum -= aug[r4][c2] * sol[c2];
+    sol[r4] = sum / aug[r4][r4];
+  }
+
+  var ans = vars.map(function(v, i) { return v + ' = ' + pp(String(sol[i])); }).join(',  ');
+  return {
+    problem: parts.join(', '),
+    answer: ans,
+    steps: [
+      { n:'01', t:'Write the system as a matrix equation <code>Ax = b</code>' },
+      { n:'02', t:'Perform Gaussian elimination on the augmented matrix' },
+      { n:'03', t:'Back-substitute to find each variable' },
+      { n:'04', t:'Solution: <code>' + ans + '</code>' },
+    ],
+    concept: 'A linear system can be written Ax = b and solved via Gaussian elimination or by inverting A.'
+  };
+}
+
+// ─── Limits ───────────────────────────────────────────────────────────────────
+function doLimit(raw) {
+  var t = raw.replace(/^(limit|lim)\s+(of\s+)?/i, '').trim();
+  var m = t.match(/(.+?)\s+as\s+(\w+)\s*->\s*([^\s,]+)/i);
+  if (!m) m = t.match(/(.+?)\s+(\w+)\s*->\s*([^\s,]+)/i);
+  if (!m) throw new Error('Format: limit of sin(x)/x as x -> 0  or  lim x->0 sin(x)/x');
+
+  var expr = m[1].trim();
+  var variable = m[2];
+  var targetStr = m[3].trim();
+  var target = targetStr === 'infinity' || targetStr === 'inf' ? Infinity : parseFloat(targetStr);
+  if (targetStr === '0' || targetStr === '0.0') target = 0;
+
+  var exprN = norm(expr);
+  var steps = [];
+
+  function evalAt(x) {
+    var scope = {};
+    scope[variable] = x;
+    return math.evaluate(exprN, scope);
+  }
+
+  var result;
+  if (target === Infinity) {
+    var vals = [1e2, 1e4, 1e6, 1e8];
+    var evals = vals.map(evalAt);
+    result = evals[evals.length - 1];
+    var trend = '';
+    if (isFinite(evals[0]) && isFinite(evals[evals.length-1])) {
+      if (Math.abs(evals[evals.length-1] - evals[evals.length-2]) < 1e-6) result = evals[evals.length-1];
+    }
+    for (var i = 0; i < vals.length; i++) {
+      steps.push({ n: String(i + 1).padStart(2,'0'), t: 'At <code>' + variable + ' = ' + vals[i] + '</code>: <code>' + pp(String(evals[i])) + '</code>' });
+    }
+    if (!isFinite(result)) {
+      var sign = evals[evals.length-1] > 0 || isNaN(evals[evals.length-1]) ? '' : '-';
+      result = sign + '∞';
+    }
+  } else {
+    var hs = [1e-2, 1e-4, 1e-6, 1e-8, 1e-10];
+    var lefts = hs.map(function(h) { return evalAt(target - h); });
+    var rights = hs.map(function(h) { return evalAt(target + h); });
+    var L = lefts[lefts.length-1];
+    var R = rights[rights.length-1];
+    var both = [L, R].filter(function(v) { return isFinite(v); });
+
+    for (var k = 0; k < hs.length; k++) {
+      steps.push({ n: String(k + 1).padStart(2,'0'), t: 'Left: <code>' + variable + '→' + targetStr + '⁻</code> = <code>' + pp(String(lefts[k])) + '</code>  ·  Right: <code>' + variable + '→' + targetStr + '⁺</code> = <code>' + pp(String(rights[k])) + '</code>' });
+    }
+
+    if (both.length === 2 && Math.abs(L - R) < 1e-6) {
+      result = L;
+    } else if (both.length === 2) {
+      result = pp(String(L)) + ' (left), ' + pp(String(R)) + ' (right) — limit may not exist (LHS ≠ RHS)';
+    } else if (both.length === 1) {
+      result = both[0] + ' (one-sided)';
+    } else {
+      if (Math.abs(lefts[lefts.length-1]) > 1e100 || Math.abs(rights[rights.length-1]) > 1e100) {
+        var sign = '';
+        if (lefts[lefts.length-1] > 0 || rights[rights.length-1] > 0) sign = '';
+        else if (lefts[lefts.length-1] < 0 && rights[rights.length-1] < 0) sign = '-';
+        result = sign + '∞';
+      } else {
+        result = 'Does Not Exist (oscillates or diverges)';
+      }
+    }
+  }
+
+  var ans = typeof result === 'string' ? result : pp(String(result));
+  steps.push({ n: String(steps.length + 1).padStart(2,'0'), t: 'Conclusion: <code>' + ans + '</code>' });
+
+  return {
+    problem: 'lim<sub>' + variable + '→' + targetStr + '</sub> ' + pp(expr),
+    answer: ans,
+    steps: steps,
+    concept: 'A limit describes the value a function approaches as the input approaches some value. If the left and right limits match, the limit exists.'
+  };
+}
+
+// ─── Definite Integral ────────────────────────────────────────────────────────
+function doDefiniteIntegral(raw) {
+  var m = raw.match(/^(integrate|integral)\s+(of\s+)?(.+?)\s+from\s+([^\s]+)\s+to\s+([^\s]+)/i);
+  if (!m) m = raw.match(/^(integrate|integral)\s+(of\s+)?(.+?)\s+dx\s+from\s+([^\s]+)\s+to\s+([^\s]+)/i);
+  if (!m) throw new Error('Format: integrate x^2 from 0 to 1');
+
+  var expr = m[3].trim().replace(/\s*dx\s*$/i, '').trim();
+  var aStr = m[4], bStr = m[5];
+  var a = parseFloat(aStr), b = parseFloat(bStr);
+
+  var exprN = norm(expr);
+  var indefinite, definiteVal;
+
+  // Try symbolic integration first
+  try {
+    var integResult = nerdamer.integrate(exprN, 'x').toString();
+    indefinite = pp(integResult) + ' + C';
+    // Evaluate F(b) - F(a)
+    var fb = nerdamer(integResult, { x: b }).evaluate().toString();
+    var fa = nerdamer(integResult, { x: a }).evaluate().toString();
+    definiteVal = pp(nerdamer('(' + fb + ')-(' + fa + ')').evaluate().toString());
+  } catch(e) {
+    // Numeric integration (Simpson's rule)
+    try {
+      var n = 1000;
+      var h = (b - a) / n;
+      var sum = 0;
+      for (var i = 0; i <= n; i++) {
+        var x = a + i * h;
+        var y = math.evaluate(exprN, { x: x });
+        if (!isFinite(y)) throw new Error('Function undefined at x=' + x);
+        var coeff = (i === 0 || i === n) ? 1 : (i % 2 === 1 ? 4 : 2);
+        sum += coeff * y;
+      }
+      definiteVal = pp(String((h / 3) * sum));
+      indefinite = 'Numeric approximation (Simpson)';
+    } catch(e2) {
+      throw new Error('Could not evaluate the definite integral.');
+    }
+  }
+
+  return {
+    problem: '∫<sub>' + aStr + '</sub><sup>' + bStr + '</sup> ' + pp(expr) + ' dx',
+    answer: definiteVal,
+    steps: [
+      { n:'01', t:'Find the antiderivative of <code>' + pp(expr) + '</code>' },
+      { n:'02', t:'Indefinite integral: <code>' + indefinite + '</code>' },
+      { n:'03', t:'Evaluate F(' + bStr + ') − F(' + aStr + ') using the Fundamental Theorem of Calculus' },
+      { n:'04', t:'Result: <code>' + definiteVal + '</code>' },
+    ],
+    concept: 'The definite integral ∫[a,b] f(x) dx = F(b) − F(a) computes the net area under f(x) from a to b. F is any antiderivative of f.'
+  };
+}
+
+// ─── Matrix Operations ────────────────────────────────────────────────────────
+function doMatrix(raw) {
+  var t = raw.trim();
+  var op = '';
+  var rest = t;
+
+  var matrixOps = { 'det': 'determinant', 'determinant': 'determinant', 'inverse': 'inverse', 'inv': 'inverse', 'transpose': 'transpose', 'matrix': 'display', 'rref': 'rref', 'rank': 'rank' };
+  var opMatch = t.match(/^(det|determinant|inverse|inv|transpose|matrix|rref|rank|eig|eigenvalues?)\s+(.+)/i);
+  if (opMatch) {
+    op = opMatch[1].toLowerCase();
+    if (op === 'eigenvalues' || op === 'eigenvalue') op = 'eig';
+    rest = opMatch[2].trim();
+  }
+
+  // Parse matrix from the rest (could be [[1,2],[3,4]] or [1,2;3,4])
+  var matrixExpr = rest;
+
+  try {
+    var result;
+    var displayResult;
+    var steps = [];
+
+    if (op === 'det' || op === 'determinant') {
+      var m = math.evaluate(matrixExpr);
+      result = math.det(m);
+      displayResult = pp(String(result));
+      steps = [
+        { n:'01', t:'Compute the determinant of the matrix' },
+        { n:'02', t:'For a 2×2 matrix: <code>det[[a,b],[c,d]] = ad − bc</code>' },
+        { n:'03', t:'Result: <code>' + displayResult + '</code>' },
+      ];
+    } else if (op === 'inverse' || op === 'inv') {
+      var m2 = math.evaluate(matrixExpr);
+      var inv = math.inv(m2);
+      displayResult = formatMatrix(inv);
+      steps = [
+        { n:'01', t:'Find the inverse of the matrix A⁻¹' },
+        { n:'02', t:'For 2×2: <code>A⁻¹ = 1/(ad−bc) · [[d,−b],[−c,a]]</code>' },
+        { n:'03', t:'Result:' },
+      ];
+    } else if (op === 'transpose') {
+      var m3 = math.evaluate(matrixExpr);
+      var tr = math.transpose(m3);
+      displayResult = formatMatrix(tr);
+      steps = [
+        { n:'01', t:'Transpose swaps rows and columns: <code>(Aᵀ)ᵢⱼ = Aⱼᵢ</code>' },
+        { n:'02', t:'Result:' },
+      ];
+    } else if (op === 'rank') {
+      var m4 = math.evaluate(matrixExpr);
+      var rank = math.rank(m4);
+      displayResult = String(rank);
+      steps = [
+        { n:'01', t:'The rank is the number of linearly independent rows/columns' },
+        { n:'02', t:'Result: <code>rank = ' + displayResult + '</code>' },
+      ];
+    } else if (op === 'rref') {
+      var m5 = math.evaluate(matrixExpr);
+      // RREF requires iterating - use mathjs's lup decomposition approach
+      // Actually mathjs doesn't have built-in rref. Let's implement it.
+      var arr = m5.toArray();
+      var rrefArr = computeRREF(arr);
+      displayResult = formatMatrix(rrefArr);
+      steps = [
+        { n:'01', t:'Compute the Reduced Row Echelon Form' },
+        { n:'02', t:'Use Gaussian elimination with back-substitution to reach RREF' },
+        { n:'03', t:'Result:' },
+      ];
+    } else if (op === 'eig') {
+      var m6 = math.evaluate(matrixExpr);
+      var eig = math.eigs(m6);
+      var vals = eig.values.toArray();
+      displayResult = vals.map(function(v) { return pp(String(v)); }).join(',  ');
+      steps = [
+        { n:'01', t:'Find eigenvalues λ by solving <code>det(A − λI) = 0</code>' },
+        { n:'02', t:'Result: <code>λ = ' + displayResult + '</code>' },
+      ];
+    } else {
+      // Just display the matrix
+      var m7 = math.evaluate(matrixExpr);
+      displayResult = formatMatrix(m7);
+      steps = [
+        { n:'01', t:'Evaluate the matrix expression' },
+        { n:'02', t:'Result:' },
+      ];
+    }
+
+    return {
+      problem: raw,
+      answer: displayResult,
+      steps: steps,
+      concept: 'A matrix is a rectangular array of numbers. Key operations: addition (element-wise), multiplication (row×col), determinant, inverse, transpose, eigenvalues.',
+      matrixHtml: ''
+    };
+  } catch(e) {
+    throw new Error('Matrix error: ' + e.message + '. Try: det [[1,2],[3,4]] or inverse [1,2;3,4] or [1,2;3,4] * [5,6;7,8]');
+  }
+}
+
+function formatMatrix(m) {
+  var arr;
+  if (m.toArray) arr = m.toArray();
+  else if (Array.isArray(m)) arr = m;
+  else return String(m);
+
+  var rows = arr.map(function(row) {
+    return '│ ' + row.map(function(v) {
+      var s = typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(4)) : String(v);
+      return s;
+    }).join('  ') + ' │';
+  });
+  return '<div class="matrix-display">' + rows.join('\n') + '</div>';
+}
+
+function computeRREF(mat) {
+  var m = mat.map(function(row) { return row.slice(); });
+  var rows = m.length, cols = m[0].length;
+  var lead = 0;
+  for (var r = 0; r < rows; r++) {
+    if (lead >= cols) break;
+    var i = r;
+    while (Math.abs(m[i][lead]) < 1e-12) {
+      i++;
+      if (i === rows) { i = r; lead++; if (lead === cols) return m; }
+    }
+    var tmp = m[i]; m[i] = m[r]; m[r] = tmp;
+    var div = m[r][lead];
+    for (var j = 0; j < cols; j++) m[r][j] /= div;
+    for (var k = 0; k < rows; k++) {
+      if (k !== r) {
+        var mult = m[k][lead];
+        for (var j2 = 0; j2 < cols; j2++) m[k][j2] -= mult * m[r][j2];
+      }
+    }
+    lead++;
+  }
+  return m;
+}
+
+// ─── Derivative ───────────────────────────────────────────────────────────────
+function doDerivative(expr) {
+  var exprN = norm(expr);
+  var simplified;
+  try {
+    var result = nerdamer.diff(exprN, 'x');
+    simplified = nerdamer(result.toString()).simplify().toString();
+  } catch(e) {
+    var node = math.parse(exprN);
+    simplified = math.derivative(node, 'x').toString();
+  }
+  var ans = pp(simplified);
+  return {
+    problem: 'd/dx [ ' + pp(expr) + ' ]',
+    answer: ans,
+    steps: [
+      {n:'01', t:'Identify the function: <code>' + pp(expr) + '</code>'},
+      {n:'02', t:'Determine which differentiation rules apply (power, product, chain, trig\u2026)'},
+      {n:'03', t:'Differentiate each term with respect to <code>x</code>'},
+      {n:'04', t:'Combine and simplify'},
+      {n:'05', t:'Result: <code>' + ans + '</code>'},
+    ],
+    concept: 'Key rules \u2014 Power: d/dx[x\u207F]=nx\u207F\u207B\u00B9 \u00B7 Product: d/dx[fg]=f\'g+fg\' \u00B7 Chain: d/dx[f(g(x))]=f\'(g(x))\u00B7g\'(x) \u00B7 Trig: d/dx[sin x]=cos x, d/dx[cos x]=\u2212sin x'
+  };
+}
+
+// ─── Integral ────────────────────────────────────────────────────────────────
+function doIntegral(expr) {
+  var exprN = norm(expr);
+  var result;
+  try {
+    result = nerdamer.integrate(exprN, 'x').toString();
+  } catch(e) {
+    throw new Error('Could not integrate that expression. Try a polynomial like x^2 + 3x.');
+  }
+  var ans = pp(result) + ' + C';
+  return {
+    problem: '\u222B ' + pp(expr) + ' dx',
+    answer: ans,
+    steps: [
+      {n:'01', t:'Identify the integrand: <code>' + pp(expr) + '</code>'},
+      {n:'02', t:'Apply the power rule: <code>\u222Bx\u207F dx = x\u207F\u207A\u00B9/(n+1)</code> to each term'},
+      {n:'03', t:'For trig/exp terms apply standard antiderivative formulas'},
+      {n:'04', t:'Combine all terms and append the constant of integration <code>C</code>'},
+      {n:'05', t:'Result: <code>' + ans + '</code>'},
+    ],
+    concept: 'Integration is the inverse of differentiation. The +C accounts for any constant that vanishes when differentiating. To evaluate a definite integral \u222B[a,b], compute F(b)\u2212F(a) using the antiderivative F(x).'
+  };
+}
+
+// ─── Simplify / Expand / Factor ───────────────────────────────────────────────
+function doSimplify(expr, op) {
+  var result;
+  try {
+    if (op === 'expand')      result = nerdamer(expr).expand().toString();
+    else if (op === 'factor') result = nerdamer('factor(' + expr + ')').toString();
+    else                      result = nerdamer(expr).simplify().toString();
+  } catch(e) {
+    try { result = math.simplify(expr).toString(); }
+    catch(e2) { throw new Error('Could not process expression. Check syntax.'); }
+  }
+  var ans = pp(result);
+  var opCap = op.charAt(0).toUpperCase() + op.slice(1);
+  return {
+    problem: opCap + ': ' + pp(expr),
+    answer: ans,
+    steps: [
+      {n:'01', t:'Start with: <code>' + pp(expr) + '</code>'},
+      {n:'02', t:op === 'expand' ? 'Apply distributive property and multiply out all brackets' : op === 'factor' ? 'Look for common factors and factor patterns' : 'Combine like terms and cancel common factors'},
+      {n:'03', t:'Simplify coefficients'},
+      {n:'04', t:'Result: <code>' + ans + '</code>'},
+    ],
+    concept: op === 'expand' ? 'Expanding uses the distributive property a(b+c)=ab+ac. For binomials, FOIL: (a+b)(c+d)=ac+ad+bc+bd.' : op === 'factor' ? 'Factoring reverses expansion \u2014 find what multiplies together to give the expression.' : 'Simplifying combines like terms (same variable & exponent) and reduces fractions to lowest terms.'
+  };
+}
+
+// ─── Equation Solver ─────────────────────────────────────────────────────────
+function doEquation(raw) {
+  var parts = raw.split('=');
+  if (parts.length !== 2) throw new Error('Use exactly one = sign in your equation.');
+  var lhs = parts[0].trim(), rhs = parts[1].trim();
+
+  var allText = lhs + rhs;
+  var funcNames = ['sin','cos','tan','asin','acos','atan','sinh','cosh','tanh','sqrt','log','ln','abs','exp','pi'];
+  var stripped = allText;
+  for (var i = 0; i < funcNames.length; i++) stripped = stripped.replace(new RegExp(funcNames[i], 'gi'), ' ');
+  var variable = 'x';
+  for (var j = 0; j < stripped.length; j++) {
+    var ch = stripped[j];
+    if (/[a-zA-Z]/.test(ch) && !['e','i'].includes(ch.toLowerCase())) { variable = ch; break; }
+  }
+
+  var polyExpr = rhs === '0' ? norm(lhs) : lhs === '0' ? '-(' + norm(rhs) + ')' : '(' + norm(lhs) + ')-(' + norm(rhs) + ')';
+
+  var hasSquare = new RegExp(variable + '\\^2').test(polyExpr) || new RegExp(variable + '\\s*\\*\\s*' + variable).test(polyExpr);
+  var hasCubicPlus = new RegExp(variable + '\\^[3-9]').test(polyExpr);
+  var isQuadratic = hasSquare && !hasCubicPlus;
+  var isLinear = !hasSquare && !hasCubicPlus;
+
+  var solArray = [];
+  try {
+    var sols = nerdamer.solve(polyExpr, variable);
+    var solStr = sols.toString().replace(/^\[/,'').replace(/\]$/,'');
+    if (solStr.trim()) {
+      solArray = solStr.split(',').map(function(s) {
+        s = s.trim();
+        if (/[ij]/.test(s)) return null;
+        try { return pp(nerdamer(s).evaluate().toString()); }
+        catch(e) { return pp(s); }
+      }).filter(Boolean);
+    }
+  } catch(e) {
+    throw new Error('couldnt solve equation. Try writing it like: 2x + 5 = 13 or x^2 - 5x + 6 = 0');
+  }
+
+  if (isQuadratic) return buildQuadratic(lhs, rhs, variable, solArray, polyExpr);
+  if (isLinear)    return buildLinear(lhs, rhs, variable, solArray);
+  var ans = solArray.length ? solArray.map(function(s) { return variable + ' = ' + s; }).join('  or  ') : 'No real solutions';
+  return {
+    problem: pp(lhs) + ' = ' + pp(rhs),
+    answer: ans,
+    steps: [
+      {n:'01', t:'Rearrange to: <code>' + pp(polyExpr) + ' = 0</code>'},
+      {n:'02', t:'Solve the polynomial for <code>' + variable + '</code>'},
+      {n:'03', t:'Solutions: <code>' + ans + '</code>'},
+    ],
+    concept: 'A degree-n polynomial can have up to n real roots. Complex/imaginary roots come in conjugate pairs.'
+  };
+}
+
+function buildLinear(lhs, rhs, v, sols) {
+  var ans = sols.length ? v + ' = ' + sols[0] : 'No solution';
+  return {
+    problem: pp(lhs) + ' = ' + pp(rhs),
+    answer: ans,
+    steps: [
+      {n:'01', t:'Start with: <code>' + pp(lhs) + ' = ' + pp(rhs) + '</code>'},
+      {n:'02', t:'Move all <code>' + v + '</code> terms to the left side'},
+      {n:'03', t:'Move all constants to the right side'},
+      {n:'04', t:'Divide both sides to isolate <code>' + v + '</code>'},
+      {n:'05', t:'Solution: <code>' + ans + '</code>'},
+      {n:'06', t:'Verify: substitute back into the original equation'},
+    ],
+    concept: 'A linear equation (highest power = 1) always has exactly one solution. Solve by applying inverse operations: undo addition with subtraction, undo multiplication with division.'
+  };
+}
+
+function buildQuadratic(lhs, rhs, v, sols, polyExpr) {
+  var a='?', b='?', c='?', disc='?';
+  try {
+    var ev = function(val) { var o = {}; o[v] = val; return parseFloat(nerdamer(polyExpr, o).evaluate().toString()); };
+    var f0 = ev(0), f1 = ev(1), fm1 = ev(-1);
+    c = Math.round(f0*1000)/1000;
+    a = Math.round(((f1 + fm1 - 2*c)/2)*1000)/1000;
+    b = Math.round((f1 - c - a)*1000)/1000;
+    disc = Math.round((b*b - 4*a*c)*1000)/1000;
+  } catch(e) {}
+
+  var noSols = sols.length === 0;
+  var ans = noSols ? 'No real solutions (discriminant < 0)' : sols.map(function(s) { return v + ' = ' + s; }).join('  or  ');
+  var discNote = disc !== '?' ? (disc > 0 ? '\u0394 > 0 \u2192 two distinct real roots' : disc === 0 ? '\u0394 = 0 \u2192 one repeated root' : '\u0394 < 0 \u2192 no real roots') : '';
+  return {
+    problem: pp(lhs) + ' = ' + pp(rhs),
+    answer: ans,
+    steps: [
+      {n:'01', t:'Rearrange to standard form: <code>a' + v + '\u00B2 + b' + v + ' + c = 0</code>'},
+      {n:'02', t:'Identify coefficients: <code>a = ' + a + '</code>, <code>b = ' + b + '</code>, <code>c = ' + c + '</code>'},
+      {n:'03', t:'Calculate discriminant: <code>\u0394 = b\u00B2 \u2212 4ac = (' + b + ')\u00B2 \u2212 4\u00B7(' + a + ')\u00B7(' + c + ') = ' + disc + '</code>'},
+      {n:'04', t:'' + discNote},
+      {n:'05', t:'Apply quadratic formula: <code>' + v + ' = (\u2212b \u00B1 \u221A\u0394) / 2a</code>'},
+      {n:'06', t:noSols ? 'No real solutions exist' : '<code>' + ans + '</code>'},
+    ],
+    concept: 'The quadratic formula x=(\u2212b\u00B1\u221A(b\u00B2\u22124ac))/2a solves any quadratic. Discriminant \u0394: positive \u2192 2 real roots, zero \u2192 1 repeated root, negative \u2192 no real roots (complex only).'
+  };
+}
+
+// ─── Evaluate ────────────────────────────────────────────────────────────────
+function doEvaluate(expr) {
+  var result;
+  try { result = nerdamer(expr).evaluate().toString(); }
+  catch(e) {
+    try { result = String(math.evaluate(expr)); }
+    catch(e2) { throw new Error('Could not evaluate. Check syntax \u2014 use * for multiplication, ^ for powers.'); }
+  }
+  var ans = pp(result);
+  return {
+    problem: pp(expr),
+    answer: ans,
+    steps: [
+      {n:'01', t:'Expression: <code>' + pp(expr) + '</code>'},
+      {n:'02', t:'Apply PEMDAS: Parentheses \u2192 Exponents \u2192 Multiplication/Division \u2192 Addition/Subtraction'},
+      {n:'03', t:'Evaluate from left to right within each precedence level'},
+      {n:'04', t:'Result: <code>' + ans + '</code>'},
+    ],
+    concept: 'PEMDAS (or BODMAS) defines evaluation order. Expressions inside parentheses are always evaluated first, giving you control over the order of operations.'
+  };
+}
+
+// ─── Geometry ────────────────────────────────────────────────────────────────
+function doGeometry(raw) {
+  var lo = raw.toLowerCase();
+  var problem, answer, steps, concept;
+
+  var m;
+  if ((m = lo.match(/area\s+of\s+circle\s+r\s*=\s*([\d.]+)/))) {
+    var r = parseFloat(m[1]), A = Math.PI*r*r;
+    problem = 'Area of Circle, r = ' + r;
+    answer = A.toFixed(4) + ' \u2248 ' + A.toFixed(2);
+    steps = [
+      {n:'01',t:'Formula: <code>A = \u03C0 \u00D7 r\u00B2</code>'},
+      {n:'02',t:'Substitute r = ' + r + ': <code>A = \u03C0 \u00D7 ' + r + '\u00B2 = \u03C0 \u00D7 ' + (r*r) + '</code>'},
+      {n:'03',t:'A = ' + A.toFixed(6)},
+      {n:'04',t:'Answer: <code>A \u2248 ' + A.toFixed(2) + '</code>'},
+    ];
+    concept = 'A circle\'s area is A=\u03C0r\u00B2. Its circumference is C=2\u03C0r. \u03C0\u22483.14159.';
+  }
+  else if ((m = lo.match(/area\s+of\s+triangle.*?(?:b(?:ase)?\s*=\s*([\d.]+)).*?(?:h(?:eight)?\s*=\s*([\d.]+))/))) {
+    var base = parseFloat(m[1]), h2 = parseFloat(m[2]), A2 = .5*base*h2;
+    problem = 'Area of Triangle, base = ' + base + ', height = ' + h2;
+    answer = String(A2);
+    steps = [
+      {n:'01',t:'Formula: <code>A = \u00BD \u00D7 base \u00D7 height</code>'},
+      {n:'02',t:'Substitute: <code>A = \u00BD \u00D7 ' + base + ' \u00D7 ' + h2 + '</code>'},
+      {n:'03',t:'A = 0.5 \u00D7 ' + (base*h2) + ' = ' + A2},
+      {n:'04',t:'Answer: <code>A = ' + A2 + '</code>'},
+    ];
+    concept = 'A triangle\'s area is half its base times its perpendicular height. For right triangles, the two legs are base and height.';
+  }
+  else if ((m = lo.match(/area\s+of\s+rectangle.*?(?:(?:l(?:ength)?\s*=\s*([\d.]+))).*?(?:(?:w(?:idth)?\s*=\s*([\d.]+)))/))) {
+    var l = parseFloat(m[1]), w = parseFloat(m[2]), A3 = l*w;
+    problem = 'Area of Rectangle, l = ' + l + ', w = ' + w;
+    answer = String(A3);
+    steps = [
+      {n:'01',t:'Formula: <code>A = length \u00D7 width</code>'},
+      {n:'02',t:'Substitute: <code>A = ' + l + ' \u00D7 ' + w + '</code>'},
+      {n:'03',t:'Answer: <code>A = ' + A3 + '</code>'},
+    ];
+    concept = 'A rectangle\'s area is length \u00D7 width. Its perimeter is 2(l+w).';
+  }
+  else if ((m = lo.match(/area\s+of\s+square\s+(?:s(?:ide)?\s*=\s*)?([\d.]+)/))) {
+    var s = parseFloat(m[1]), A4 = s*s;
+    problem = 'Area of Square, side = ' + s;
+    answer = String(A4);
+    steps = [
+      {n:'01',t:'Formula: <code>A = s\u00B2</code>'},
+      {n:'02',t:'Substitute: <code>A = ' + s + '\u00B2 = ' + s + ' \u00D7 ' + s + '</code>'},
+      {n:'03',t:'Answer: <code>A = ' + A4 + '</code>'},
+    ];
+    concept = 'A square\'s area is s\u00B2. Its perimeter is 4s. All four sides are equal.';
+  }
+  else {
+    throw new Error('Geometry format not recognized. Try: "area of circle r=5", "area of triangle base=4 height=6", "area of rectangle l=5 w=3"');
+  }
+  return { problem: problem, answer: answer, steps: steps, concept: concept };
+}
+
+// ─── Inequalities ─────────────────────────────────────────────────────────────
+function doInequality(lhs, op, rhs) {
+  var exprN = '(' + norm(lhs) + ')-(' + norm(rhs) + ')';
+  var allText = lhs + rhs;
+  var funcNames = ['sin','cos','tan','asin','acos','atan','sinh','cosh','tanh','sqrt','log','ln','abs','exp','pi'];
+  var stripped = allText;
+  for (var fi = 0; fi < funcNames.length; fi++) stripped = stripped.replace(new RegExp(funcNames[fi], 'gi'), ' ');
+  var variable = 'x';
+  for (var j = 0; j < stripped.length; j++) {
+    var c = stripped[j];
+    if (/[a-zA-Z]/.test(c) && !['e','i'].includes(c.toLowerCase())) { variable = c; break; }
+  }
+
+  var roots = [];
+  try {
+    var sols = nerdamer.solve(exprN, variable);
+    var solStr = sols.toString().replace(/^\[/,'').replace(/\]$/,'');
+    if (solStr.trim()) {
+      roots = solStr.split(',').map(function(s) {
+        s = s.trim();
+        try { return parseFloat(nerdamer(s).evaluate().toString()); }
+        catch(e) { return NaN; }
+      }).filter(function(v) { return isFinite(v); });
+    }
+  } catch(e) {}
+  roots.sort(function(a, b) { return a - b; });
+
+  var uniqueRoots = [];
+  for (var ri = 0; ri < roots.length; ri++) {
+    if (ri === 0 || Math.abs(roots[ri] - roots[ri-1]) > 1e-10) uniqueRoots.push(roots[ri]);
+  }
+  roots = uniqueRoots;
+
+  function evalAt(x) { var o = {}; o[variable] = x; return math.evaluate(exprN, o); }
+
+  var intervals = [];
+  var testPts = [];
+  if (roots.length === 0) { testPts.push(0); }
+  else {
+    testPts.push(roots[0] - 10);
+    for (var ti = 0; ti < roots.length - 1; ti++) testPts.push((roots[ti] + roots[ti+1]) / 2);
+    testPts.push(roots[roots.length - 1] + 10);
+  }
+
+  for (var ii = 0; ii <= roots.length; ii++) {
+    var val = evalAt(testPts[ii]);
+    var sat = false;
+    if (op === '>') sat = val > 1e-12;
+    else if (op === '>=') sat = val >= -1e-12;
+    else if (op === '<') sat = val < -1e-12;
+    else if (op === '<=') sat = val <= 1e-12;
+    if (!sat) continue;
+    var leftStr = ii === 0 ? '−∞' : pp(String(roots[ii-1]));
+    var rightStr = ii === roots.length ? '∞' : pp(String(roots[ii]));
+    var rb = (op === '>' || op === '<') ? ')' : ']';
+    if (ii === 0) { lb = '('; }
+    else { lb = (op === '>' || op === '<') ? '(' : '['; }
+    if (ii === roots.length) { rb = ')'; }
+    if (ii === 0 && roots.length === 0) {
+      leftStr = '−∞'; rightStr = '∞'; lb = '('; rb = ')';
+    }
+    intervals.push(lb + leftStr + ', ' + rightStr + rb);
+  }
+
+  var ans = intervals.length ? intervals.join(' ∪ ') : 'No values satisfy';
+  var opMap = { '>': '&gt;', '<': '&lt;', '>=': '&ge;', '<=': '&le;' };
+  var stepDesc = roots.length === 0
+    ? 'No critical points — expression is always ' + opMap[op] + ' 0'
+    : 'Critical points at <code>' + variable + ' = ' + roots.map(function(v) { return pp(String(v)); }).join(', ') + '</code> — test each interval';
+
+  return {
+    problem: pp(lhs) + ' ' + opMap[op] + ' ' + pp(rhs),
+    answer: ans,
+    steps: [
+      { n:'01', t:'Rewrite as <code>' + pp(exprN) + ' ' + opMap[op] + ' 0</code>' },
+      { n:'02', t:'Find critical points where <code>' + pp(exprN) + ' = 0</code>' },
+      { n:'03', t: stepDesc },
+      { n:'04', t:'Solution: <code>' + ans + '</code>' },
+    ],
+    concept: 'To solve a polynomial inequality, find the roots of the corresponding equality, then test points in each interval between roots to determine where the inequality holds.'
+  };
+}
+
+// ─── Number Theory ────────────────────────────────────────────────────────────
+function doNumberTheory(raw) {
+  var lo = raw.toLowerCase().trim();
+
+  // gcd a b c ...
+  if (/^gcf?\s+/.test(lo)) {
+    var nums = raw.replace(/^gcf?\s+/i,'').trim().split(/\s+/).map(Number).filter(function(n) { return isFinite(n) && n > 0; });
+    if (nums.length < 2) throw new Error('Provide at least 2 numbers: gcd 48 72');
+    var g = nums.reduce(function(a, b) { return gcd(a, b); });
+    return {
+      problem: 'GCD(' + nums.join(', ') + ')',
+      answer: String(g),
+      steps: [
+        { n:'01', t:'Numbers: <code>' + nums.join(', ') + '</code>' },
+        { n:'02', t:'Apply Euclidean algorithm to find greatest common divisor' },
+        { n:'03', t:'Result: <code>GCD = ' + g + '</code>' },
+      ],
+      concept: 'The GCD (greatest common divisor) of two numbers is the largest number that divides both. The Euclidean algorithm: gcd(a,b) = gcd(b, a mod b).'
+    };
+  }
+
+  // lcm a b c ...
+  if (/^lcm\s+/.test(lo)) {
+    var nums2 = raw.replace(/^lcm\s+/i,'').trim().split(/\s+/).map(Number).filter(function(n) { return isFinite(n) && n > 0; });
+    if (nums2.length < 2) throw new Error('Provide at least 2 numbers: lcm 12 18');
+    var l = nums2.reduce(function(a, b) { return a * b / gcd(a, b); });
+    return {
+      problem: 'LCM(' + nums2.join(', ') + ')',
+      answer: String(l),
+      steps: [
+        { n:'01', t:'Numbers: <code>' + nums2.join(', ') + '</code>' },
+        { n:'02', t:'Use formula: <code>LCM(a,b) = a × b / GCD(a,b)</code>' },
+        { n:'03', t:'Result: <code>LCM = ' + l + '</code>' },
+      ],
+      concept: 'The LCM (least common multiple) of two numbers is the smallest positive number that is a multiple of both. LCM(a,b) = a×b / GCD(a,b).'
+    };
+  }
+
+  // isprime n
+  if (/^isprime\s+/.test(lo)) {
+    var n = parseInt(raw.replace(/^isprime\s+/i,'').trim(), 10);
+    if (!isFinite(n) || n < 2) throw new Error('Provide an integer ≥ 2: isprime 17');
+    var isP = isPrime(n);
+    var factors = isP ? 'prime' : 'composite (divisible by ' + smallestFactor(n) + ')';
+    return {
+      problem: 'Is ' + n + ' prime?',
+      answer: isP ? 'Yes — ' + n + ' is prime' : 'No — ' + n + ' is ' + factors,
+      steps: [
+        { n:'01', t:'Check divisibility by all primes up to <code>√' + n + ' ≈ ' + Math.round(Math.sqrt(n)) + '</code>' },
+        { n:'02', t: isP ? 'No divisors found — ' + n + ' is prime' : n + ' is divisible by ' + smallestFactor(n) },
+        { n:'03', t:'Conclusion: <code>' + (isP ? n + ' is prime' : n + ' is not prime') + '</code>' },
+      ],
+      concept: 'A prime number is only divisible by 1 and itself. To check: test divisibility by all integers from 2 to √n.'
+    };
+  }
+
+  // primes n — list primes up to n
+  if (/^primes\s+/.test(lo)) {
+    var limit = parseInt(raw.replace(/^primes\s+/i,'').trim(), 10);
+    if (!isFinite(limit) || limit < 2) throw new Error('Provide an integer ≥ 2: primes 50');
+    var sieve = [];
+    var primes = [];
+    for (var i = 2; i <= limit; i++) {
+      if (!sieve[i]) {
+        primes.push(i);
+        for (var j = i * i; j <= limit; j += i) sieve[j] = true;
+      }
+    }
+    var list = primes.join(', ');
+    return {
+      problem: 'Primes up to ' + limit,
+      answer: list.length < 200 ? list : primes.length + ' primes found (truncated)',
+      steps: [
+        { n:'01', t:'Use the Sieve of Eratosthenes up to <code>' + limit + '</code>' },
+        { n:'02', t:'Mark multiples of each prime starting from 2' },
+        { n:'03', t:'Found <code>' + primes.length + '</code> primes: <code>' + (list.length < 200 ? list : primes.slice(0, 50).join(', ') + '...') + '</code>' },
+      ],
+      concept: 'The Sieve of Eratosthenes finds all primes up to n by iteratively marking multiples of each prime starting from 2.'
+    };
+  }
+
+  // factor n — prime factorization
+  if (/^factor\s+\d+/.test(lo) || /^primefactor/.test(lo)) {
+    var n2 = parseInt(raw.replace(/^(factor|primefactor)\s+/i,'').trim(), 10);
+    if (!isFinite(n2) || n2 < 2) throw new Error('Provide an integer ≥ 2: factor 126');
+    var temp = n2;
+    var facs = [];
+    for (var p = 2; p * p <= temp; p++) {
+      while (temp % p === 0) { facs.push(p); temp /= p; }
+    }
+    if (temp > 1) facs.push(temp);
+    var count = {};
+    for (var f = 0; f < facs.length; f++) count[facs[f]] = (count[facs[f]] || 0) + 1;
+    var parts2 = Object.keys(count).sort(function(a,b){return a-b}).map(function(k) { return count[k] > 1 ? k + '^' + count[k] : k; });
+    var ans2 = parts2.join(' × ');
+    return {
+      problem: 'Prime factorization of ' + n2,
+      answer: n2 + ' = ' + ans2,
+      steps: [
+        { n:'01', t:'Start with <code>' + n2 + '</code>' },
+        { n:'02', t:'Divide by smallest primes: <code>' + facs.join(' × ') + '</code>' },
+        { n:'03', t:'<code>' + n2 + ' = ' + ans2 + '</code>' },
+      ],
+      concept: 'Every integer > 1 can be uniquely expressed as a product of prime numbers (Fundamental Theorem of Arithmetic).'
+    };
+  }
+
+  throw new Error('Number theory: try "gcd 48 72", "lcm 12 18", "factor 126", "isprime 17", or "primes 50"');
+}
+
+function gcd(a, b) {
+  a = Math.abs(a); b = Math.abs(b);
+  while (b) { var t = b; b = a % b; a = t; }
+  return a;
+}
+
+function isPrime(n) {
+  if (n < 2) return false;
+  if (n < 4) return true;
+  if (n % 2 === 0 || n % 3 === 0) return false;
+  for (var i = 5; i * i <= n; i += 6) {
+    if (n % i === 0 || n % (i + 2) === 0) return false;
+  }
+  return true;
+}
+
+function smallestFactor(n) {
+  if (n % 2 === 0) return 2;
+  if (n % 3 === 0) return 3;
+  for (var i = 5; i * i <= n; i += 6) {
+    if (n % i === 0) return i;
+    if (n % (i + 2) === 0) return i + 2;
+  }
+  return n;
+}
+
+// ─── Polynomial Division ──────────────────────────────────────────────────────
+function doPolyDivide(dividend, divisor) {
+  var numN = norm(dividend);
+  var denN = norm(divisor);
+  var quotient, remainder;
+  try {
+    var divResult = nerdamer.div(numN, denN);
+    var str = divResult.toString();
+    var parts = str.replace(/^\[|\]$/g,'').split(',').map(function(s) { return s.trim(); });
+    quotient = pp(parts[0] || '');
+    remainder = parts.length > 1 ? pp(parts[1]) : '0';
+  } catch(e) {
+    throw new Error('Could not perform polynomial division. Format: divide x^2 - 5x + 6 by x - 2');
+  }
+  var ans = quotient;
+  if (remainder && remainder !== '0') ans += ', remainder ' + remainder;
+  return {
+    problem: '(' + pp(dividend) + ') ÷ (' + pp(divisor) + ')',
+    answer: ans,
+    steps: [
+      { n:'01', t:'Divide leading term of numerator by leading term of denominator' },
+      { n:'02', t:'Multiply result by divisor, subtract from numerator' },
+      { n:'03', t:'Repeat until degree of remainder < degree of divisor' },
+      { n:'04', t:'Quotient: <code>' + quotient + '</code>' + (remainder && remainder !== '0' ? ', remainder: <code>' + remainder + '</code>' : '') },
+      { n:'05', t:'Check: <code>(' + quotient + ') × (' + pp(divisor) + ')' + (remainder && remainder !== '0' ? ' + (' + remainder + ')' : '') + ' = ' + pp(dividend) + '</code>' },
+    ],
+    concept: 'Polynomial long division works like numeric long division: divide, multiply, subtract, bring down, repeat. When dividing by (x−r), the remainder equals f(r) (Remainder Theorem).'
+  };
+}
+
+// ─── Main Solve ───────────────────────────────────────────────────────────────
+function solve() {
+  var input = document.getElementById('math-input').value.trim();
+  if (!input) return;
+
+  var card = document.getElementById('result-card');
+  var body = document.getElementById('result-body');
+  var badge = document.getElementById('result-badge');
+
+  card.classList.add('visible');
+  badge.textContent = 'mathing...';
+  body.innerHTML = '<div style="padding:.5rem 0;color:var(--muted);font-size:.8rem;letter-spacing:.1em;">Processing\u2026</div>';
+
+  setTimeout(function() {
+    try {
+      var result = parseInput(input);
+      body.innerHTML = renderResult(result);
+      badge.textContent = '\u2713';
+      addHistory(input);
+      if (result.graph) {
+        setTimeout(function() { initGraph(result.graph); }, 30);
+      }
+    } catch(err) {
+      body.innerHTML = '<div class="error-msg">' + err.message + '</div>';
+      badge.textContent = 'error';
+    }
+  }, 30);
+}
+
+function addHistory(problem) {
+  if (mathHistory.includes(problem)) return;
+  mathHistory.unshift(problem);
+  if (mathHistory.length > 5) mathHistory.pop();
+  var sec = document.getElementById('history-section');
+  var list = document.getElementById('history-list');
+  sec.classList.add('visible');
+  list.innerHTML = mathHistory.map(function(h) {
+    return '<div class="history-item" onclick="loadHistory(this)">' + h + '</div>';
+  }).join('');
+}
+
+function loadHistory(el) {
+  document.getElementById('math-input').value = el.textContent;
+  solve();
+}
+</script>
+</body>
+</html>
