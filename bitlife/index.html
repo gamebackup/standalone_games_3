@@ -10,7 +10,27 @@
         body,html{margin:0 auto;padding:0 auto;width:62vh;height:100%;overflow:hidden}#links2{position:absolute;right:0;bottom:0;padding:8px;list-style:none;background-color:#fff;border-top-left-radius:5px}#links2 ul{list-style-type:none;margin:0;padding:0}#links2 ul li{display:inline}#links2 ul li a{color:#000;display:inline-block;margin-right:10px;text-decoration:none}#links2 ul li a.visited{color:#000}#links2 ul li a:hover{opacity:.85}
 	</style>
 	  <link rel="canonical" href="/">
-	<script src="TemplateData/UnityProgress.js"></script>
+	<script>
+	(function() {
+	  var TARGET = 'transfer_config.txt';
+	  var origOpen = XMLHttpRequest.prototype.open;
+	  XMLHttpRequest.prototype.open = function(method, url) {
+	    if (typeof url === 'string' && url.indexOf(TARGET) !== -1) {
+	      arguments[1] = 'data:text/plain,';
+	    }
+	    return origOpen.apply(this, arguments);
+	  };
+	  var origFetch = window.fetch;
+	  window.fetch = function(input) {
+	    var url = typeof input === 'string' ? input : (input && input.url);
+	    if (typeof url === 'string' && url.indexOf(TARGET) !== -1) {
+	      return Promise.resolve(new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }));
+	    }
+	    return origFetch.apply(this, arguments);
+	  };
+	})();
+	</script>
+    <script src="TemplateData/UnityProgress.js"></script>
     <script src="Build/UnityLoader.js"></script>
     <script>
       var unityInstance = UnityLoader.instantiate("gameContainer", "Build/BitLife.json", {onProgress: UnityProgress});
