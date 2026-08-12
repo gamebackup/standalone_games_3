@@ -367,7 +367,7 @@ Check the source code in src/game/actions.js for details`)):(console.log(`Unknow
 				</article>
 			`:X`
 			<article class="Splash Container Container--vcenter">
-				<img class="Splash-spoder" src="/images/spoder.png" title="Oh hello" />
+				<img class="Splash-spoder" src="./images/spoder.png" title="Oh hello" />
 				<div class="Box">
 					<h1 class="Title Splash-title">Slay the Web</h1>
 					<ul class="Options">
