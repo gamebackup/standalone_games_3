@@ -429,7 +429,9 @@ window.getMinimumDelayBetweenInterstitial = function() {
 }
 
 window.setMinimumDelayBetweenInterstitial = function(options) {
-    bridge.advertisement.setMinimumDelayBetweenInterstitial(options)
+    if (bridge.advertisement.setMinimumDelayBetweenInterstitial) {
+        bridge.advertisement.setMinimumDelayBetweenInterstitial(options)
+    }
 }
 
 window.getIsRewardedSupported = function() {
