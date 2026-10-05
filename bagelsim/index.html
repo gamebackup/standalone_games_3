@@ -1,0 +1,109 @@
+<!doctypehtml>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link href="./favicon.ico" rel="icon" type="image/x-icon">
+<meta content="yes" name="apple-mobile-web-app-capable">
+<script src="coi-serviceworker.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Bagel Simulator</title>
+<style>
+  body,html{margin:0;padding:0;background-color:#000;overflow:hidden}
+  .emscripten{padding-right:0;margin-left:auto;margin-right:auto;display:block}
+  textarea.emscripten{font-family:monospace;width:80%}
+  div.emscripten{text-align:center}
+  div.emscripten_border{border:1px solid #000}
+  canvas.emscripten{border:0 none;background-color:#000;width:100vw;height:100vh}
+  .spinner{height:50px;width:50px;margin:0 auto;-webkit-animation:rotation .8s linear infinite;-moz-animation:rotation .8s linear infinite;-o-animation:rotation .8s linear infinite;animation:rotation .8s linear infinite;border-left:10px solid #0096f0;border-right:10px solid #0096f0;border-bottom:10px solid #0096f0;border-top:10px solid #6400c8;border-radius:100%;background-color:#c864fa}
+  @-webkit-keyframes rotation{from{-webkit-transform:rotate(0)}to{-webkit-transform:rotate(360deg)}}
+  @-moz-keyframes rotation{from{-moz-transform:rotate(0)}to{-moz-transform:rotate(360deg)}}
+  @-o-keyframes rotation{from{-o-transform:rotate(0)}to{-o-transform:rotate(360deg)}}
+  @keyframes rotation{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75em;background:#000;color:#c864fa;font:500 14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;z-index:10;transition:opacity .35s ease}
+  #boot.done{opacity:0;pointer-events:none}
+  #boot .brand{font-size:20px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+  #progress{width:min(320px,70vw);height:6px;accent-color:#c864fa}
+  #boot .note{max-width:min(460px,84vw);text-align:center;color:#6b6b80;font-size:12px}
+  #boot .err{color:#ff6b6b;max-width:min(560px,90vw);font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<div id="boot">
+  <div class="brand">Bagel Simulator</div>
+  <div class="spinner" id="spinner"></div>
+  <div class="emscripten" id="status">Downloading...</div>
+  <div class="emscripten"><progress id="progress" max="100" value="0"></progress></div>
+  <div class="note" id="note">High Octane Portable FRC Simulation &middot; offline build</div>
+  <div class="err" id="err"></div>
+</div>
+<script>
+var statusElement=document.getElementById("status"),
+    progressElement=document.getElementById("progress"),
+    spinnerElement=document.getElementById("spinner"),
+    bootElement=document.getElementById("boot"),
+    noteElement=document.getElementById("note"),
+    errElement=document.getElementById("err"),
+    canvasElement=document.getElementById("canvas");
+
+function setStatus(e){
+  if(setStatus.last||(setStatus.last={time:Date.now(),text:""}),e!==setStatus.last.text){
+    var t=e.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/),n=Date.now();
+    t&&n-setStatus.last.time<30||(setStatus.last.time=n,setStatus.last.text=e,
+      t?(e=t[1],progressElement.value=100*parseInt(t[2]),progressElement.max=100*parseInt(t[4]),
+         progressElement.hidden=!1,spinnerElement.hidden=!1):
+        (progressElement.value=null,progressElement.max=null,progressElement.hidden=!0,
+         e||(spinnerElement.hidden=!0),
+         !e&&Module.Browser&&Module.Browser.setCanvasSize(window.innerWidth,window.innerHeight,!1)),
+      statusElement.innerHTML=e)
+  }
+}
+
+canvasElement.addEventListener("webglcontextlost",(e=>{alert("WebGL context lost. You will need to reload the page."),e.preventDefault()}),!1);
+
+var Module={
+  print(...e){console.log(...e)},
+  canvas:canvasElement,
+  setStatus:setStatus,
+  totalDependencies:0,
+  monitorRunDependencies(e){
+    this.totalDependencies=Math.max(this.totalDependencies,e);
+    setStatus(e?"Preparing... ("+(this.totalDependencies-e)+"/"+this.totalDependencies+")":"All downloads complete.")
+  }
+};
+
+setStatus("Downloading...");
+
+window.onerror=(msg,src,line,col,err)=>{
+  setStatus("Exception thrown, see JavaScript console");
+  spinnerElement.style.display="none";
+  errElement.textContent=(err&&err.stack)||(msg+"  ("+src+":"+line+":"+col+")");
+  errElement.hidden=!1;
+  setStatus=e=>{e&&console.error("[post-exception status] "+e)};
+};
+
+Module.onRuntimeInitialized=()=>{
+  const e=FS.filesystems.IDBFS;
+  FS.mkdir("/db");
+  FS.mount(e,{},"/db");
+  FS.syncfs(!0,(e=>{console.log(e)}));
+  bootElement.classList.add("done");
+  setTimeout(()=>{bootElement.remove()},400);
+};
+
+document.getElementById("canvas").addEventListener("touchstart",(()=>{
+  window.matchMedia("(pointer: coarse)").matches&&document.getElementById("canvas").requestFullscreen()
+}));
+
+if(location.protocol==="file:"){
+  errElement.textContent="Loading over file:// is blocked by the browser.\nRun a local server instead:  python3 -m http.server 8000\nthen open http://localhost:8000/";
+  errElement.hidden=!1;
+  spinnerElement.style.display="none";
+  setStatus("Waiting for a local server");
+}
+</script>
+<script src="index.js" async></script>
+</body>
+</html>
