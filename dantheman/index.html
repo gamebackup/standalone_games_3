@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, minimal-ui, shrink-to-fit=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<!-- The above 4 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+
+	<title>DanTheMan-Defold 1.3.3</title>
+
+	<style type='text/css'>
+	/* Disable user selection to avoid strange bug in Chrome on Windows:
+	* Selecting a text outside the canvas, then clicking+draging would
+	* drag the selected text but block mouse down/up events to the engine.
+	*/
+	body {
+	
+		position: fixed; /* Prevent overscroll */
+	
+		margin:0;
+		padding:0;
+	}
+
+	.canvas-app-container {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+	}
+
+	.canvas-app-container:-webkit-full-screen {
+		/* Auto width and height in Safari/Chrome fullscreen. */
+		width: auto;
+		height: auto;
+	}
+
+	#canvas {
+		outline: none;
+		border: 0;
+		width: 100%;
+		vertical-align: bottom;
+	}
+
+	#canvas-container {
+		position: relative;
+	}
+
+	canvas:focus, canvas:active {
+		outline: none;
+		border: 0;
+		ie-dummy: expression(this.hideFocus=true);
+		-moz-outline-style: none;
+	}
+
+	body, div {
+		-webkit-tap-highlight-color: rgba(0,0,0,0);
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
+	}
+
+		.canvas-app-progress {
+		position: absolute;
+		background-color: #d1dbeb;
+		height: 6px;
+		margin-top: -6px;
+		width: 100%;
+	}
+
+	.canvas-app-progress-bar {
+		font-size: 12px;
+		height: 6px;
+		color: rgb(255, 255, 255);
+		background-color: #1a72eb;
+		text-align: center;
+		line-height: 20px;
+		transition: transform 1s ease;
+		transform-origin: left;
+		transform: scaleX(1.0);
+	}
+	.link, .button {
+		font-family: sans-serif;
+		font-size: 14px;
+		font-weight: normal;
+		font-style: normal;
+		font-stretch: normal;
+		line-height: normal;
+		letter-spacing: 0px;
+		padding-top: 12px;
+	}
+
+	.buttons-background {
+		background-color: #ffffff;
+		width: 100%;
+		height: 0px;
+	}
+
+	body {
+		background-color: #000000;
+		overflow: hidden;
+	}
+
+	#canvas {
+		height: 100%;
+	}
+
+	.canvas-app-container {
+		background: rgba(250,252,255,1);
+		background: -moz-linear-gradient(-45deg, rgba(250,252,255,1) 0%, rgba(250,252,255,1) 50%, rgba(245,249,255,1) 50%, rgba(245,249,255,1) 100%);
+		background: -webkit-gradient(left top, right bottom, color-stop(0%, rgba(250,252,255,1)), color-stop(50%, rgba(250,252,255,1)), color-stop(50%, rgba(245,249,255,1)), color-stop(100%, rgba(245,249,255,1)));
+		background: -webkit-linear-gradient(-45deg, rgba(250,252,255,1) 0%, rgba(250,252,255,1) 50%, rgba(245,249,255,1) 50%, rgba(245,249,255,1) 100%);
+		background: -o-linear-gradient(-45deg, rgba(250,252,255,1) 0%, rgba(250,252,255,1) 50%, rgba(245,249,255,1) 50%, rgba(245,249,255,1) 100%);
+		background: -ms-linear-gradient(-45deg, rgba(250,252,255,1) 0%, rgba(250,252,255,1) 50%, rgba(245,249,255,1) 50%, rgba(245,249,255,1) 100%);
+		background: linear-gradient(135deg, rgba(250,252,255,1) 0%, rgba(250,252,255,1) 50%, rgba(245,249,255,1) 50%, rgba(245,249,255,1) 100%);
+		filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fafcff', endColorstr='#f5f9ff', GradientType=1 );
+	}
+
+.canvas-app-canvas {
+		background-position: center center;
+        background-size: contain;
+		background-repeat: no-repeat;
+		background-image: url("Y2G_Splash.png");
+	}
+
+	/* Hide the Game Distribution SDK debug console.
+	   The console is injected at runtime by https://html5.api.gamedistribution.com/main.min.js,
+	   so it cannot be deleted from the markup. Hiding it is preferred over removing the
+	   node, because the SDK's own button handlers hold references to these elements. */
+	#gdsdk__console, #gdsdk__console_container {
+		display: none !important;
+	}
+	</style>
+
+</head>
+
+<body>
+
+	<div id="app-container" class="canvas-app-container">
+		<div id="running-from-file-warning" style="display: none; margin: 3em;">
+			<h1>Running from local file</h1>
+			<p>It seems like you have opened this file by double-clicking on it. In order to test your build in a browser <b>you need to load this file from a web server</b>. You can either upload this file and the rest of the files from a Defold HTML5 bundle to a web hosting service OR host them using a local web server on your home network.</p>
+			<p><a href="https://defold.com/manuals/html5/#testing-html5-build" target="_blank">Learn more about running a local web server in the Defold HTML5 manual</a>.</p>
+		</div>
+		<div id="webgl-not-supported" style="display: none; margin: 3em;">
+			<h1>WebGL not supported</h1>
+			<p>WebGL is not supported by your browser - visit <a href="https://get.webgl.org/">https://get.webgl.org/</a> to learn more.</p>
+		</div>
+		<div id="canvas-container" class="canvas-app-canvas-container">
+			<canvas id="canvas" class="canvas-app-canvas" tabindex="1" width="960" height="640"></canvas>
+		</div>
+		<div class="buttons-background">
+		</div>
+	</div>
+	<!-- -->
+	<script src="yes2sdk-data.js?v=b0bd3a9fb33a" type="text/javascript"></script>
+<script>
+(function(){
+  var cfg=window.__yes2sdkConfig;
+  if(!cfg||!cfg.orientation||cfg.orientation==="both")return;
+  var LANDSCAPE=cfg.orientation==="landscape";
+  var TARGET=LANDSCAPE?16/9:9/16;
+  var suspended=false;
+  var winW=Object.getOwnPropertyDescriptor(Window.prototype,"innerWidth");
+  var winH=Object.getOwnPropertyDescriptor(Window.prototype,"innerHeight");
+  var realW=function(){return winW&&winW.get?winW.get.call(window):document.documentElement.clientWidth};
+  var realH=function(){return winH&&winH.get?winH.get.call(window):document.documentElement.clientHeight};
+  function box(){
+    var vw=realW(),vh=realH(),w,h;
+    if(LANDSCAPE){
+      // Landscape game: fill any landscape screen edge-to-edge; only
+      // letterbox (bars top/bottom) when shown on a portrait screen.
+      if(vw>=vh){w=vw;h=vh}else{w=vw;h=w/TARGET}
+    }else{
+      // Portrait game: fill any portrait screen; only letterbox (bars
+      // left/right) when shown on a landscape screen.
+      if(vh>=vw){w=vw;h=vh}else{h=vh;w=h*TARGET}
+    }
+    return{w:Math.floor(w),h:Math.floor(h)}
+  }
+  try{
+    Object.defineProperty(window,"innerWidth",{get:function(){return suspended?realW():box().w},configurable:true});
+    Object.defineProperty(window,"innerHeight",{get:function(){return suspended?realH():box().h},configurable:true});
+  }catch(e){}
+  function applyStyles(){
+    var b=box();
+    var html=document.documentElement,body=document.body;
+    if(!body)return;
+    html.style.margin="0";html.style.padding="0";
+    html.style.width="100%";html.style.height="100%";
+    html.style.background="#000";
+    body.style.margin="0";body.style.padding="0";
+    body.style.background="#000";body.style.overflow="hidden";
+    body.style.width=realW()+"px";body.style.height=realH()+"px";
+    body.style.position="relative";
+    var wrap=document.getElementById("__y2_letterbox");
+    if(!wrap){
+      wrap=document.createElement("div");
+      wrap.id="__y2_letterbox";
+      while(body.firstChild){wrap.appendChild(body.firstChild)}
+      body.appendChild(wrap);
+    }
+    if(suspended){
+      wrap.style.cssText="position:absolute;left:0;top:0;transform:none;overflow:hidden;width:"+realW()+"px;height:"+realH()+"px;";
+    }else{
+      wrap.style.cssText="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);overflow:hidden;width:"+b.w+"px;height:"+b.h+"px;";
+    }
+  }
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",applyStyles);
+  }else{applyStyles()}
+  window.__y2Letterbox={suspend:function(){suspended=true;applyStyles();window.dispatchEvent(new Event("resize"));},resume:function(){suspended=false;applyStyles();window.dispatchEvent(new Event("resize"));}};
+  window.addEventListener("resize",applyStyles);
+})();
+</script>
+<script>
+(function(){
+  // Private state — never exposed on window.
+  var tracked=[];
+  var savedCtx=[];
+  var savedMedia=[];
+  var suspended=false;
+  // Wrap an AudioContext constructor so instances are tracked. Preserve the
+  // prototype (so instanceof still works) and best-effort copy enumerable
+  // static props. Guarded: only patch when the constructor exists.
+  function patch(name){
+    try{
+      var Orig=window[name];
+      if(typeof Orig!=="function")return;
+      function Patched(){
+        var ctx=arguments.length?new Orig(arguments[0]):new Orig();
+        try{tracked.push(ctx);}catch(e){}
+        return ctx;
+      }
+      Patched.prototype=Orig.prototype;
+      try{
+        for(var k in Orig){if(Object.prototype.hasOwnProperty.call(Orig,k)){Patched[k]=Orig[k];}}
+      }catch(e){}
+      window[name]=Patched;
+    }catch(e){}
+  }
+  patch("AudioContext");
+  patch("webkitAudioContext");
+  window.__y2Audio={
+    suspend:function(){
+      // Re-entrancy guard: a second suspend() before resume() is a no-op so
+      // the snapshot is never overwritten (and later resume() stays correct).
+      if(suspended)return;
+      try{
+        // Prune closed contexts first so `tracked` cannot grow unbounded
+        // across a long session (engines may create + close short-lived ones).
+        var live=[];
+        for(var t=0;t<tracked.length;t++){
+          try{if(tracked[t]&&tracked[t].state!=="closed"){live.push(tracked[t]);}}catch(e){}
+        }
+        tracked=live;
+        for(var i=0;i<tracked.length;i++){
+          try{
+            var c=tracked[i];
+            // Only running contexts — a context the ad SDK makes AFTER this
+            // snapshot is not tracked yet, so ad audio is never suspended.
+            // suspend() returns a Promise; swallow rejections so they never
+            // surface as an unhandledrejection in the game page.
+            if(c&&c.state==="running"){savedCtx.push(c);var ps=c.suspend();if(ps&&ps.catch){ps.catch(function(){});}}
+          }catch(e){}
+        }
+      }catch(e){}
+      try{
+        var media=document.querySelectorAll("audio,video");
+        for(var j=0;j<media.length;j++){
+          try{
+            var m=media[j];
+            // Only media the game is actively playing — never re-mute later.
+            if(!m.paused&&!m.muted){m.muted=true;savedMedia.push(m);}
+          }catch(e){}
+        }
+      }catch(e){}
+      suspended=true;
+    },
+    resume:function(){
+      if(!suspended)return;
+      // Restore ONLY the snapshot — never audio the game paused/muted itself.
+      try{
+        for(var i=0;i<savedCtx.length;i++){try{var pr=savedCtx[i].resume();if(pr&&pr.catch){pr.catch(function(){});}}catch(e){}}
+      }catch(e){}
+      try{
+        for(var j=0;j<savedMedia.length;j++){try{savedMedia[j].muted=false;}catch(e){}}
+      }catch(e){}
+      savedCtx=[];
+      savedMedia=[];
+      suspended=false;
+    }
+  };
+})();
+</script>
+<script>
+(function(){
+  var cfg=window.__yes2sdkConfig;
+  if(!cfg||!cfg.platform||cfg.platform==="crazygames")return;
+  var _cg=window.CrazyGames;
+  try{Object.defineProperty(window,"CrazyGames",{
+    get:function(){return typeof window.Yes2SDK!=="undefined"?undefined:_cg;},
+    configurable:true,enumerable:true
+  });}catch(e){}
+})();
+</script>
+<script src="yes2sdk.umd.js?v=2.3.2" type="text/javascript"></script>
+<script>
+/* Neutralize the Yes2SDK / Game Distribution monetization wrapper.
+ *
+ * This build was produced for embedding inside the publisher's own iframe, which
+ * calls Yes2SDK.initializeAsync() and loads https://html5.api.gamedistribution.com/
+ * main.min.js. Run standalone, that script never loads, initializeAsync() never
+ * runs, and every SDK call the Defold game makes throws NOT_INITIALIZED. The game
+ * retries on a timer, so the console fills with hundreds of those errors and the
+ * ad endpoints keep getting polled for nothing.
+ *
+ * The shim below keeps the exact call surface and return shapes the SDK documents
+ * (getters `player` / `game`, `{valid:true}` / `{valid:false,error}` results), but
+ * routes it locally: no ad or analytics requests leave the page.
+ *
+ * Saves are preserved rather than dropped. The game reaches for player.setDataAsync()
+ * on a timer, and the real SDK would fall back to a local store via _useDataFallback()
+ * when no cloud strategy is available -- which never happens here because init fails.
+ * So setDataAsync/getDataAsync are implemented against localStorage, and the game's
+ * progress now actually persists instead of silently failing.
+ *
+ * Defold's own persistence is separate and untouched: sys.save -> IndexedDB "/data".
+ */
+(function(){
+  var NS = "yes2sdk_shim__data__";
+  var store = {
+    read: function () {
+      try { return JSON.parse(localStorage.getItem(NS) || "{}") || {}; }
+      catch (e) { return {}; }
+    },
+    write: function (o) {
+      try { localStorage.setItem(NS, JSON.stringify(o)); }
+      catch (e) { /* private mode / quota -- saves stay in-memory only */ }
+    }
+  };
+
+  // The SDK accepts a JSON string or a raw value; a bare string is treated as one key.
+  function parseArg(a, fallback) {
+    if (typeof a === "string") {
+      try { return JSON.parse(a); } catch (e) { return fallback; }
+    }
+    return a === undefined ? fallback : a;
+  }
+
+  function ok(data) { return { valid: true, data: data }; }
+  function fail(msg) { return { valid: false, error: msg }; }
+
+  var player = {
+    setDataAsync: function (payload) {
+      return Promise.resolve((function () {
+        var parsed = parseArg(payload, null);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          return fail("data must be a valid object");
+        }
+        var all = store.read();
+        Object.keys(parsed).forEach(function (k) { all[k] = parsed[k]; });
+        store.write(all);
+        return ok(undefined);
+      })());
+    },
+    getDataAsync: function (keys) {
+      return Promise.resolve((function () {
+        var parsed = parseArg(keys, null);
+        var list = Array.isArray(parsed) ? parsed : (typeof parsed === "string" ? [parsed] : null);
+        if (!list || !list.length) return fail("keys must be a non-empty array");
+        var all = store.read(), out = {};
+        list.forEach(function (k) { if (k in all) out[k] = all[k]; });
+        return ok(out);
+      })());
+    },
+    flushDataAsync: function () { return Promise.resolve(ok(undefined)); },
+    getConnectedPlayersAsync: function () { return Promise.resolve([]); }
+  };
+
+  var game = {
+    gameplayStart: function () { return ok(undefined); },
+    gameplayStop: function () { return ok(undefined); },
+    happyTime: function () { return ok(undefined); },
+    // No ad provider is wired up, so report honestly instead of throwing.
+    isRewardedAdAvailable: function () { return false; },
+    isAdBlocked: function () { return false; },
+    isBannerSupported: function () { return false; },
+    showRewarded: function () { return Promise.resolve(fail("ads disabled")); },
+    showInterstitial: function () { return Promise.resolve(fail("ads disabled")); },
+    showBanner: function () { return Promise.resolve(fail("ads disabled")); },
+    showFullscreenAdv: function () { return Promise.resolve(fail("ads disabled")); }
+  };
+
+  // Catch-all so a method this build doesn't use yet still resolves instead of
+  // throwing and re-introducing console noise.
+  function guard(ns) {
+    return new Proxy(ns, {
+      get: function (t, k) {
+        if (k in t) return t[k];
+        return function () { return Promise.resolve(ok(undefined)); };
+      }
+    });
+  }
+
+  try {
+    var prev = window.Yes2SDK || {};
+    window.Yes2SDK = new Proxy({
+      initializeAsync: function () { return Promise.resolve(prev); },
+      version: prev.version,
+      player: guard(player),
+      game: guard(game),
+      data: guard({})
+    }, {
+      get: function (t, k) {
+        if (k in t) return t[k];
+        return function () { return Promise.resolve(ok(undefined)); };
+      }
+    });
+  } catch (e) {
+    console.warn("Yes2SDK shim not installed:", e);
+  }
+})();
+</script>
+<script>
+/* Mirror Defold's save data out of IndexedDB and into localStorage.
+ *
+ * Defold's sys.save does NOT use localStorage -- it keeps everything in an
+ * IndexedDB database at "/data", object store "FILE_DATA", one entry per saved
+ * file/key with the shape {timestamp, mode, contents?}. That is where this game's
+ * progress actually lives, which is why an empty localStorage does not mean
+ * "progress lost".
+ *
+ * IndexedDB is also the fragile part of that arrangement: browsers evict it under
+ * storage pressure far more readily than localStorage, and clearing "site data"
+ * wipes it. So this copies the save out to localStorage under one JSON key and
+ * keeps it current, giving you a readable, hand-exportable copy that survives
+ * IndexedDB eviction.
+ *
+ * Direction is deliberately one-way (IndexedDB -> localStorage). Writing back into
+ * Defold's store risks corrupting a real save, so restore is only ever done when
+ * "/data" is genuinely missing or empty, and otherwise on explicit request via
+ * __defoldSave.restore().
+ */
+(function () {
+  var DB = "/data", STORE = "FILE_DATA";
+  var KEY = "defold_save_mirror_v1";
+  var POLL_MS = 2500;
+  var warned = false;
+
+  function b64(buf) {
+    // Keep each apply() batch small: a full-size ArrayBuffer in one
+    // fromCharCode.apply() call overflows the stack and aborts the whole sync.
+    var bytes = new Uint8Array(buf), chunk = 0x2000, parts = [];
+    for (var i = 0; i < bytes.length; i += chunk) {
+      parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunk)));
+    }
+    return btoa(parts.join(""));
+  }
+  function unb64(s) {
+    var bin = atob(s), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  // Defold payloads can hold ArrayBuffers; tag them so they survive JSON.
+  // `timestamp` is stored as a real Date -- Object.keys(date) is empty, so the
+  // generic object branch would silently flatten it to {} and lose it on restore.
+  function enc(v) {
+    if (v instanceof ArrayBuffer) return { __b: b64(v) };
+    if (ArrayBuffer.isView(v)) return { __b: b64(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength)) };
+    if (v instanceof Date) return { __d: v.toISOString() };
+    if (Array.isArray(v)) return v.map(enc);
+    if (v && typeof v === "object") {
+      var o = {};
+      Object.keys(v).forEach(function (k) { o[k] = enc(v[k]); });
+      return o;
+    }
+    return v;
+  }
+  function dec(v) {
+    if (v && typeof v === "object" && typeof v.__b === "string") return unb64(v.__b).buffer;
+    if (v && typeof v === "object" && typeof v.__d === "string") return new Date(v.__d);
+    if (Array.isArray(v)) return v.map(dec);
+    if (v && typeof v === "object") {
+      var o = {};
+      Object.keys(v).forEach(function (k) { o[k] = dec(v[k]); });
+      return o;
+    }
+    return v;
+  }
+
+  function openDB() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) return rej(new Error("no indexedDB"));
+      var rq = indexedDB.open(DB);
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onerror = function () { rej(rq.error || new Error("open failed")); };
+    });
+  }
+
+  function hasStore(db, name) {
+    // DOMStringList has no indexOf in Chrome -- only length/item/contains.
+    for (var i = 0; i < db.objectStoreNames.length; i++) {
+      if (db.objectStoreNames[i] === name) return true;
+    }
+    return false;
+  }
+
+  function readAll() {
+    return openDB().then(function (db) {
+      if (!hasStore(db, STORE)) { db.close(); return {}; }
+      return new Promise(function (res) {
+        var tx = db.transaction(STORE, "readonly"), os = tx.objectStore(STORE);
+        // Both requests are issued now and both handlers attached now. Attaching
+        // the getAll handler inside the getAllKeys handler races: getAll can settle
+        // first, leaving a null callback -> "vq.onsuccess is not a function".
+        var kq = os.getAllKeys(), vq = os.getAll();
+        var keys = null, vals = null, got = 0, out = {};
+        function settle() {
+          if (++got < 2) return;
+          keys.forEach(function (k, i) { out[String(k)] = vals[i]; });
+          db.close();
+          res(out);
+        }
+        function fail() { db.close(); res({}); }
+        kq.onsuccess = function () { keys = kq.result; settle(); };
+        vq.onsuccess = function () { vals = vq.result; settle(); };
+        kq.onerror = fail;
+        vq.onerror = fail;
+      });
+    });
+  }
+
+  function writeAll(data) {
+    return openDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(STORE, "readwrite"), os = tx.objectStore(STORE);
+        Object.keys(data).forEach(function (k) { os.put(data[k], k); });
+        tx.oncomplete = function () { db.close(); res(); };
+        tx.onerror = function () { db.close(); rej(tx.error); };
+        tx.onabort = function () { db.close(); rej(tx.error); };
+      });
+    });
+  }
+
+  var last = null;
+
+  function sync() {
+    var stage = "readAll";
+    return readAll().then(function (all) {
+      var keys = Object.keys(all);
+      if (!keys.length) return { entries: 0, wrote: false };
+      stage = "encode";
+      var payload = { syncedAt: Date.now(), entries: {} };
+      keys.forEach(function (k) { payload.entries[k] = enc(all[k]); });
+      stage = "serialize";
+      var serial = JSON.stringify(payload.entries);
+      if (serial === last) return { entries: keys.length, wrote: false };
+      last = serial;
+      stage = "localStorage.setItem";
+      try {
+        localStorage.setItem(KEY, JSON.stringify(payload));
+      } catch (e) {
+        stage = "localStorage quota fallback";
+        try {
+          localStorage.setItem(KEY, JSON.stringify({
+            syncedAt: payload.syncedAt, truncated: true, keys: keys,
+            entries: keys.reduce(function (a, k) {
+              a[k] = { timestamp: all[k] && all[k].timestamp, mode: all[k] && all[k].mode };
+              return a;
+            }, {})
+          }));
+        } catch (e2) { /* nothing more we can do */ }
+        if (!warned) { console.warn("Save mirror truncated (localStorage quota):", e && e.name); warned = true; }
+        return { entries: keys.length, wrote: false, truncated: true };
+      }
+      stage = null;
+      return { entries: keys.length, wrote: true };
+    }).catch(function (e) {
+      // Surface it once -- a silent mirror that stopped syncing is worse than a
+      // visible warning, since the whole point is a trustworthy backup copy.
+      if (!warned) { console.warn("Save mirror sync failed at stage [" + stage + "]:", e); warned = true; }
+      return { error: true, stage: stage, reason: String(e && (e.name || e.message || e)) };
+    });
+  }
+
+  function restore() {
+    var raw = null;
+    try { raw = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { raw = null; }
+    if (!raw || !raw.entries) return Promise.reject(new Error("no mirror to restore"));
+    if (raw.truncated) return Promise.reject(new Error("mirror is metadata-only; cannot restore"));
+    var data = {};
+    Object.keys(raw.entries).forEach(function (k) { data[k] = dec(raw.entries[k]); });
+    return writeAll(data).then(function () { last = JSON.stringify(raw.entries); return Object.keys(data).length; });
+  }
+
+  window.__defoldSave = {
+    sync: sync,
+    restore: restore,
+    export: function () { return localStorage.getItem(KEY); },
+    clear: function () { localStorage.removeItem(KEY); last = null; },
+    KEY: KEY, DB: DB, STORE: STORE
+  };
+
+  // Only restore automatically if Defold's store is actually gone -- e.g. the
+  // browser evicted IndexedDB -- never overwrite a live save.
+  readAll().then(function (all) {
+    if (Object.keys(all).length) return sync();
+    var raw = null;
+    try { raw = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return; }
+    if (!raw || !raw.entries || raw.truncated) return sync();
+    console.warn("Defold save store empty; restoring from localStorage mirror.");
+    return restore().then(function (n) { console.warn("Restored " + n + " save entries from mirror."); })
+                   .catch(function () { return sync(); });
+  }).catch(function () {});
+
+  setInterval(function () { sync(); }, POLL_MS);
+  window.addEventListener("pagehide", function () { sync(); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") sync();
+  });
+})();
+</script>
+<script>
+(function(){
+  var origGetContext=HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext=function(type,attrs){
+    if(type==="webgl"||type==="webgl2"||type==="experimental-webgl"){
+      attrs=Object.assign({},attrs||{},{preserveDrawingBuffer:true});
+    }
+    return origGetContext.call(this,type,attrs);
+  };
+})();
+window.addEventListener("message",function(e){
+  if(e.data&&e.data.type==="yes2sdk:capture"){
+    try{
+      var c=document.querySelector("#unity-canvas")||document.querySelector("canvas");
+      if(!c){parent.postMessage({type:"yes2sdk:capture-result",success:false,error:"No canvas found"},"*");return;}
+      var url=c.toDataURL("image/png");
+      parent.postMessage({type:"yes2sdk:capture-result",success:true,dataUrl:url},"*");
+    }catch(err){
+      parent.postMessage({type:"yes2sdk:capture-result",success:false,error:err.message},"*");
+    }
+  }
+});
+</script>
+<script>
+		// Fallback to make sure globalThis is available when running in an old
+		// browser (available from Chome 71)
+		// https://github.com/defold/defold/issues/10503
+		if (typeof globalThis === 'undefined') {
+			window.globalThis = window;
+		}
+
+		// Prevent page scroll when pressing space, arrow keys, or other game keys
+		window.addEventListener("keydown", function(e) {
+			var keys = [32, 37, 38, 39, 40]; // space, left, up, right, down
+			if (keys.indexOf(e.keyCode) > -1) {
+				e.preventDefault();
+			}
+		}, false);
+
+		// Focus the canvas on load and on click to ensure keyboard input works
+		window.addEventListener("load", function() {
+			var canvas = document.getElementById("canvas");
+			if (canvas) {
+				canvas.focus();
+				canvas.addEventListener("click", function() {
+					canvas.focus();
+				});
+			}
+		});
+	</script>
+	<script id='engine-loader' type='text/javascript' src="dmloader.js"></script>
+	<script id='engine-setup' type='text/javascript'>
+		// From here you can configure game startup parameters via the CUSTOM_PARAMETERS object,
+		// override ProgressView to create your own loader. See dmloader.js for more details.
+	</script>
+	<script id='engine-start' type='text/javascript'>
+		var runningFromFileWarning = document.getElementById("running-from-file-warning");
+		if (window.location.href.startsWith("file://")) {
+			runningFromFileWarning.style.display = "block";
+		}
+		else {
+			EngineLoader.load("canvas", "DanTheManDefold");
+			runningFromFileWarning.parentNode.removeChild(runningFromFileWarning);
+		}
+	</script>
+</body>
+</html>
