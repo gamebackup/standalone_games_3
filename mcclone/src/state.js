@@ -84,13 +84,13 @@ export let previousScreen = "main menu";
 export function setPreviousScreen(val) { previousScreen = val; }
 export let gameMode = "survival";
 export function setGameMode(val) { gameMode = val; }
-export let newWorldGameMode = "survival";
+export let newWorldGameMode = "creative";
 export function setNewWorldGameMode(val) { newWorldGameMode = val; }
 export let blockMode = 0; // CUBE
 export function setBlockMode(val) { blockMode = val; }
 export let holding = 0;
 export function setHolding(val) { holding = val; }
-export let hitBox = false;
+export let hitBox = {};
 export function setHitBox(val) { hitBox = val; }
 export let blockOutlines = false;
 export function setBlockOutlines(val) { blockOutlines = val; }
@@ -179,7 +179,7 @@ export const inventory = {
 	cursor: null,
 	size: 40
 };
-export let invBg = null;
+export let invBg = typeof document !== "undefined" ? document.createElement("canvas") : null;
 export function setInvBg(val) { invBg = val; }
 export let invBgReady = false;
 export function setInvBgReady(val) { invBgReady = val; }

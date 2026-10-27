@@ -149,12 +149,17 @@ function mmoved(e) {
 }
 
 function trackMouse(e) {
+	if (commandOpen) return
 	setMouse(e.clientX, e.clientY)
 	if (screen === "play" && locked) {
 		mmoved(e)
-	} else {
-		Slider.drag()
+		return
 	}
+	cursor("")
+	drawScreens[screen]()
+	Button.draw()
+	Slider.draw()
+	Slider.drag()
 }
 
 if (typeof document !== "undefined") {

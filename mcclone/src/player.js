@@ -182,7 +182,8 @@ function cross(v1, v2, result) {
 			const scale = 1 / tang
 			const near = 1
 			const far = 1000000
-			setCurrentFov(fov); // Store the state of the projection matrix
+			this.currentFov = fov; // Store the state of the projection matrix
+			setCurrentFov(fov)
 			this.nearH = near * tang; // This is needed for frustum culling
 
 			this.projection[0] = scale / width * height
