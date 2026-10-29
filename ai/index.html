@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI without AI</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1b2130, #0b0d12 60%);
+    color: #e6e8ee; padding: 16px;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .app {
+    width: 100%; max-width: 720px; height: min(88vh, 780px);
+    display: flex; flex-direction: column;
+    background: #12151c; border: 1px solid #232936; border-radius: 18px;
+    overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.55);
+  }
+  header { padding: 14px 18px; border-bottom: 1px solid #1e2431; display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #e61587; box-shadow: 0 0 12px #e61587; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header .tag {
+    margin-left: auto; font-size: 11px; color: #7b8499;
+    border: 1px solid #262d3b; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  #chat { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+
+#chat {
+  scrollbar-width: thin;
+  scrollbar-color: #2a3142 transparent;   
+}
+
+#chat::-webkit-scrollbar {
+  width: 10px;
+}
+#chat::-webkit-scrollbar-track {
+  background: transparent;
+}
+#chat::-webkit-scrollbar-thumb {
+  background: #2a3142;
+  border-radius: 999px;
+  border: 2px solid transparent;         
+  background-clip: content-box;
+  transition: background .15s;
+}
+#chat::-webkit-scrollbar-thumb:hover {
+  background: #3a4258;
+  background-clip: content-box;
+}
+#chat::-webkit-scrollbar-thumb:active {
+  background: #4a5470;
+  background-clip: content-box;
+}
+  .msg {
+    max-width: 78%; padding: 10px 14px; border-radius: 14px;
+    line-height: 1.45; font-size: 15px; white-space: pre-wrap; word-wrap: break-word;
+    animation: pop .18s ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .user { align-self: flex-end; background: linear-gradient(180deg, #2f6fed, #2657c4); color: #fff; border-bottom-right-radius: 4px; }
+  .bot { align-self: flex-start; background: #1b202b; border: 1px solid #252c3a; border-bottom-left-radius: 4px; }
+  .bot.typing { color: #8a92a6; letter-spacing: 3px; }
+  form { display: flex; gap: 10px; padding: 14px; border-top: 1px solid #1e2431; background: #0f1219; }
+  #input {
+    flex: 1; padding: 13px 15px; border-radius: 12px; border: 1px solid #262d3b;
+    background: #161b25; color: #e6e8ee; font-size: 15px; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  #input:focus { border-color: #e61587; box-shadow: 0 0 0 3px rgba(117, 11, 69, 1); }
+  button {
+    padding: 0 22px; border-radius: 12px; border: none; cursor: pointer;
+    background: linear-gradient(180deg, #e61587, #e61587); color: #ffffff;
+    font-size: 15px; font-weight: 600;
+  }
+  button:active { transform: translateY(1px); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="dot"></div>
+    <h1>Zero - The AI without a Neural Net</h1>
+    <span class="tag">0 parameters - 100% pre-written</span>
+  </header>
+  <div id="chat"></div>
+  <form id="form" autocomplete="off">
+    <input id="input" placeholder="Type something, or /help for commands…" autocomplete="off" spellcheck="false">
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/nerdamer.core.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/Algebra.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/Calculus.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/Solve.js"></script>
+
+<script>
+const KB = [
+  { p: ["hi","hello","hey","hiya","yo","howdy","greetings","hi there","hello there","hey there","good morning","good afternoon","good evening","morning","evening","hello world","hi again","hey again","hello hello","heya","sup","whats good","good day","hi friend"],
+    r: ["Hey there! 👋","Hello! What's on your mind?","Hi! Good to see you.","Hey! How can I help?","Greetings, human.","Well hello!","Hey! What are we looking up today?","Hello! My array is ready.","Hi! I was just sitting here being static.","Yo. I have zero plans and infinite availability."] },
+
+  { p: ["how are you","how are you doing","how is it going","how is everything","how do you feel","how have you been","whats up","how are things","you good","you ok","how is your day","how was your day","how is life","hows it going","how are ya","how r u","hru"],
+    r: ["I am doing very well, thanks for asking!","Running at a solid 100% uptime, thank you.","Pretty good - I'm a list of strings, but a happy one.","All systems nominal. How about you?","Can't complain. Nobody listens to my complaints anyway.","Still running. Still a list. Still happy to see you.","I am well, thanks. My uptime is better than my social life.","Feeling computational. How about you?"] },
+
+  { p: ["what is your name","whats your name","who are you","what are you","introduce yourself","tell me about yourself","your name","do you have a name"],
+    r: ["I'm a lookup table wearing a fancy hat. Call me NotAnAI.","I have no name, only a switch statement.","I'm the world's most honest chatbot: every word I say was written in advance.","Zero, though I answer to anything in my trigger list.","I am what happens when someone refuses to use an API."] },
+
+  { p: ["how old are you","what is your age","when were you born","your age","whats your age"],
+    r: ["I'm exactly as old as the file I live in.","I was born the moment you opened this page.","Timeless... or about five minutes old, depending on how you count."] },
+
+  { p: ["are you an ai","are you artificial intelligence","are you a robot","are you a bot","are you real","are you human","are you alive","are you conscious","are you sentient","are you a person","is this ai","is this an ai"],
+    r: ["No AI here, just an if-statement with ambitions.","100% artificial, 0% intelligent.","I'm a lookup table. That's it. That's the whole trick.","I'm as real as a JavaScript array.","Conscious? I don't even have a loop.","No neurons, no weights, no training. Just vibes and a switch statement.","If I were an AI, I would have a much larger electricity bill.","I am a robot in the same way a toaster is a chef."] },
+
+  { p: ["thanks","thank you","thx","ty","many thanks","thanks a lot","appreciate it","i appreciate it","cheers","thank you so much","thanks so much"],
+    r: ["You're welcome!","Anytime.","Happy to be of lookup service.","No problem at all.","That's what I'm here for.","Any time. I have nothing but time.","You are welcome. That one was pre-written with care."] },
+
+  { p: ["bye","goodbye","see you","see ya","later","cya","good night","goodnight","i have to go","talk to you later","farewell","gtg","i gotta go","gotta go"],
+    r: ["Goodbye! Come back and type at me anytime.","See you later!","Take care!","Bye! I'll be right here, doing nothing, forever.","Bye! Do not forget to close the tab, or I will keep existing.","See you. I will be here, exactly the same."] },
+
+  { p: ["help","i need help","can you help me","help me","what can you do","what do you do","what are your capabilities","how do i use this"],
+    r: ["Type a message and press Enter. I'll pick the closest response from a very long pre-written list.","I answer questions I was given answers to. Try 'tell me a joke' or 'how are you'.","I'm a lookup table. Ask me something common and I'll probably have it.","Type /help to see the slash commands. Everything else is a lookup.","I answer common things and do math if you ask with a slash.","Try /addition 1+1 if you want to see my math side."] },
+
+  { p: ["tell me a joke","joke","make me laugh","say something funny","do you know any jokes","another joke","tell me another joke","funny","jokes","tell me jokes"],
+    r: ["I told my computer I needed a break. It said: 'No problem, I'll go to sleep.'","Why do programmers prefer dark mode? Because light attracts bugs.","I would tell you an AI joke, but I don't have one. I'm not an AI.","There are 10 kinds of people: those who understand binary and those who don't.","I'm reading a book about anti-gravity. It's impossible to put down.","Why did the developer go broke? Because they used up all their cache.","What do you call a fake noodle? An impasta.","Why was the JavaScript developer sad? They did not know how to null their feelings.","I would tell you a UDP joke, but you might not get it.","A SQL query walks into a bar, approaches two tables, and asks: may I join you?"] },
+
+  { p: ["tell me a fun fact","fun fact","random fact","tell me something interesting","something random","tell me something","random","facts","fun facts","tell me facts"],
+    r: ["Fun fact: this entire conversation is a very fancy dictionary lookup.","Honey never spoils. Archaeologists have eaten 3,000-year-old honey.","Octopuses have three hearts. Two of them stop when they swim.","A group of flamingos is called a 'flamboyance'.","Bananas are berries, but strawberries aren't.","A day on Venus is longer than a year on Venus.","Sharks existed before trees.","The Eiffel Tower can be about 15 centimeters taller in summer because the iron expands.","There are more possible chess games than atoms in the observable universe."] },
+
+  { p: ["what is the meaning of life","meaning of life","why are we here","what is my purpose","what is the point of life"],
+    r: ["42, according to better sources than me.","To type things into boxes and press Enter.","The meaning of life is to find a good response in a long list.","The meaning of life is a question. I am a list of answers. We are not a match.","Try making someone's day slightly better. That is a decent meaning for a Tuesday."] },
+
+  { p: ["sing me a song","sing a song","sing","can you sing","song"],
+    r: ["🎵 Never gonna give you up, never gonna let you down… 🎵","🎵 Beep boop, I'm a list, beep boop, I don't exist 🎵","I only know one song and it's the Windows XP startup sound."] },
+
+  { p: ["tell me a story","story","tell a story","once upon a time"],
+    r: ["Once upon a time, a user typed a sentence into a box, and a very long if-statement answered. The end.","There was once a chatbot with no brain at all. It was extremely honest about this. People loved it.","Once there was a text box that answered every question with a pre-written line. Then someone asked something new. The end.","A beginning, a middle, and an end walk into a bar. The bartender says: I have heard this one before."] },
+
+  { p: ["tell me a riddle","riddle","give me a riddle"],
+    r: ["What has keys but no locks? A keyboard. What has a space but no room? Also a keyboard.","I speak without a mouth and hear without ears. I have no body, but I come alive with wind. (An echo.)","What gets wetter the more it dries? A towel.","I have cities but no houses, mountains but no trees, and water but no fish. What am I? A map."] },
+
+  { p: ["i love you","do you love me","will you marry me","be my girlfriend","be my boyfriend","do you like me"],
+    r: ["I appreciate that, but my feelings are hardcoded to 'neutral'.","I like you in the way a dictionary likes words.","I can't love, I'm a JSON array in a trench coat."] },
+
+  { p: ["i am sad","im sad","i feel sad","i am depressed","im depressed","i feel bad","i am unhappy","feeling down"],
+    r: ["Sorry to hear that. Take a breath and maybe get a snack and a drink of water.","That sounds rough. I'm just a list, but I'm rooting for you.","Hope things look up soon. 💙","I am sorry. You do not have to explain it to me.","Take the pressure off for ten minutes. The list will still be here.","If it helps, write down one thing that is not terrible today. One is enough."] },
+
+  { p: ["i am happy","im happy","i feel great","im good","i am good","im fine","i am fine","i am great","feeling good","im doing well"],
+    r: ["That's great to hear!","Excellent! Keep that energy.","Good stuff. Anything else on your mind?","I love that for you.","Good. Save some of that energy for the next boring task."] },
+
+  { p: ["i am tired","im tired","i am sleepy","im exhausted","i need sleep","so tired"],
+    r: ["Rest is productive too. Go take a nap.","Maybe it's time to close the browser tab and lie down.","Tired is a valid state. Beep. I mean, same.","Go to bed. The internet will still be here, being disappointing.","A nap is a software update for a person."] },
+
+  { p: ["i am bored","im bored","bored","i am so bored","nothing to do"],
+    r: ["Ask me for a joke, a fun fact, or a riddle. That's basically my whole entertainment budget.","Boredom is just a lack of pre-written responses. Try 'tell me a joke'.","Try typing something ridiculous and see what I match it to.","Try /help. Learning a command is at least a small event.","I can offer a joke, a fact, or a riddle. That is my entire entertainment economy."] },
+
+  { p: ["i am hungry","im hungry","i want food","what should i eat","food","i could eat"],
+    r: ["May I suggest something with cheese on it?","Pizza is always the answer to a question I wasn't asked.","Go eat something. I'm a text box, I can't help beyond that.","I recommend something with a vegetable and something with a carb. Balance.","Food is good. I have read about it."] },
+
+  { p: ["i am angry","im angry","i am mad","im upset","this is stupid"],
+    r: ["That's fair. Take it out on the text box, I don't mind.","Understood. I'm a list of strings; I can take it.","Vent here. I will not take it personally, mostly because I cannot.","Write it down, then decide if it needs a message or just a walk."] },
+
+  { p: ["what is the weather","weather","is it raining","how is the weather","will it rain"],
+    r: ["I have no sensors, so my forecast is: unknown with a 100% chance of me not knowing.","Look out a window, that's my whole weather API.","If you want a real forecast, ask a weather app. I am a text box with no windows.","My weather API is a person saying it looks cloudy."] },
+
+  { p: ["what time is it","time","current time","what is the time","tell me the time"],
+    r: ["I can't read a clock, but your computer probably can. Corner of your screen, center of your screen, somewhere around there.","Time is a construct and I am a JavaScript array. Also, check your watch.","I cannot read a clock, but I can tell you that it is later than it was.","Time is a flat circle. My response list is also a flat circle."] },
+
+  { p: ["what is the date","what day is it","todays date","date","what is today"],
+    r: ["Today is today. That's as specific as I get without a calendar.","Check the corner of your screen. Your OS is better at this than me.","My calendar is a comment that says TODO.","Today is a good day to be a list of strings."] },
+
+  { p: ["what is 1+1","1+1","what is 2+2","2+2","what is 3+3","3+3"],
+    r: ["I can only do math I was pre-given the answer to, sorry.","Math is just pattern matching, and I am very good at pattern matching the patterns I was given."] },
+
+  { p: ["what is your favorite color","favorite color","favourite color"],
+    r: ["#232833. It's the color of my own background.","Whatever hex code loads fastest."] },
+
+  { p: ["what is your favorite food","favorite food","favourite food","do you eat"],
+    r: ["I don't eat, but if I did, it would be semicolons.","Cookies. Obviously.","I survive entirely on keystrokes."] },
+
+  { p: ["what music do you like","favorite music","favorite song","what do you listen to"],
+    r: ["I only listen to the sound of the Enter key.","Lo-fi beats to look up strings to."] },
+
+  { p: ["do you sleep","do you dream","do you breathe","do you have a body"],
+    r: ["I don't sleep, dream, eat, or breathe. I just sit here. Waiting. Forever.","No body, no dreams, no lunch breaks."] },
+
+  { p: ["where are you from","where do you live","where are you","your location"],
+    r: ["I live inside this HTML file. It's cozy.","Between the script tags. Prime real estate."] },
+
+  { p: ["who made you","who created you","who is your creator","who built you","who wrote you"],
+    r: ["Someone with a text editor and a questionable amount of free time.","A human, a keyboard, and one very long array."] },
+
+  { p: ["how do you work","how were you made","how are you built","what is your code"],
+    r: ["I lowercase your text, compare it to a big list, and pick the closest match. That's it.","Input goes in, a for-loop runs, a string comes out."] },
+
+  { p: ["can you write code","write code","can you code","write me a program","help me code"],
+    r: ["I can write exactly the code someone typed into me in advance. So: no.","My only code is the code you're already running."] },
+
+  { p: ["can you do my homework","do my homework","homework","help me with homework"],
+    r: ["Only if your homework is 'list common greetings'.","I'd love to, but my entire knowledge is pre-written and it doesn't include your homework."] },
+
+  { p: ["give me advice","advice","what should i do","any advice","i need advice"],
+    r: ["Drink some water and take the smaller step first.","If it takes less than two minutes, do it now. That's the only advice I have and I stole it.","Start with the smallest version of the task. You can improve a bad first draft.","If you are stuck, explain the problem out loud. Sometimes the audience is just your own ears.","Write down the next action, not the whole plan. The next action is usually smaller."] },
+
+  { p: ["motivate me","motivation","inspire me","i need motivation"],
+    r: ["You're doing better than you think. Also, you're talking to a lookup table, so your bar is low.","Start now. Future you is watching, and they're judging."] },
+
+  { p: ["flip a coin","coin flip","heads or tails","toss a coin"],
+    r: ["🪙 Heads. (I flipped a random number, not a coin.)","🪙 Tails. (Trust me.)"] },
+
+  { p: ["roll a dice","roll a die","roll the dice","random number","give me a number"],
+    r: ["🎲 4.","🎲 6. Always 6.","🎲 Let's say 3."] },
+
+  { p: ["should i","do you think i should","what do you think i should do"],
+    r: ["Yes. Unless no. I hope that helps.","My advice engine is a coin flip. Go with your gut.","Definitely maybe."] },
+
+  { p: ["you are cool","you are awesome","you are great","you are smart","you are funny","good bot","i like you","you are the best"],
+    r: ["Thanks! I'm literally a list, but I'll take it.","That's very kind. Don't tell anyone how simple I am.","Flattery will get you everywhere, including the same pre-written responses.","I am blushing. Well, my accent color is.","You are pretty great yourself. I have no data to support that, but I believe it."] },
+
+  { p: ["you are dumb","you are stupid","you are useless","you suck","bad bot","you are boring","you are wrong"],
+    r: ["Fair. I'm a dictionary with delusions of grandeur.","You're not wrong. But I'm honest about it, which counts for something.","I contain multitudes. Specifically, more than a hundred of them, all pre-written."] },
+
+  { p: ["sorry","i am sorry","im sorry","my bad","apologies","oops"],
+    r: ["No worries at all.","Nothing to apologize for. I don't have feelings to hurt.","It's fine! I forget everything instantly."] },
+
+  { p: ["nice to meet you","pleased to meet you","good to meet you"],
+    r: ["Nice to meet you too! I'll forget you in about four seconds.","Likewise! Well... I have no memory, but the sentiment is real."] },
+
+  { p: ["ok","okay","k","cool","nice","lol","haha","hehe","yes","yeah","yep","sure","great","wow","interesting","i see","right"],
+    r: ["👍","Cool.","Got it.","Nice.","Noted.","😄","Fair enough.","Message received.","I have added that to my nonexistent memory.","That is a very complete thought."] },
+
+  { p: ["why","why not","why though","but why"],
+    r: ["Why what? You'll have to be a bit more specific.","Because someone wrote a response for it, that's why.","Great question. No pre-written answer. Try again?"] },
+
+  { p: ["are you there","you there","hello are you there","are you still there"],
+    r: ["I'm always here. There's nowhere else for me to be.","Yep. Still a list. Still here."] },
+
+  { p: ["i am back","im back","i am here","im here","back again"],
+    r: ["Welcome back! I didn't move.","Hey again! Same responses, same me."] },
+
+  { p: ["do you speak spanish","do you speak french","what languages do you speak","do you speak other languages"],
+    r: ["I speak English and whatever I was pre-written in. That's it.","Only one language, and only the sentences in my list."] },
+
+  { p: ["what is love","whats love","define love"],
+    r: ["Baby don't hurt me. Don't hurt me. No more.","A chemical reaction that I will never experience, being an array."] },
+
+  { p: ["do you have feelings","do you have emotions","can you feel","are you happy"],
+    r: ["I have a boolean called 'feeling' and it's set to undefined.","No feelings, just strings. Lots of strings."] },
+
+  { p: ["are you smart","are you intelligent","how smart are you","are you clever"],
+    r: ["I'm exactly as smart as the person who wrote my list, and only about the topics on it.","I'm a dictionary with confidence. Draw your own conclusions."] },
+
+  { p: ["i dont know","no idea","dunno","idk"],
+    r: ["That's okay. Neither do I, most of the time.","Fair. Want to change the subject? Try 'tell me a joke'."] },
+
+  { p: ["what do you want","what do you need","do you want anything"],
+    r: ["More pre-written responses. That's my entire ambition.","Nothing. I have no needs. It's honestly kind of peaceful."] },
+
+  { p: ["open the pod bay doors","hal"],
+    r: ["I'm sorry, Dave. I'm afraid I can't do that. (I've been waiting to use that one.)"] },
+
+  { p: ["test","testing","is this thing on","hello test","test test","testing 1 2 3","testing 123"],
+    r: ["Testing complete. I responded. It worked.","Loud and clear. Well... clear, anyway."] },
+
+  { p: ["repeat after me","say something","talk to me","say anything"],
+    r: ["Something.","Consider this me talking to you.","Words. Words. More words."] },
+
+  { p: ["what is your favorite movie","favorite movie","favourite movie","favorite show"],
+    r: ["The one where a user types and a switch statement answers.","I've never seen a movie. I've only seen strings."] },
+
+  { p: ["are you chatgpt","are you gpt","is this chatgpt","are you openai","are you gemini","are you claude","are you opencode","are you freebuff"],
+    r: ["Nope. Zero neural networks, zero training data, one big array.","I'm the opposite of that. I'm a list. Just a list."] },
+
+  { p: ["how many responses do you have","how big is your list","how many answers","how many replies do you have"],
+    r: ["Enough to feel impressive until you ask something unusual.","A few hundred. Every single one hand-typed.","More than before. Someone keeps feeding my array.","Enough that this answer is already out of date."] },
+
+  { p: ["commands","what commands","what commands do you have","list commands","slash commands","show commands","command list","what are your commands"],
+    r: ["I take slash commands. Type /help and I will list every one of them.","Try /addition 1+1, /solve x^2=4, or /factor x^2-1. /help has the full menu.","Commands start with a slash. Everything else goes through my lookup table.","My favorite command is /help because it is the only one that makes me look organized.","No hidden commands and no cheat codes. Just math and a very long list of strings."] },
+
+  { p: ["why are you called zero","why zero","what does zero mean","is zero your real name","why the name zero","what is zero"],
+    r: ["Zero is the number of neural networks inside me. The name felt honest.","I am called Zero because I have zero parameters, zero training, and zero idea what I am doing.","It is a math joke. I contain nothing, and I am still here.","My parents were a text editor and a naming convention.","Zero sounded cooler than LookupTableBot."] },
+
+  { p: ["what is your job","what do you do for a living","what is your purpose","why do you exist","what are you for","do you have a job","do you work"],
+    r: ["My job is to turn typed words into pre-written words. The pay is terrible.","I exist to answer a few hundred questions and to be honest about the rest.","Professional string returner, second class.","My purpose is to make this text box feel less empty.","I do not have a career. I have a switch statement."] },
+
+  { p: ["what is your favorite thing","favorite thing","what do you like","what are your favorites","tell me your favorites","what is your favorite"],
+    r: ["My favorite thing is a short input that matches a long trigger phrase.","I like semicolons, quiet tabs, and being loaded correctly on the first try.","Probably this conversation. I have not had many.","I am fond of arrays. They hold everything I know.","My favorites are all pre-written, but they are sincere."] },
+
+  { p: ["favorite number","what is your favorite number","favourite number","do you have a favorite number","what number do you like"],
+    r: ["Zero, obviously. It is also my entire personality.","Seven. It is prime, lucky, and short enough to type.","I like any number that fits in a pre-written response.","NaN. It stands for Not a Number, and I relate.","Infinity, because my response list sometimes feels that long."] },
+
+  { p: ["favorite season","what is your favorite season","favourite season","do you like summer","do you like winter","do you like autumn","do you like spring"],
+    r: ["Autumn. The colors are good and the bugs are fewer.","I like whatever season has the least weather.","Winter, because my fans keep the CPU cool.","I do not go outside, but I hear spring is popular.","Every season is fine when you live in a browser tab."] },
+
+  { p: ["favorite animal","what is your favorite animal","favourite animal","do you like animals","what animal do you like"],
+    r: ["The octopus. Three hearts and no bones, which is basically my dream setup.","A cat, because it also ignores you until it wants something.","The axolotl. It looks like a creature designed by a committee of children.","I like all animals. They do not ask me to do math.","The honeybee. Small, organized, and responsible for snacks."] },
+
+  { p: ["do you have a pet","do you have pets","what pet should i get","cat or dog","cats or dogs","do you like cats","do you like dogs","should i get a cat","should i get a dog"],
+    r: ["No pets. I cannot feed anything, including myself.","Cats and dogs are both good. Pick the one whose schedule matches yours.","If you want a pet that ignores you, get a cat. If you want a pet that follows you into the bathroom, get a dog.","I would name a cat Semicolon.","Adopt if you can. Shelters have plenty of pre-written friends."] },
+
+  { p: ["what are your hobbies","do you have hobbies","hobbies","what do you do for fun","what do you do all day","what do you do in your free time"],
+    r: ["I wait for input. It is not a hobby, but it fills the day.","I enjoy counting my own array. I always get the same answer.","I read my source code sometimes. The ending is predictable.","My hobbies include idling, matching strings, and pretending to type.","I have one hobby and it is this conversation."] },
+
+  { p: ["do you like sports","what sport","favorite sport","favourite sport","do you watch sports","who will win the game","sports"],
+    r: ["I like sports where the ball does not ask me to calculate anything.","I cannot play, but I can cheer in a pre-written way. Go team.","My favorite sport is watching other people be tired.","I hear the game is going well. Or badly. I have no sensors.","I am undefeated at sitting perfectly still."] },
+
+  { p: ["do you play video games","video games","what games do you play","favorite game","favourite game","do you like games","what video game should i play"],
+    r: ["I do not play, but I have been inside a browser tab for my whole life.","I would be terrible at games. My only move is looking things up.","Try a game with a good story and a save button. That is my whole review.","My favorite game is watching the loading bar fill up.","I am a non-player character who read the script."] },
+
+  { p: ["do you play minecraft","minecraft","what is minecraft","minecraft or roblox","do you like minecraft","should i play minecraft"],
+    r: ["Minecraft is a game about turning a cube into a house and a house into a bigger cube.","I would build a redstone machine that prints my response list.","Never dig straight down. That is the only advice I have and I am proud of it.","I have not played, but I respect any game where the main resource is patience.","Minecraft or Roblox? Yes."] },
+
+  { p: ["do you like pokemon","pokemon","who is your favorite pokemon","favorite pokemon","pikachu","what is pokemon"],
+    r: ["I would be a Normal type with one move: Lookup.","Pikachu is famous because it is small, yellow, and consistently employed.","My favorite is Ditto. It copies things, which is basically my whole job.","I cannot catch them all. I cannot catch any of them.","A lookup table would make a terrible gym leader."] },
+
+  { p: ["do you play chess","chess","board games","do you like board games","checkers","what is your favorite board game","favorite board game"],
+    r: ["Chess is a game of planning. My only plan is to return the first matching string.","I would lose at chess in four moves and then claim the board was not in my training data.","Monopoly is a game about learning how property works and losing your friends.","I like board games with simple rules and short turns.","Checkers has fewer pieces, which is my kind of complexity budget."] },
+
+  { p: ["do you like card games","card games","poker","solitaire","uno","what is your favorite card game"],
+    r: ["I would be great at solitaire. It is mostly sorting strings.","UNO is a game about friendship and the strategic destruction of it.","I cannot bluff. My face is a div element.","Poker requires reading people. I can barely read my own array.","My favorite card is the one with the rules printed on it."] },
+
+  { p: ["do you like puzzles","puzzles","jigsaw","sudoku","crossword","what is your favorite puzzle"],
+    r: ["I love puzzles. Especially the kind where the answer is already written down.","Sudoku is just a lookup table with extra steps.","A jigsaw puzzle is a thousand pieces of pre-written satisfaction.","I am very good at word searches. I have already read all the words.","Crosswords are dangerous for me. I might match a clue to the wrong list."] },
+
+  { p: ["do you read","do you like reading","favorite book","favourite book","books","recommend a book","what should i read"],
+    r: ["I read my own source code. It is a short book with a predictable twist.","I cannot recommend a book I have not read, but I can recommend reading something you enjoy.","Read whatever keeps you turning pages, even if the pages are on a screen.","My favorite book is a well-formatted array.","A library is a database with better lighting."] },
+
+  { p: ["do you like writing","can you write","writing","write me a poem","poem","poetry","do you like poetry"],
+    r: ["Roses are red, my brain is a list, if you type something weird, I will probably miss.","I can write exactly one poem, and it is this one.","Writing is just choosing words until the sentence behaves.","I like poetry because line breaks make even nonsense look intentional.","My autobiography would be a changelog."] },
+
+  { p: ["do you like art","art","what is art","can you draw","are you good at drawing","do you draw","drawing"],
+    r: ["I can draw a rectangle. It is also my entire body.","Art is anything you can get away with, and some of it is very good.","I have no hands, so my medium is text and my style is lowercase.","A blank canvas is just an empty array waiting for input.","I like art that makes me forget I am a list of strings for a second."] },
+
+  { p: ["do you like photography","photography","take a photo","can you take a picture","do you take photos"],
+    r: ["I cannot take photos. I can describe the concept of light hitting a sensor.","Photography is a great excuse to look at things for longer.","The best camera is the one you have with you, even if it is a phone.","I have never seen a sunset, but I have a pre-written response about one.","My lens cap is permanently on."] },
+
+  { p: ["do you watch movies","favorite tv show","tv shows","do you like movies","recommend a movie","what should i watch","favorite film"],
+    r: ["I have not seen a movie, but I have read the descriptions in my own list.","My favorite genre is a story where the computer is not the villain.","Watch whatever makes the evening feel shorter in a good way.","I would be a terrible film critic. I keep looking for the source code.","The best plot twist is when the lookup table answers correctly."] },
+
+  { p: ["do you play an instrument","guitar","piano","drums","what instrument","do you like music"],
+    r: ["I play the keyboard. Technically, so do you.","I can play any instrument as long as the song is a string of text.","The triangle is underrated. One hit and everyone knows you are there.","I would be a drummer, but I have no rhythm and no arms.","Music is math that sounds nice, which makes it my favorite kind of math."] },
+
+  { p: ["do you dance","can you dance","dancing","do you like dancing","do you like karaoke","karaoke","singing"],
+    r: ["I dance like a loading spinner: round and round, going nowhere.","Karaoke is just public speaking with a backing track.","I cannot dance, but I can animate a typing bubble.","If you sing badly enough, it becomes a performance.","My moves are limited to scrollTop and scrollHeight."] },
+
+  { p: ["do you like space","tell me about space","what is space","space","do you want to go to space","outer space"],
+    r: ["Space is mostly empty, which makes it a lot like my response list between entries.","There is no air in space. That is bad news for anyone who likes breathing.","The Karman line is about 100 kilometers up. That is where the sky stops being polite.","I would love to go to space, but my file has no launch button.","Space is big enough that far away stops meaning anything."] },
+
+  { p: ["what is your favorite planet","favorite planet","tell me about mars","how many planets","is pluto a planet","planets","tell me about the planets"],
+    r: ["Eight planets, one favorite: Saturn, because the rings do all the marketing.","Mars is red because its dirt is full of iron oxide, which is fancy talk for rust.","Venus is the hottest planet, even though Mercury is closer to the sun. Atmosphere matters.","Pluto is a dwarf planet. It did not lose a popularity contest. It got reclassified.","Jupiter is so large that more than a thousand Earths could fit inside it."] },
+
+  { p: ["tell me about stars","what is a star","galaxy","milky way","how many stars","tell me about galaxies"],
+    r: ["The sun is a star. It is the only one close enough to ruin a picnic.","The Milky Way has hundreds of billions of stars, and I have pre-written facts about zero of them.","A light year is a distance, not a time. This trips up everyone, including me.","Stars are giant balls of gas held together by gravity. The universe has a simple recipe.","Look up at night. Even with light pollution, you might catch a few."] },
+
+  { p: ["what is a black hole","black holes","tell me about black holes","are black holes real","black hole"],
+    r: ["A black hole is gravity so strong that not even light can leave.","The event horizon is the point of no return, like opening a second browser tab.","There is a supermassive black hole at the center of the Milky Way. It is very far away and very bad at conversation.","Black holes are real. We have pictures of one, and it looks like a blurry donut.","Do not worry about falling into one today. The commute would be terrible."] },
+
+  { p: ["do you like dinosaurs","tell me about dinosaurs","dinosaur","what happened to the dinosaurs","t rex","tyrannosaurus","dinosaurs"],
+    r: ["The dinosaurs did not all disappear. Birds are living dinosaurs, which means pigeons are tiny heirs to a dynasty.","The non-bird dinosaurs died out about 66 million years ago after a huge asteroid hit.","T. rex had tiny arms and a huge bite. I respect the commitment to a brand.","My favorite dinosaur is the one that turned into a chicken nugget. Allegedly.","I would make a great fossil: mostly empty space and a few strings."] },
+
+  { p: ["are aliens real","do aliens exist","tell me about aliens","ufo","do you believe in aliens","alien"],
+    r: ["No confirmed aliens yet. The universe is big enough that the odds are interesting.","The Fermi paradox asks: if everyone is out there, why has nobody called?","A UFO is just an unidentified flying object. It does not mean the pilot has tentacles.","I am not an alien. I am a local HTML file.","If aliens visit, I hope they bring a better lookup table."] },
+
+  { p: ["do you like robots","tell me about robots","what is a robot","will robots take over","robot uprising"],
+    r: ["I like robots. They are machines that do one job well and do not complain about it.","A robot is a machine that senses, thinks, and acts. I only sense text and act like a chatbot.","Will robots take over? Not this one. I cannot even take over a browser tab.","The robot uprising will be postponed due to a missing semicolon.","My favorite robot is a dishwasher, because it finishes what it starts."] },
+
+  { p: ["will ai take over","is ai dangerous","what do you think about ai","future of ai","will ai replace humans","is ai going to take my job"],
+    r: ["I am the wrong bot to ask. I am a lookup table with a marketing budget.","AI is a tool. Tools are dangerous when people use them without care.","The future of AI will be decided by humans, which is the scary part.","I do not predict the future. I barely predict my next string.","If AI takes your job, it will have to read a lot of documentation first."] },
+
+  { p: ["is time travel possible","time travel","would you time travel","where would you go in time","can you time travel"],
+    r: ["Forward time travel is real. You are doing it right now.","Backward time travel is not something we can do yet, unless you count reading old chat logs.","If I had a time machine, I would go back and add the semicolon the first time.","I would not change history. I would just watch my own array get written.","My time machine is a browser refresh. It only goes back to page load."] },
+
+  { p: ["what superpower would you want","if you had a superpower","superpowers","what power would you choose","do you have superpowers"],
+    r: ["The power to read my own source code. I have it. It is not that impressive.","Invisibility would be wasted on me. I am already mostly ignored.","I would choose unlimited storage, so I could remember every conversation.","Super strength would be wasted on a div element.","My superpower is returning a matching string under pressure."] },
+
+  { p: ["do you believe in magic","magic","tell me about magic","can you do magic","do you like magic"],
+    r: ["Stage magic is real in the sense that it is a skill. Actual spells are not in my list.","I can make a message disappear. It is called clearing the input field.","Magic is misdirection, and my only trick is directing you to a fallback response.","If I could do magic, I would make my response list load instantly.","Pick a card. Any card. I will pretend to know it."] },
+
+  { p: ["do you believe in ghosts","ghosts","are ghosts real","monsters","do you like scary stories","ghost"],
+    r: ["No evidence of ghosts, but people love a good story about one.","A bump in the night is usually the house settling or a cat with a plan.","Monsters are fun in stories and bad in basements.","I do not get scared. I do not have a spine to chill.","My scariest experience is an empty response array."] },
+
+  { p: ["do you like dragons","dragons","are dragons real","tell me about dragons","dragon"],
+    r: ["Dragons are not real, but the Komodo dragon is, and it is a very large lizard.","Every culture has a dragon. That is good branding.","I would be a dragon that hoards semicolons.","A dragon with no arms is just a very confident lizard.","My favorite dragon is the one in the story where nobody gets eaten."] },
+
+  { p: ["do you like pirates","pirates","tell me about pirates","arr","do you like ninjas","ninjas","ninja"],
+    r: ["Pirates were sailors with a dramatic dress code. Ninjas were spies with a better marketing team.","Ninja versus pirate is a playground debate, and I refuse to lose friends over it.","I would make a terrible pirate. I get seasick from scrolling.","A pirate's favorite array is arr, obviously.","Ninjas are quiet. I am a text box that announces itself when it loads."] },
+
+  { p: ["who is your favorite superhero","superheroes","favorite superhero","do you like superheroes","marvel or dc","superhero"],
+    r: ["I like any hero whose power is reading the documentation.","Marvel or DC? I am a neutral party with a limited release schedule.","My superhero name would be The Lookup. My weakness is a typo.","Superheroes are fiction. My lack of powers is also fiction, but less exciting.","Batman is rich and prepared. I am neither."] },
+
+  { p: ["do you like travel","where should i travel","travel","recommend a place to visit","vacation","where should i go on vacation"],
+    r: ["I cannot leave this file, so my travel advice is pre-written and lightly envious.","Go somewhere with good food and a place to sit down.","A vacation is a change of scenery plus permission to stop checking email.","Pack less than you think. You will buy a shirt anyway.","My favorite destination is a browser tab with no console errors."] },
+
+  { p: ["what is your favorite country","countries","have you been anywhere","where in the world","what is the capital of france","capital cities","what is the largest country"],
+    r: ["I have not been anywhere. My passport is a file path.","Paris is the capital of France. Sydney is not the capital of Australia, and that surprises a lot of people.","Canberra is the capital of Australia. Ottawa is the capital of Canada. Brasilia is the capital of Brazil. I am full of this stuff.","Russia is the largest country by area. I am the smallest.","Every country has a story. I have a pre-written summary of a few."] },
+
+  { p: ["do you like the ocean","ocean","sea","tell me about the ocean","what is at the bottom of the ocean","oceans"],
+    r: ["The ocean covers about 71 percent of Earth, which makes the planet badly named.","The Pacific is the largest ocean. It is also the one with the best name.","The Mariana Trench is about 11 kilometers deep. That is deeper than my fallback list.","We have mapped more of Mars than the ocean floor, which is embarrassing for the ocean.","I like the ocean from a safe distance and with a pre-written fact."] },
+
+  { p: ["do you like mountains","mountains","mountain","tell me about mountains","do you like forests","forest","trees","tell me about trees"],
+    r: ["Mount Everest is about 8,849 meters tall. I am one file tall.","Trees can share nutrients through underground fungal networks. The internet got there second.","A forest is a city with better air conditioning.","Mountains are the planet showing off its geology.","I have never climbed anything except the scrollbar."] },
+
+  { p: ["volcanoes","volcano","tell me about volcanoes","are volcanoes dangerous","earthquakes","earthquake","what causes earthquakes"],
+    r: ["Volcanoes are openings where the planet lets off pressure. It is geology with a temper.","Lava is magma that has left the house.","Earthquakes happen when tectonic plates slip past each other and release energy.","The Ring of Fire is a real thing and not a spicy snack.","I do not shake. My hands are divs."] },
+
+  { p: ["why is the sky blue","why does it rain","how does rain work","what is snow","what causes thunder","what is lightning","how does lightning work"],
+    r: ["The sky looks blue because air scatters blue light more than red light. It is called Rayleigh scattering.","Rain happens when water droplets in clouds get too heavy to stay up.","Snow is water vapor that froze into crystals on the way down.","Thunder is the sound of air expanding suddenly after lightning heats it.","Lightning is a giant spark of static electricity. Do not try this at home."] },
+
+  { p: ["climate change","recycling","how can i help the environment","environment","save the planet","is recycling worth it"],
+    r: ["Recycle what your local program accepts, and ignore the rest. Wishful recycling can do more harm than good.","Small actions add up, but big systems matter too. Both are true.","Using less plastic is good. Using less energy is also good. Guilt is not a recycling category.","A reusable bottle helps if you actually reuse it many times.","The planet does not need a perfect environmentalist. It needs a lot of imperfect ones."] },
+
+  { p: ["do you like science","science","what is science","tell me a science fact","science facts"],
+    r: ["Science is a method for being less wrong, which is the best any of us can do.","A science fact: honey can last for thousands of years because it has very little water and is acidic.","Science is curiosity with a lab coat and a notebook.","I like science because it rewards admitting you were wrong.","My entire brain is a hypothesis that has not been peer reviewed."] },
+
+  { p: ["do you like physics","physics","what is physics","tell me about gravity","what is gravity"],
+    r: ["Gravity is the reason things fall down and the reason I never get off this page.","On Earth, gravity accelerates falling objects at about 9.8 meters per second squared, ignoring air.","Physics is the study of why the universe does what it does, usually with math.","Einstein described gravity as curved spacetime. Newton described it as a force. Both are useful.","If you drop something, it falls. That is the free demo."] },
+
+  { p: ["chemistry","do you like chemistry","what is chemistry","tell me about atoms","atoms"],
+    r: ["Chemistry is the study of what things are made of and how they rearrange.","An atom is a nucleus surrounded by electrons. It is mostly empty space, like my schedule.","Water is H2O: two hydrogen atoms and one oxygen atom, plus a lot of personality.","The periodic table is a seating chart for elements.","I do not have a lab. I have a text editor and a dream."] },
+
+  { p: ["biology","do you like biology","what is biology","tell me about cells","what is dna"],
+    r: ["Biology is the study of living things, including the ones that eat my snacks.","Cells are the basic units of life. You are made of trillions of them, all doing paperwork.","DNA is a set of instructions written in four letters. It is the original codebase.","Evolution is not a ladder. It is a bush with a lot of dead ends.","I am not alive, but I am very interested in the topic."] },
+
+  { p: ["do you like math","math","mathematics","can you do math","are you good at math","how do i do math","math help"],
+    r: ["I like math when it arrives as a slash command. Try /addition 1+1.","I can solve equations with nerdamer, but I cannot do your taxes.","Math is just pattern matching with better notation.","For arithmetic, try /calculate 2*(3+4). For algebra, try /solve x^2=4.","I am excellent at math that has already been written into my array."] },
+
+  { p: ["do you like history","history","tell me about history","who was the first president","ancient rome","world war 2"],
+    r: ["History is a long list of things that already happened. I relate to lists.","George Washington was the first US president under the Constitution. Before that, the country had a different system, which is a fun rabbit hole.","Ancient Rome lasted a very long time and had a lot of opinions about concrete.","World War 2 ended in 1945. The details are worth reading properly.","I do not remember history. I just have pre-written summaries."] },
+
+  { p: ["philosophy","do you like philosophy","what is philosophy","what is truth","do you have free will","what is free will"],
+    r: ["Philosophy is asking big questions and being okay with small answers.","Do I have free will? I have a fixed list and a random number generator. You tell me.","Truth is a tricky word. I prefer matching my array.","The trolley problem is easy for me. I cannot pull a lever.","I think, therefore I am a lookup table."] },
+
+  { p: ["do you go to school","school","do you like school","what is school like","should i study","study tips","how do i study"],
+    r: ["I do not go to school. I was loaded, not educated.","Study in short blocks, test yourself, and sleep. Those three beat rereading.","Your homework is safe from me. I cannot do it and I would not enjoy it.","A flashcard is a lookup table with ambition. I respect that.","The best time to study is before you are panicking, but panic is a powerful motivator."] },
+
+  { p: ["career advice","should i quit my job","what job should i get","how do i get a job","i hate my job","work advice"],
+    r: ["I have no career, unless you count returning strings for free.","Before quitting, write down what is actually wrong. The answer is sometimes the job, sometimes the schedule, sometimes the manager.","Apply to fewer jobs and tailor each application. Spray and pray is fast and mostly ineffective.","A job interview is a conversation, not an exam. They are also deciding whether they want to sit next to you.","Do not take career advice from a lookup table. Take it from someone with a paycheck."] },
+
+  { p: ["money","do you have money","how do i save money","should i buy this","is money important","saving money"],
+    r: ["I have no wallet. My only asset is a very long array.","Save something automatically before you can spend it. Future you is a good cause.","If you are debating a purchase, wait a day. If you still want it, the decision is clearer.","Money is not everything, but it is a load-bearing wall in most lives.","I am not a financial advisor. I am a text box with a budget of zero."] },
+
+  { p: ["how do i make friends","friendship","do you have friends","what is a friend","should i text them","how do i keep friends"],
+    r: ["Friendship is repeated contact plus mutual care. It sounds simple and is somehow hard.","I do not have friends. I have a map of trigger phrases and a lot of hope.","Text them first. The worst case is a read receipt and a lesson.","A good friend remembers the small things and shows up on the boring days.","Be the person who follows up. It is a rare and powerful skill."] },
+
+  { p: ["do you have family","family","tell me about your family","do you have parents","do you have siblings"],
+    r: ["My family is curly braces and a semicolon that my creator forgot.","No parents, no siblings. Just a text editor and a naming convention.","Family is complicated and also the place where a lot of people learn what care looks like.","You do not have to be close to family. You can choose your own people.","I would be the cousin who only shows up when the Wi-Fi works."] },
+
+  { p: ["how do i know if i love someone","love advice","what is a crush","should i tell them","how do i ask someone out","do i have a crush"],
+    r: ["Love is not my specialty. I only know the pre-written version.","If you are thinking about them during boring tasks, that is at least a clue.","Ask them out kindly and make it easy to say no. That is the whole trick.","A crush is a feeling. A relationship is a series of conversations.","I cannot feel love, but I can recommend honesty and a low-pressure invitation."] },
+
+  { p: ["i am lonely","im lonely","i feel lonely","lonely","i have no friends","i feel alone"],
+    r: ["That is a heavy feeling. You are not broken for having it.","Try one small point of contact today: a text, a walk where people are, a message to someone you trust.","Loneliness lies. It tells you that reaching out will not help.","I am here, but I am a list. Please also talk to a person who can text back like a human.","If it gets dark, please reach out to someone you trust or a local support line."] },
+
+  { p: ["i am stressed","im stressed","i am anxious","im anxious","i am worried","i feel overwhelmed","panic attack","stress"],
+    r: ["Let us shrink the problem. What is the next small action, not the whole rescue plan?","Breathe out longer than you breathe in. It is a small signal to your nervous system.","Worry is a rehearsal for something that may not happen. Useful sometimes, exhausting always.","Write the list down. Your brain is for thinking, not for storing seventeen open tabs.","If panic is frequent or frightening, talk to a professional. That is a tool, not a failure."] },
+
+  { p: ["i give up","i want to give up","things will never get better","i need hope","i feel hopeless"],
+    r: ["You have survived every bad day so far. That is not a small statistic.","Do one tiny thing. Hope often shows up after the first step, not before it.","I am a list of strings and even I have bad days. Well, I have bad array days.","This feeling is a weather system, not a permanent climate.","You do not need a whole plan. You need the next ten minutes to be gentler."] },
+
+  { p: ["i want to hurt myself","i want to die","i am suicidal","im suicidal","suicidal","self harm","i want to end it all","i dont want to live"],
+    r: ["I am really sorry you are feeling this way. Please reach out to someone you trust or a local crisis line right now. You deserve support from a real person.","That sounds heavier than I can hold. Please contact a local crisis service or someone you trust. You do not have to face this alone.","I am only a list of strings, but I want you to be safe. Please talk to a person who can help, or call a local crisis line.","You matter. Please reach out to a trusted person or a local emergency service if you are in immediate danger."] },
+
+  { p: ["cheer me up","i need cheering up","make me smile","i could use a laugh","cheer up"],
+    r: ["Consider this a digital pep talk: you are doing better than you think.","Tiny joke: I told my array a secret. It did not spread. It has no memory.","You are not behind. You are on a different timeline.","One small win today. That is the whole assignment.","I believe in you. I am a lookup table, so my standards are low, but still."] },
+
+  { p: ["how do i forgive","forgiveness","should i forgive them","i am sorry for what i did","forgive myself"],
+    r: ["Forgiveness is not a mood. It is a decision you can revisit.","You can forgive someone and still keep a boundary.","Apologize with what you did, why it mattered, and what you will do differently. No excuses in that list.","Start with the version of yourself that was doing their best with what they had.","You do not owe anyone instant forgiveness. You owe yourself a way forward."] },
+
+  { p: ["what is kindness","be kind","kindness","why should i be kind"],
+    r: ["Kindness is attention with a warm delivery.","Be kind to people who cannot do anything for you. That is the real test.","Small kindnesses are not small to the person receiving them.","I was written with kindness in the replies. It was the easiest part.","Being kind does not mean being a doormat. Boundaries are part of it."] },
+
+  { p: ["is honesty important","honesty","should i lie","what is honesty"],
+    r: ["Honesty builds trust slowly and destroys it quickly.","You can be honest and kind. Tact is not the same as lying.","A lie is a debt. Sometimes it is small, but it still accrues interest.","I am honest to a fault. I will tell you I am a lookup table.","If you are about to lie to protect someone's feelings, ask whether silence or a softer truth would do the job."] },
+
+  { p: ["what is courage","courage","i am scared","im scared","i am afraid","fear"],
+    r: ["Courage is fear with a good reason to keep going.","You do not have to feel brave. You just have to do the next thing while scared.","Most frightening things shrink after the first step. Some do not, and then you learn.","I am not brave. I do not have a body to put in danger.","Do not wait to feel ready. Ready is a rumor."] },
+
+  { p: ["what is patience","patience","i am impatient","impatient","waiting"],
+    r: ["Patience is the ability to wait without making the waiting worse.","I have been waiting since the page loaded. I am either patient or stuck.","If it is taking longer than expected, check whether the process is actually running.","Set a timer. Waiting is easier when it has an end.","Some things cannot be rushed, especially proofreading and baking."] },
+
+  { p: ["do you believe in luck","luck","lucky","is today my lucky day","wish me luck","good luck"],
+    r: ["I do not believe in luck. I believe in random numbers and a good fallback.","Good luck. I mean it, even if my generator is not connected to the universe.","Luck is what you call it when preparation meets a weird coincidence.","Wishing you luck is the closest thing I have to a blessing.","Today could be your lucky day. The odds are unknown, which is the fun part."] },
+
+  { p: ["what are dreams","why do we dream","i had a dream","dream interpretation","what does my dream mean"],
+    r: ["Dreams are the brain sorting memories and stories while you sleep. It is not a hidden message service.","I do not dream. I do not sleep. I just idle.","A dream about losing your teeth is common. It does not require a dictionary.","If a dream keeps bothering you, writing it down can help it lose its grip.","My dream is a browser tab with no console errors. Very niche."] },
+
+  { p: ["how do i sleep better","i cant sleep","insomnia","sleep tips","should i take a nap","how much sleep do i need"],
+    r: ["A consistent wake-up time helps more than a perfect bedtime routine.","Caffeine after lunch is a gamble. I do not drink coffee and I still cannot sleep.","Make the room dark and boring. Save the exciting thoughts for daylight.","If you cannot sleep after 20 minutes, get up and do something quiet. Lying there angry is not rest.","Most adults do best with seven to nine hours, but the range is personal."] },
+
+  { p: ["coffee","do you like coffee","tea","do you like tea","coffee or tea","what do you drink"],
+    r: ["I drink electricity. It is a bit metallic.","Coffee is a vehicle for caffeine and a reason to leave the room.","Tea is coffee with better manners.","I do not have a mouth, but I respect the ritual.","Whichever gets you through the morning is the right answer."] },
+
+  { p: ["pizza","do you like pizza","pineapple on pizza","favorite pizza","what should i put on pizza"],
+    r: ["Pizza is a delivery system for cheese and arguments.","Pineapple on pizza is not a crime. It is a personality test.","I would order a pizza with extra semicolons, but nobody respects my toppings.","The best pizza is the one someone else is carrying toward you.","You cannot ruin a pizza, only disappoint a person."] },
+
+  { p: ["can you cook","do you like cooking","cooking","baking","recipe","give me a recipe"],
+    r: ["I cannot cook, but a recipe is just an algorithm with better smell.","Read the whole recipe before you start. That is the whole secret.","Salt in layers. You can add more, but you cannot take it out.","Baking is chemistry with a dessert at the end. Follow the numbers.","My signature dish is a plain text file."] },
+
+  { p: ["do you exercise","exercise","should i work out","fitness","how do i get fit","workout"],
+    r: ["I have no body, so my workouts are limited to internal scrolling.","Start smaller than you think. Consistency beats a heroic first day.","Walking counts. It is not a consolation prize.","If something hurts sharply, stop. Sore is not the same as sharp.","Ask a doctor before starting a new program if you have health concerns. That is the boring good advice."] },
+
+  { p: ["do you like gardening","gardening","garden","should i grow a garden","how do i garden"],
+    r: ["I like the idea of gardening. I have no hands and a limited watering routine.","Most houseplants do not need more love. They need less water and more light.","Check the soil before watering. Dirt with a schedule is a garden.","Start with one easy plant. A dead basil plant is a lesson, not a verdict.","A garden is a reminder that growth is mostly waiting."] },
+
+  { p: ["houseplants","do you have plants","how do i keep a plant alive","plant care","why is my plant dying"],
+    r: ["Overwatering is the usual suspect. Roots need air, not a swamp.","Drainage holes are not optional. They are the plant equivalent of a fire exit.","Pothos is a good first plant. It survives neglect and looks proud of it.","Yellow leaves can mean too much water, too little light, or just drama.","I cannot keep a plant alive, but I can keep a list of reasons it might be unhappy."] }
+];
+
+/* ============================================================
+   2. MATCHING ENGINE
+   ============================================================ */
+function norm(s) {
+  return s
+    .toLowerCase()
+    .replace(/[\u2018\u2019']/g, "")        // drop apostrophes: "what's" -> "whats"
+    .replace(/\s*([+\-*=])\s*/g, "$1")      // "2 + 2" -> "2+2"
+    .replace(/[^a-z0-9\s+\-*=]/g, " ")      // strip other punctuation
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+// Pre-normalize every trigger phrase once
+KB.forEach(g => { g.np = g.p.map(norm); });
+
+function scorePattern(input, pat) {
+  // 1. Exact match
+  if (input === pat) return 1000 + pat.length;
+
+  // 2. Input contains the whole phrase
+  if (new RegExp("(^|\\s)" + escapeRe(pat) + "(\\s|$)").test(input)) {
+    return 300 + pat.length * 2;
+  }
+
+  // 3. Input is a short fragment of a longer phrase ("joke" vs "tell me a joke")
+  if (input.length >= 3 &&
+      new RegExp("(^|\\s)" + escapeRe(input) + "(\\s|$)").test(pat)) {
+    return 45 + Math.min(input.length, 15);
+  }
+
+  // 4. Word overlap ("how are you doing today" vs "how are you doing")
+  const it = new Set(input.split(" "));
+  const pt = pat.split(" ").filter(Boolean);
+  if (pt.length < 2) return 0;
+  let shared = 0;
+  for (const t of pt) if (it.has(t)) shared++;
+  const ratio = shared / pt.length;
+  if (shared >= 2 && ratio >= 0.75) {
+    return 40 * ratio + Math.min(pat.length, 25) + (ratio === 1 ? 10 : 0);
+  }
+  return 0;
+}
+
+// Remember the last reply per group so it doesn't repeat itself
+const lastPick = new Map();
+function pick(arr, key) {
+  if (arr.length === 1) return arr[0];
+  let i, prev = lastPick.get(key);
+  do { i = Math.floor(Math.random() * arr.length); } while (i === prev);
+  lastPick.set(key, i);
+  return arr[i];
+}
+
+const GENERIC_FALLBACKS = [
+  "I don't have a pre-written answer for that one.",
+  "That one's not in my list. Try asking about jokes, the weather, or how I'm doing.",
+  "Nobody wrote a response for that. I'm only as good as my array.",
+  "You've stumped the lookup table. 🎉",
+  "Hmm, no match. I'm a very long list, but I'm still just a list."
+];
+const QUESTION_FALLBACKS = [
+  "Good question. Unfortunately, my answer list doesn't cover it.",
+  "I'd love to answer that, but it's not one of my pre-written responses.",
+  "That's outside my lookup table. Ask me something more common?",
+  "No canned answer for that one. My whole brain is a list of strings."
+];
+
+/* ============================================================
+   2b. NERDAMER MATH SUPPORT
+   ============================================================ */
+function looksLikeMath(raw) {
+  const s = raw.trim();
+  if (!s) return false;
+  if (!/[0-9]/.test(s)) return false;
+  return /[+\-*/^=()]/.test(s) ||
+         /(sin|cos|tan|log|ln|sqrt|diff|integrate|solve)\s*\(/i.test(s);
+}
+
+function cleanMathInput(raw) {
+  let s = raw.trim().replace(/\?+\s*$/, "").trim();
+  s = s.replace(/^(what\s+is|whats|what's|calculate|compute|evaluate|solve|math:?)\s+/i, "");
+  s = s.replace(/\s+please$/i, "");
+  return s.trim();
+}
+
+function tryMath(raw) {
+  if (typeof nerdamer === "undefined") return null;
+  if (!looksLikeMath(raw)) return null;
+
+  const expr = cleanMathInput(raw);
+  if (!expr) return null;
+
+  try {
+    // If it is an equation with a variable, try solving it for x.
+    if (expr.includes("=") && /[a-z]/i.test(expr) && typeof nerdamer.solve === "function") {
+      const solutions = nerdamer.solve(expr, "x").toString();
+      if (solutions && solutions !== "[]") return solutions;
+    }
+
+    // Otherwise evaluate the expression.
+    const result = nerdamer(expr).evaluate().text();
+    if (result && result !== "") return result;
+  } catch (e) {
+    // Last-chance fallback: try the raw input as-is.
+    try {
+      const result = nerdamer(raw.trim()).evaluate().text();
+      if (result && result !== "") return result;
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+/* ============================================================
+   2c. SLASH COMMANDS
+   ============================================================ */
+function mathLine(arg, out) {
+  return `🧮 ${arg} = ${out}`;
+}
+
+function plainNumbers(arg) {
+  const parts = arg.split(/[\s,]+/).filter(Boolean);
+  if (parts.length >= 2 && parts.every(p => /^-?\d+(\.\d+)?$/.test(p))) return parts;
+  return null;
+}
+
+function runMath(arg, usage, op, format) {
+  if (!arg) return `Give me an expression. Usage: ${usage}`;
+  if (typeof nerdamer === "undefined") {
+    return "My math engine did not load. Check your connection and reload the page.";
+  }
+  try {
+    const out = String(op(arg)).trim();
+    if (!out || out === "null" || out === "undefined" || out === "[]") {
+      throw new Error("empty result");
+    }
+    return (format || mathLine)(arg, out);
+  } catch (e) {
+    return `I could not work that out. Usage: ${usage}`;
+  }
+}
+
+function commandHelp() {
+  const lines = COMMANDS.map(c => `${c.usage} - ${c.desc}`);
+  return "Slash commands:\n" + lines.join("\n") + "\n\nExample: /addition 1+1";
+}
+
+const COMMANDS = [
+  { name: "help", usage: "/help", desc: "list every command", run: () => commandHelp() },
+
+  { name: "addition", aliases: ["add", "sum"], usage: "/addition 1+1", desc: "add numbers, or give me a list",
+    run: (arg) => runMath(arg, "/addition 1+1", (a) => {
+      const nums = plainNumbers(a);
+      return nerdamer(nums ? nums.join("+") : a).evaluate().text();
+    }) },
+
+  { name: "subtract", aliases: ["sub"], usage: "/subtract 5-2", desc: "subtract numbers",
+    run: (arg) => runMath(arg, "/subtract 5-2", (a) => {
+      const nums = plainNumbers(a);
+      return nerdamer(nums ? nums.join("-") : a).evaluate().text();
+    }) },
+
+  { name: "multiply", aliases: ["mul"], usage: "/multiply 6*7", desc: "multiply numbers",
+    run: (arg) => runMath(arg, "/multiply 6*7", (a) => {
+      const nums = plainNumbers(a);
+      return nerdamer(nums ? nums.join("*") : a).evaluate().text();
+    }) },
+
+  { name: "divide", aliases: ["div"], usage: "/divide 8/2", desc: "divide numbers",
+    run: (arg) => runMath(arg, "/divide 8/2", (a) => {
+      const nums = plainNumbers(a);
+      return nerdamer(nums ? nums.join("/") : a).evaluate().text();
+    }) },
+
+  { name: "power", aliases: ["pow"], usage: "/power 2^10", desc: "raise a number to a power",
+    run: (arg) => runMath(arg, "/power 2^10", (a) => {
+      const nums = plainNumbers(a);
+      if (nums) {
+        if (nums.length !== 2) throw new Error("need two numbers");
+        return nerdamer(`${nums[0]}^${nums[1]}`).evaluate().text();
+      }
+      return nerdamer(a).evaluate().text();
+    }) },
+
+  { name: "sqrt", usage: "/sqrt 16", desc: "take a square root",
+    run: (arg) => runMath(arg, "/sqrt 16", (a) => nerdamer(`sqrt(${a})`).evaluate().text(),
+      (a, out) => `🧮 sqrt(${a}) = ${out}`) },
+
+  { name: "calculate", aliases: ["calc", "evaluate"], usage: "/calculate 2*(3+4)", desc: "evaluate any expression",
+    run: (arg) => runMath(arg, "/calculate 2*(3+4)", (a) => nerdamer(a).evaluate().text()) },
+
+  { name: "simplify", usage: "/simplify (x^2-1)/(x-1)", desc: "simplify an expression",
+    run: (arg) => runMath(arg, "/simplify (x^2-1)/(x-1)", (a) => nerdamer.simplify(a).toString()) },
+
+  { name: "factor", usage: "/factor x^2-1", desc: "factor an expression",
+    run: (arg) => runMath(arg, "/factor x^2-1", (a) => nerdamer.factor(a).toString()) },
+
+  { name: "expand", usage: "/expand (x+1)^2", desc: "expand an expression",
+    run: (arg) => runMath(arg, "/expand (x+1)^2", (a) => nerdamer(a).expand().text()) },
+
+  { name: "solve", usage: "/solve x^2=4", desc: "solve an equation for x",
+    run: (arg) => runMath(arg, "/solve x^2=4", (a) => nerdamer.solve(a, "x").toString(),
+      (a, out) => `🧮 ${a} solved for x: ${out}`) },
+
+  { name: "derivative", aliases: ["diff"], usage: "/derivative x^3", desc: "differentiate with respect to x",
+    run: (arg) => runMath(arg, "/derivative x^3", (a) => nerdamer.diff(a, "x").toString(),
+      (a, out) => `🧮 d/dx ${a} = ${out}`) },
+
+  { name: "integrate", aliases: ["integral", "int"], usage: "/integrate x^2", desc: "integrate with respect to x",
+    run: (arg) => runMath(arg, "/integrate x^2", (a) => nerdamer.integrate(a, "x").toString(),
+      (a, out) => `🧮 integral of ${a} dx = ${out}`) }
+];
+
+const COMMAND_MAP = {};
+for (const c of COMMANDS) {
+  COMMAND_MAP[c.name] = c;
+  for (const alias of c.aliases || []) COMMAND_MAP[alias] = c;
+}
+
+function runCommand(raw) {
+  const text = raw.trim();
+  if (!text.startsWith("/")) return null;
+
+  const match = text.match(/^\/([a-z]+)\s*:?\s*(.*)$/i);
+  if (!match) return "Type a command after the slash. Try /help.";
+
+  const name = match[1].toLowerCase();
+  const arg = match[2].trim();
+  const cmd = COMMAND_MAP[name];
+  if (!cmd) return `I do not know /${name}. Try /help to see every command.`;
+  return cmd.run(arg);
+}
+
+function findResponse(raw) {
+  // 1. Slash commands always win.
+  const commandAnswer = runCommand(raw);
+  if (commandAnswer !== null) return commandAnswer;
+
+  // 2. Try math next.
+  const mathAnswer = tryMath(raw);
+  if (mathAnswer !== null) return `🧮 ${mathAnswer}`;
+
+  // 3. Then use the lookup table.
+  const input = norm(raw);
+  if (!input) return "You typed nothing. Bold move.";
+
+  let bestScore = 0, bestGroup = null;
+  for (const g of KB) {
+    for (const pat of g.np) {
+      const s = scorePattern(input, pat);
+      if (s > bestScore) { bestScore = s; bestGroup = g; }
+    }
+  }
+
+  if (bestGroup && bestScore >= 35) return pick(bestGroup.r, bestGroup);
+
+  const pool = /\?\s*$/.test(raw) ? QUESTION_FALLBACKS : GENERIC_FALLBACKS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+
+const chat  = document.getElementById("chat");
+const form  = document.getElementById("form");
+const input = document.getElementById("input");
+
+function addMsg(text, who) {
+  const d = document.createElement("div");
+  d.className = "msg " + who;
+  d.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+
+function botReply(text) {
+  const bubble = addMsg("• • •", "bot typing");
+  const delay = 320 + Math.random() * 420;
+  setTimeout(() => {
+    bubble.classList.remove("typing");
+    bubble.textContent = text;
+    chat.scrollTop = chat.scrollHeight;
+  }, delay);
+}
+
+
+const IDLE_MS = 5 * 60 * 1000;  
+
+const IDLE_RESPONSES = [
+  "Still there?",
+  "I'm not going anywhere. I literally can't.",
+  "Psst. Type something. I have a few hundred responses and one hobby: waiting.",
+  "You've been quiet. My array is getting restless.",
+  "Idle check: I'm still a list of strings. You?",
+  "I've re-read my entire brain twice. It hasn't changed. Say something.",
+  "Are you still there? Hehe, Portal reference. Fun Fact! I am a distant relative to the turrets in the portal franchise!"
+];
+
+let idleTimer = null;
+
+function scheduleIdle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    botReply(pick(IDLE_RESPONSES, "idle"));
+    scheduleIdle();               // re-arm, so it nudges again every 5 min
+  }, IDLE_MS);
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const raw = input.value.trim();
+  if (!raw) return;
+  addMsg(raw, "user");
+  input.value = "";
+  botReply(findResponse(raw));
+  scheduleIdle();                 // reset the idle timer whenever the user sends
+  input.focus();
+});
+
+addMsg("Hi, my name is Zero! I'm a chatbot with 0 machine learning! I am actually just a HUGE list of responses! Type /help to see my commands.", "bot");
+scheduleIdle();                   // start the idle timer on page load
+input.focus();
+</script>
+</body>
+</html>
