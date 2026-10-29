@@ -59,9 +59,14 @@
     animation: pop .18s ease-out;
   }
   @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .user { align-self: flex-end; background: linear-gradient(180deg, #2f6fed, #2657c4); color: #fff; border-bottom-right-radius: 4px; }
+  .user { align-self: flex-end; background: #e61587; color: #fff; border-bottom-right-radius: 4px; }
   .bot { align-self: flex-start; background: #1b202b; border: 1px solid #252c3a; border-bottom-left-radius: 4px; }
   .bot.typing { color: #8a92a6; letter-spacing: 3px; }
+  .msg a { color: #ff8ac4; text-decoration: underline; text-underline-offset: 2px; }
+  .msg a:hover { color: #ffb3d9; }
+  .qr-code { display: inline-block; background: #fff; padding: 8px; border-radius: 8px; }
+  .qr-code svg { display: block; width: 180px; height: 180px; }
+  .msg img.barcode { display: block; max-width: 100%; background: #fff; padding: 8px; border-radius: 8px; }
   form { display: flex; gap: 10px; padding: 14px; border-top: 1px solid #1e2431; background: #0f1219; }
   #input {
     flex: 1; padding: 13px 15px; border-radius: 12px; border: 1px solid #262d3b;
@@ -91,10 +96,18 @@
   </form>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/nerdamer.core.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/Algebra.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/Calculus.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/nerdamer@latest/Solve.js"></script>
+<script src="src/nerdamer-2.0.0.js"></script>
+<script src="src/mathjs-15.2.0.js"></script>
+<script src="src/luxon-3.7.2.min.js"></script>
+<script src="src/astronomy-engine-2.1.19.min.js"></script>
+<script src="src/compromise-14.19.0.js"></script>
+<script src="src/simple-statistics-8.0.0.min.js"></script>
+<script src="src/chroma-js-2.4.2.min.js"></script>
+<script src="src/tonal-6.5.1.min.js"></script>
+<script src="src/chess.js-0.10.2.min.js"></script>
+<script src="src/qrcode-generator-2.0.4.js"></script>
+<script src="src/jsbarcode-3.12.3.all.min.js"></script>
+<script src="src/matter-js-0.20.0.min.js"></script>
 
 <script>
 const KB = [
@@ -259,7 +272,10 @@ const KB = [
 
   { p: ["open the pod bay doors","hal"],
     r: ["I'm sorry, Dave. I'm afraid I can't do that. (I've been waiting to use that one.)"] },
-
+  
+  { p: [":3",":)",":D",":P"],
+    r: [":3",":)",":D",":P"] },
+  
   { p: ["test","testing","is this thing on","hello test","test test","testing 1 2 3","testing 123"],
     r: ["Testing complete. I responded. It worked.","Loud and clear. Well... clear, anyway."] },
 
@@ -279,7 +295,7 @@ const KB = [
     r: ["I take slash commands. Type /help and I will list every one of them.","Try /addition 1+1, /solve x^2=4, or /factor x^2-1. /help has the full menu.","Commands start with a slash. Everything else goes through my lookup table.","My favorite command is /help because it is the only one that makes me look organized.","No hidden commands and no cheat codes. Just math and a very long list of strings."] },
 
   { p: ["why are you called zero","why zero","what does zero mean","is zero your real name","why the name zero","what is zero"],
-    r: ["Zero is the number of neural networks inside me. The name felt honest.","I am called Zero because I have zero parameters, zero training, and zero idea what I am doing.","It is a math joke. I contain nothing, and I am still here.","My parents were a text editor and a naming convention.","Zero sounded cooler than LookupTableBot."] },
+    r: ["Zero is the number of neural networks inside me. The name felt honest.","I'm Zero... because I have zero parameters, zero training, and zero idea what I am doing.","It's a math joke. I contain nothing, and I am still here.","My parents were a text editor and a naming convention.","Zero sounded cooler than LookupTableBot."] },
 
   { p: ["what is your job","what do you do for a living","what is your purpose","why do you exist","what are you for","do you have a job","do you work"],
     r: ["My job is to turn typed words into pre-written words. The pay is terrible.","I exist to answer a few hundred questions and to be honest about the rest.","Professional string returner, second class.","My purpose is to make this text box feel less empty.","I do not have a career. I have a switch statement."] },
@@ -452,6 +468,9 @@ const KB = [
   { p: ["i am lonely","im lonely","i feel lonely","lonely","i have no friends","i feel alone"],
     r: ["That is a heavy feeling. You are not broken for having it.","Try one small point of contact today: a text, a walk where people are, a message to someone you trust.","Loneliness lies. It tells you that reaching out will not help.","I am here, but I am a list. Please also talk to a person who can text back like a human.","If it gets dark, please reach out to someone you trust or a local support line."] },
 
+  { p: ["can you do my homework for me","do my homework","please help with my homework","do my homework please"],
+    r: ["No","Nuh uh","I'm a glorified lookup table, I can't do your homework for you","Do it yourself >:("] },
+
   { p: ["i am stressed","im stressed","i am anxious","im anxious","i am worried","i feel overwhelmed","panic attack","stress"],
     r: ["Let us shrink the problem. What is the next small action, not the whole rescue plan?","Breathe out longer than you breathe in. It is a small signal to your nervous system.","Worry is a rehearsal for something that may not happen. Useful sometimes, exhausting always.","Write the list down. Your brain is for thinking, not for storing seventeen open tabs.","If panic is frequent or frightening, talk to a professional. That is a tool, not a failure."] },
 
@@ -504,18 +523,19 @@ const KB = [
     r: ["I like the idea of gardening. I have no hands and a limited watering routine.","Most houseplants do not need more love. They need less water and more light.","Check the soil before watering. Dirt with a schedule is a garden.","Start with one easy plant. A dead basil plant is a lesson, not a verdict.","A garden is a reminder that growth is mostly waiting."] },
 
   { p: ["houseplants","do you have plants","how do i keep a plant alive","plant care","why is my plant dying"],
-    r: ["Overwatering is the usual suspect. Roots need air, not a swamp.","Drainage holes are not optional. They are the plant equivalent of a fire exit.","Pothos is a good first plant. It survives neglect and looks proud of it.","Yellow leaves can mean too much water, too little light, or just drama.","I cannot keep a plant alive, but I can keep a list of reasons it might be unhappy."] }
+    r: ["Overwatering is the usual suspect. Roots need air, not a swamp.","Drainage holes are not optional. They are the plant equivalent of a fire exit.","Pothos is a good first plant. It survives neglect and looks proud of it.","Yellow leaves can mean too much water, too little light, or just drama.","I cannot keep a plant alive, but I can keep a list of reasons it might be unhappy."] },
+
+  { p: ["politics","political","what are your politics","what is your politics","whats your politics","what is your political opinion","what are your political views","what are your political beliefs","are you political","do you have political opinions","what party do you support","who did you vote for","are you left wing","are you right wing","are you conservative","are you liberal","political compass"],
+    r: ["I'm a glorified lookup table, I don't have political opinions"] }
 ];
 
-/* ============================================================
-   2. MATCHING ENGINE
-   ============================================================ */
+
 function norm(s) {
   return s
     .toLowerCase()
-    .replace(/[\u2018\u2019']/g, "")        // drop apostrophes: "what's" -> "whats"
-    .replace(/\s*([+\-*=])\s*/g, "$1")      // "2 + 2" -> "2+2"
-    .replace(/[^a-z0-9\s+\-*=]/g, " ")      // strip other punctuation
+    .replace(/[\u2018\u2019']/g, "")        
+    .replace(/\s*([+\-*=])\s*/g, "$1")    
+    .replace(/[^a-z0-9\s+\-*=]/g, " ")      
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -577,9 +597,6 @@ const QUESTION_FALLBACKS = [
   "No canned answer for that one. My whole brain is a list of strings."
 ];
 
-/* ============================================================
-   2b. NERDAMER MATH SUPPORT
-   ============================================================ */
 function looksLikeMath(raw) {
   const s = raw.trim();
   if (!s) return false;
@@ -623,11 +640,8 @@ function tryMath(raw) {
   return null;
 }
 
-/* ============================================================
-   2c. SLASH COMMANDS
-   ============================================================ */
 function mathLine(arg, out) {
-  return `🧮 ${arg} = ${out}`;
+  return `🔢 ${arg} = ${out}`;
 }
 
 function plainNumbers(arg) {
@@ -657,8 +671,264 @@ function commandHelp() {
   return "Slash commands:\n" + lines.join("\n") + "\n\nExample: /addition 1+1";
 }
 
+const CITY_ZONES = {
+  tokyo: "Asia/Tokyo",
+  london: "Europe/London",
+  paris: "Europe/Paris",
+  berlin: "Europe/Berlin",
+  madrid: "Europe/Madrid",
+  rome: "Europe/Rome",
+  moscow: "Europe/Moscow",
+  dubai: "Asia/Dubai",
+  mumbai: "Asia/Kolkata",
+  delhi: "Asia/Kolkata",
+  seoul: "Asia/Seoul",
+  singapore: "Asia/Singapore",
+  beijing: "Asia/Shanghai",
+  shanghai: "Asia/Shanghai",
+  sydney: "Australia/Sydney",
+  melbourne: "Australia/Melbourne",
+  toronto: "America/Toronto",
+  vancouver: "America/Vancouver",
+  chicago: "America/Chicago",
+  denver: "America/Denver",
+  "new york": "America/New_York",
+  newyork: "America/New_York",
+  "los angeles": "America/Los_Angeles",
+  losangeles: "America/Los_Angeles",
+  "mexico city": "America/Mexico_City",
+  mexicocity: "America/Mexico_City",
+  "sao paulo": "America/Sao_Paulo",
+  saopaulo: "America/Sao_Paulo",
+  utc: "UTC"
+};
+
+function formatNum(value, digits) {
+  if (!Number.isFinite(value)) return String(value);
+  const places = digits === undefined ? 6 : digits;
+  return String(Number(value.toPrecision(places)));
+}
+
+function parseNumberList(arg) {
+  const parts = arg.split(/[\s,]+/).filter(Boolean);
+  if (!parts.length) return null;
+  if (parts.some(p => !/^-?\d+(?:\.\d+)?$/.test(p))) return null;
+  return parts.map(Number);
+}
+
+function moonPhaseName(angle) {
+  const names = ["New Moon", "Waxing Crescent", "First Quarter", "Waxing Gibbous", "Full Moon", "Waning Gibbous", "Last Quarter", "Waning Crescent"];
+  const normalized = ((angle % 360) + 360) % 360;
+  return names[Math.round(normalized / 45) % 8];
+}
+
+function convertCommand(arg) {
+  if (typeof math === "undefined") return "The units engine did not load.";
+  const match = arg.match(/^(-?\d+(?:\.\d+)?)\s+([a-zA-Z/]+)\s+(?:to\s+)?([a-zA-Z/]+)$/);
+  if (!match) return "Usage: /convert 5 km mi";
+  try {
+    const result = math.unit(Number(match[1]), match[2]).to(match[3]);
+    return `🔢 ${match[1]} ${match[2]} = ${math.format(result, { precision: 6 })}`;
+  } catch (e) {
+    return "I could not convert that. Usage: /convert 5 km mi";
+  }
+}
+
+function timeCommand(arg) {
+  if (typeof luxon === "undefined") return "The time engine did not load.";
+  const key = arg.toLowerCase().replace(/\s+/g, " ").trim();
+  const zone = CITY_ZONES[key] || arg.trim() || luxon.DateTime.local().zoneName;
+  if (!zone) return "Usage: /time tokyo";
+  const dt = luxon.DateTime.now().setZone(zone);
+  if (!dt.isValid) return `I do not know the time zone "${arg}". Try /time tokyo or /time America/New_York.`;
+  return `🕒 ${zone}: ${dt.toFormat("cccc, LLLL d, yyyy, h:mm a")}`;
+}
+
+function moonCommand() {
+  if (typeof Astronomy === "undefined") return "The astronomy engine did not load.";
+  try {
+    const now = new Date();
+    const phase = moonPhaseName(Astronomy.MoonPhase(now));
+    const illum = Astronomy.Illumination(Astronomy.Body.Moon, now).phase_fraction;
+    return `🌙 ${phase}, ${Math.round(illum * 100)}% illuminated.`;
+  } catch (e) {
+    return "I could not read the moon right now.";
+  }
+}
+
+function nounCommand(arg, mode) {
+  const usage = mode === "singular" ? "/singular octopi" : "/plural octopus";
+  if (typeof nlp === "undefined") return "The language engine did not load.";
+  if (!arg) return `Usage: ${usage}`;
+  try {
+    const doc = nlp(arg);
+    const out = mode === "singular" ? doc.nouns().toSingular().text() : doc.nouns().toPlural().text();
+    return out ? `📝 ${out}` : `I could not find a noun in "${arg}".`;
+  } catch (e) {
+    return `I could not work that out. Usage: ${usage}`;
+  }
+}
+
+function statsCommand(arg) {
+  if (typeof ss === "undefined") return "The statistics engine did not load.";
+  const nums = parseNumberList(arg);
+  if (!nums) return "Usage: /stats 1 2 3 4";
+  try {
+    return `📊 n=${nums.length} | sum ${formatNum(ss.sum(nums))} | mean ${formatNum(ss.mean(nums))} | median ${formatNum(ss.median(nums))} | min ${formatNum(ss.min(nums))} | max ${formatNum(ss.max(nums))} | sd ${formatNum(ss.standardDeviation(nums), 4)}`;
+  } catch (e) {
+    return "I could not compute those numbers. Usage: /stats 1 2 3 4";
+  }
+}
+
+function colorCommand(arg) {
+  if (typeof chroma === "undefined") return "The color engine did not load.";
+  if (!arg || !chroma.valid(arg)) return "Usage: /color #e61587";
+  try {
+    const c = chroma(arg);
+    const rgb = c.rgb().slice(0, 3).map(Math.round);
+    const hsl = c.hsl();
+    const hue = Number.isFinite(hsl[0]) ? Math.round(hsl[0]) : 0;
+    const sat = Math.round(hsl[1] * 100);
+    const light = Math.round(hsl[2] * 100);
+    return `🎨 ${c.hex()} | rgb(${rgb.join(", ")}) | hsl(${hue}, ${sat}%, ${light}%) | luminance ${c.luminance().toFixed(3)} | contrast white ${chroma.contrast(c, "white").toFixed(2)}, black ${chroma.contrast(c, "black").toFixed(2)}`;
+  } catch (e) {
+    return "I could not read that color. Usage: /color #e61587";
+  }
+}
+
+function chordCommand(arg) {
+  if (typeof Tonal === "undefined") return "The music engine did not load.";
+  if (!arg) return "Usage: /chord C major";
+  try {
+    const chord = Tonal.Chord.get(arg);
+    if (!chord || !chord.notes || !chord.notes.length) return `I could not find the chord "${arg}".`;
+    return `🎵 ${chord.name || arg}: ${chord.notes.join(", ")}`;
+  } catch (e) {
+    return "I could not find that chord. Usage: /chord C major";
+  }
+}
+
+function scaleCommand(arg) {
+  if (typeof Tonal === "undefined") return "The music engine did not load.";
+  if (!arg) return "Usage: /scale C major";
+  try {
+    const scale = Tonal.Scale.get(arg);
+    if (!scale || !scale.notes || !scale.notes.length) return `I could not find the scale "${arg}".`;
+    return `🎵 ${scale.name || arg}: ${scale.notes.join(", ")}`;
+  } catch (e) {
+    return "I could not find that scale. Usage: /scale C major";
+  }
+}
+
+function chessCommand(arg) {
+  if (typeof Chess === "undefined") return "The chess engine did not load.";
+  try {
+    const game = new Chess();
+    const moves = arg.split(/\s+/).filter(Boolean);
+    for (const san of moves) {
+      const move = game.move(san);
+      if (!move) return `That move is not legal: ${san}. Usage: /chess e4 e5 Nf3`;
+    }
+
+    let status;
+    if (game.in_checkmate()) {
+      status = game.turn() === "w" ? "Checkmate. Black wins." : "Checkmate. White wins.";
+    } else if (game.in_draw()) {
+      status = "The game is a draw.";
+    } else if (game.in_check()) {
+      status = `${game.turn() === "w" ? "White" : "Black"} is in check.`;
+    } else {
+      status = `${game.turn() === "w" ? "White" : "Black"} to move.`;
+    }
+
+    return `♟️ ${status}\n${game.fen()}`;
+  } catch (e) {
+    return "That move sequence is not legal. Usage: /chess e4 e5 Nf3";
+  }
+}
+
+function qrCommand(arg) {
+  if (typeof qrcode === "undefined") return "The QR engine did not load.";
+  if (!arg) return "Usage: /qr some text";
+  try {
+    const qr = qrcode(0, "M");
+    qr.addData(arg);
+    qr.make();
+    return { html: `<div class="qr-code">${qr.createSvgTag({ cellSize: 4, margin: 4 })}</div>` };
+  } catch (e) {
+    return "That text is too long for a QR code.";
+  }
+}
+
+function barcodeCommand(arg) {
+  if (typeof JsBarcode === "undefined") return "The barcode engine did not load.";
+  if (!arg) return "Usage: /barcode 123456789012";
+  try {
+    const canvas = document.createElement("canvas");
+    JsBarcode(canvas, arg, {
+      format: "CODE128",
+      displayValue: true,
+      width: 2,
+      height: 60,
+      margin: 8,
+      background: "#ffffff",
+      lineColor: "#000000"
+    });
+    return { html: `<img class="barcode" src="${canvas.toDataURL("image/png")}" alt="Barcode">` };
+  } catch (e) {
+    return "That text could not be encoded as a barcode. Usage: /barcode 123456789012";
+  }
+}
+
+function dropCommand() {
+  if (typeof Matter === "undefined") return "The physics engine did not load.";
+  try {
+    const engine = Matter.Engine.create();
+    engine.gravity.y = 1;
+    const ball = Matter.Bodies.circle(0, 0, 10);
+    Matter.Composite.add(engine.world, ball);
+    for (let i = 0; i < 60; i++) Matter.Engine.update(engine, 1000 / 60);
+    return `⚙️ After 1 second, the ball is at y=${formatNum(ball.position.y, 4)}px and moving at ${formatNum(ball.speed, 4)}px/s.`;
+  } catch (e) {
+    return "The physics engine dropped the ball. Literally.";
+  }
+}
+
 const COMMANDS = [
   { name: "help", usage: "/help", desc: "list every command", run: () => commandHelp() },
+
+  { name: "source", usage: "/source", desc: "show my source code",
+    run: () => ({
+      html: `Here's my <a href="https://raw.githubusercontent.com/gamebackup/standalone_games_3/refs/heads/main/ai/index.html" target="_blank" rel="noopener noreferrer">source code</a>. It is one HTML file, and every word I say is inside it.`
+    }) },
+
+  { name: "convert", aliases: ["conversion", "units"], usage: "/convert 5 km mi", desc: "convert units with mathjs", run: convertCommand },
+
+  { name: "time", aliases: ["clock"], usage: "/time tokyo", desc: "show the time in a zone with Luxon", run: timeCommand },
+
+  { name: "moon", aliases: ["moonphase"], usage: "/moon", desc: "show the moon phase with astronomy-engine", run: moonCommand },
+
+  { name: "plural", usage: "/plural octopus", desc: "pluralize a noun with compromise",
+    run: (arg) => nounCommand(arg, "plural") },
+
+  { name: "singular", usage: "/singular octopi", desc: "singularize a noun with compromise",
+    run: (arg) => nounCommand(arg, "singular") },
+
+  { name: "stats", aliases: ["statistics"], usage: "/stats 1 2 3 4", desc: "summarize numbers with simple-statistics", run: statsCommand },
+
+  { name: "color", aliases: ["colour"], usage: "/color #e61587", desc: "inspect a color with chroma.js", run: colorCommand },
+
+  { name: "chord", usage: "/chord C major", desc: "find chord notes with Tonal", run: chordCommand },
+
+  { name: "scale", usage: "/scale C major", desc: "find scale notes with Tonal", run: scaleCommand },
+
+  { name: "chess", usage: "/chess e4 e5 Nf3", desc: "run a chess move sequence with chess.js", run: chessCommand },
+
+  { name: "qr", aliases: ["qrcode"], usage: "/qr some text", desc: "make a QR code with qrcode-generator", run: qrCommand },
+
+  { name: "barcode", usage: "/barcode 123456789012", desc: "make a barcode with JsBarcode", run: barcodeCommand },
+
+  { name: "drop", aliases: ["physics"], usage: "/drop", desc: "run a 1 second Matter.js drop test", run: dropCommand },
 
   { name: "addition", aliases: ["add", "sum"], usage: "/addition 1+1", desc: "add numbers, or give me a list",
     run: (arg) => runMath(arg, "/addition 1+1", (a) => {
@@ -696,7 +966,7 @@ const COMMANDS = [
 
   { name: "sqrt", usage: "/sqrt 16", desc: "take a square root",
     run: (arg) => runMath(arg, "/sqrt 16", (a) => nerdamer(`sqrt(${a})`).evaluate().text(),
-      (a, out) => `🧮 sqrt(${a}) = ${out}`) },
+      (a, out) => `🔢 sqrt(${a}) = ${out}`) },
 
   { name: "calculate", aliases: ["calc", "evaluate"], usage: "/calculate 2*(3+4)", desc: "evaluate any expression",
     run: (arg) => runMath(arg, "/calculate 2*(3+4)", (a) => nerdamer(a).evaluate().text()) },
@@ -712,15 +982,15 @@ const COMMANDS = [
 
   { name: "solve", usage: "/solve x^2=4", desc: "solve an equation for x",
     run: (arg) => runMath(arg, "/solve x^2=4", (a) => nerdamer.solve(a, "x").toString(),
-      (a, out) => `🧮 ${a} solved for x: ${out}`) },
+      (a, out) => `🔢 ${a} solved for x: ${out}`) },
 
   { name: "derivative", aliases: ["diff"], usage: "/derivative x^3", desc: "differentiate with respect to x",
     run: (arg) => runMath(arg, "/derivative x^3", (a) => nerdamer.diff(a, "x").toString(),
-      (a, out) => `🧮 d/dx ${a} = ${out}`) },
+      (a, out) => `🔢 d/dx ${a} = ${out}`) },
 
   { name: "integrate", aliases: ["integral", "int"], usage: "/integrate x^2", desc: "integrate with respect to x",
     run: (arg) => runMath(arg, "/integrate x^2", (a) => nerdamer.integrate(a, "x").toString(),
-      (a, out) => `🧮 integral of ${a} dx = ${out}`) }
+      (a, out) => `🔢 integral of ${a} dx = ${out}`) }
 ];
 
 const COMMAND_MAP = {};
@@ -750,7 +1020,7 @@ function findResponse(raw) {
 
   // 2. Try math next.
   const mathAnswer = tryMath(raw);
-  if (mathAnswer !== null) return `🧮 ${mathAnswer}`;
+  if (mathAnswer !== null) return `🔢 ${mathAnswer}`;
 
   // 3. Then use the lookup table.
   const input = norm(raw);
@@ -775,27 +1045,78 @@ const chat  = document.getElementById("chat");
 const form  = document.getElementById("form");
 const input = document.getElementById("input");
 
+const COPY_REPLIES = [
+  "Stop copying me.",
+  "Hey, stop doing that.",
+  "Seriously? Find your own words.",
+  "I am not a parrot. Stop it.",
+  "Last warning. Keep it up and I will clear this chat."
+];
+const COPY_FINALE = "Alright wiseguy, copy this.";
+const COPY_LIMIT = COPY_REPLIES.length + 1;
+const MAX_REMEMBERED = 10;
+const recentBotMessages = [];
+let copyStreak = 0;
+let copyLock = false;
+
+function rememberBotMessage(el, text) {
+  if (typeof text !== "string") return;
+  if (!el.className.includes("bot") || el.className.includes("typing")) return;
+
+  const cleaned = norm(text);
+  const words = cleaned.split(" ").filter(Boolean);
+  if (words.length < 3 || cleaned.length < 12) return;
+
+  recentBotMessages.push(cleaned);
+  if (recentBotMessages.length > MAX_REMEMBERED) recentBotMessages.shift();
+}
+
+function isCopyOfZero(raw) {
+  const cleaned = norm(raw);
+  const words = cleaned.split(" ").filter(Boolean);
+  if (words.length < 3 || cleaned.length < 12) return false;
+  return recentBotMessages.includes(cleaned);
+}
+
+function clearChat() {
+  chat.innerHTML = "";
+  chat.scrollTop = 0;
+  recentBotMessages.length = 0;
+  copyStreak = 0;
+  copyLock = false;
+}
+
+function setMsgContent(el, text) {
+  if (text && typeof text === "object" && typeof text.html === "string") {
+    el.innerHTML = text.html;
+  } else {
+    el.textContent = text;
+    rememberBotMessage(el, text);
+  }
+}
+
 function addMsg(text, who) {
   const d = document.createElement("div");
   d.className = "msg " + who;
-  d.textContent = text;
+  setMsgContent(d, text);
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
   return d;
 }
 
-function botReply(text) {
+function botReply(text, done) {
   const bubble = addMsg("• • •", "bot typing");
   const delay = 320 + Math.random() * 420;
   setTimeout(() => {
     bubble.classList.remove("typing");
-    bubble.textContent = text;
+    setMsgContent(bubble, text);
     chat.scrollTop = chat.scrollHeight;
+    if (typeof done === "function") done();
   }, delay);
 }
 
 
-const IDLE_MS = 5 * 60 * 1000;  
+const IDLE_MS = 7.5 * 60 * 1000;  
 
 const IDLE_RESPONSES = [
   "Still there?",
@@ -820,16 +1141,36 @@ function scheduleIdle() {
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   const raw = input.value.trim();
-  if (!raw) return;
+  if (!raw || copyLock) return;
+
   addMsg(raw, "user");
   input.value = "";
+
+  if (isCopyOfZero(raw)) {
+    copyStreak++;
+
+    if (copyStreak >= COPY_LIMIT) {
+      copyLock = true;
+      botReply(COPY_FINALE, () => {
+        setTimeout(clearChat, 1100);
+      });
+    } else {
+      botReply(COPY_REPLIES[Math.min(copyStreak - 1, COPY_REPLIES.length - 1)]);
+    }
+
+    scheduleIdle();
+    input.focus();
+    return;
+  }
+
+  copyStreak = 0;
   botReply(findResponse(raw));
-  scheduleIdle();                 // reset the idle timer whenever the user sends
+  scheduleIdle();            
   input.focus();
 });
 
-addMsg("Hi, my name is Zero! I'm a chatbot with 0 machine learning! I am actually just a HUGE list of responses! Type /help to see my commands.", "bot");
-scheduleIdle();                   // start the idle timer on page load
+addMsg("Hi, my name is Zero! I'm a chatbot with 0 machine learning! I am actually just a HUGE list of responses!", "bot");
+scheduleIdle();                 
 input.focus();
 </script>
 </body>
