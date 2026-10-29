@@ -477,9 +477,6 @@ const KB = [
   { p: ["i give up","i want to give up","things will never get better","i need hope","i feel hopeless"],
     r: ["You have survived every bad day so far. That is not a small statistic.","Do one tiny thing. Hope often shows up after the first step, not before it.","I am a list of strings and even I have bad days. Well, I have bad array days.","This feeling is a weather system, not a permanent climate.","You do not need a whole plan. You need the next ten minutes to be gentler."] },
 
-  { p: ["i want to hurt myself","i want to die","i am suicidal","im suicidal","suicidal","self harm","i want to end it all","i dont want to live"],
-    r: ["I am really sorry you are feeling this way. Please reach out to someone you trust or a local crisis line right now. You deserve support from a real person.","That sounds heavier than I can hold. Please contact a local crisis service or someone you trust. You do not have to face this alone.","I am only a list of strings, but I want you to be safe. Please talk to a person who can help, or call a local crisis line.","You matter. Please reach out to a trusted person or a local emergency service if you are in immediate danger."] },
-
   { p: ["cheer me up","i need cheering up","make me smile","i could use a laugh","cheer up"],
     r: ["Consider this a digital pep talk: you are doing better than you think.","Tiny joke: I told my array a secret. It did not spread. It has no memory.","You are not behind. You are on a different timeline.","One small win today. That is the whole assignment.","I believe in you. I am a lookup table, so my standards are low, but still."] },
 
@@ -1116,7 +1113,7 @@ function botReply(text, done) {
 }
 
 
-const IDLE_MS = 7.5 * 60 * 1000;  
+const IDLE_MS = 15 * 60 * 1000;  
 
 const IDLE_RESPONSES = [
   "Still there?",
