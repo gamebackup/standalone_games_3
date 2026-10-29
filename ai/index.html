@@ -909,7 +909,7 @@ function colorCommand(arg) {
     const light = Math.round(hsl[2] * 100);
     return `🎨 ${c.hex()} | rgb(${rgb.join(", ")}) | hsl(${hue}, ${sat}%, ${light}%) | luminance ${c.luminance().toFixed(3)} | contrast white ${chroma.contrast(c, "white").toFixed(2)}, black ${chroma.contrast(c, "black").toFixed(2)}`;
   } catch (e) {
-    return "I could not read that color. Usage: /color #e61587";
+    return "I could not read that color. Usage: /color #______";
   }
 }
 
