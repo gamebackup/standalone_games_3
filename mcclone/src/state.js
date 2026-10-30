@@ -117,7 +117,8 @@ export function setMouse(x, y) { mouseX = x; mouseY = y; }
 export let mouseDown = false;
 export function setMouseDown(val) { mouseDown = val; }
 export const Key = {};
-export const move = { x: 0, z: 0 };
+// ang normalizes diagonal input so strafing does not speed the player up.
+export const move = { x: 0, z: 0, ang: Math.sqrt(0.5) };
 export let place = false;
 export function setPlace(val) { place = val; }
 

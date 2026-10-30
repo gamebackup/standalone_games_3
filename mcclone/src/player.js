@@ -927,7 +927,7 @@ function cross(v1, v2, result) {
 		}
 	}
 
-	// Screen space offsets used to fatten the block outline by 2px.
+	// Screen space offsets used to fatten the block outline.
 	// Most browsers clamp gl.lineWidth() to 1, so the width is faked by
 	// drawing the outline several times, offset around a circle.
 	let outlinePasses = [
@@ -951,8 +951,10 @@ function cross(v1, v2, result) {
 		if (blockOutlines) {
 			vertexAttribPointer("aVertex", program3D, "aVertex", 3, hitBox.shape.buffer)
 			vertexAttribPointer("aTexture", program3D, "aTexture", 2, texCoordsBuffers[textureMap.hitbox])
-			let px = 2 / width
-			let py = 2 / height
+			// Pass offsets are in half pixels, which makes the outline one
+			// pixel thinner than a full-pixel fattening.
+			let px = 1 / width
+			let py = 1 / height
 			for (let pass = 0; pass < outlinePasses.length; pass++) {
 				gl.uniform2f(glCache.uLineOffset, outlinePasses[pass][0] * px, outlinePasses[pass][1] * py)
 				for (let i = 0; i < hitBox.shape.size; i++) {
@@ -1163,10 +1165,15 @@ function cross(v1, v2, result) {
 		// This is extremely slow, and requires generating 2 noise values for every single block in the world.
 		// TODO: replace with a crawler system of some sort, that will never rely on a head position in un-generated chunks.
 		let smooth = 0.02
-		let caveSize = 0.0055
+		// carveCaves samples every second block. The wider band keeps the
+		// number of cave centers per volume close to a full-resolution scan.
+		let caveSize = 0.015
 		let cave1 = Math.abs(0.5 - caveNoise(x * smooth, y * smooth, z * smooth)) < caveSize
-		let cave2 = Math.abs(0.5 - caveNoise(y * smooth, z * smooth, x * smooth)) < caveSize
-		return (cave1 && cave2)
+		if (!cave1) {
+			return false
+		}
+		// The second sample is only needed where the first one already matched.
+		return Math.abs(0.5 - caveNoise(y * smooth, z * smooth, x * smooth)) < caveSize
 	}
 	function carveSphere(x, y, z) {
 		if (y > 3) {

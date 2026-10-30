@@ -482,10 +482,14 @@ import { placeVillageStructure } from './structures.js'
 		}
 		carveCaves() {
 			let wx = this.x + 16, wz = this.z + 16, wy = this.y + 16
-			for (let x = this.x, xx = 0; x < wx; x++, xx++) {
-				for (let z = this.z, zz = 0; z < wz; z++, zz++) {
+			// The carve spheres are 3.5 blocks in radius, so sampling the noise
+			// every second block still overlaps and leaves connected caves. This
+			// is eight times less noise work, which is what lets chunk generation
+			// keep up with the player instead of stalling the world.
+			for (let x = this.x, xx = 0; x < wx; x += 2, xx += 2) {
+				for (let z = this.z, zz = 0; z < wz; z += 2, zz += 2) {
 					wy = this.chunk.tops[zz * 16 + xx]
-					for (let y = this.y; y < wy; y++) {
+					for (let y = this.y; y < wy; y += 2) {
 						if (isCave(x, y, z)) {
 							carveSphere(x, y, z)
 						}

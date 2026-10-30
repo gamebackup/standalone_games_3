@@ -204,9 +204,9 @@ function releasePointer() {
 				[objectify( 0, 0,  0, 16, 16, 0, 0)], //bottom
 				[objectify( 0, 8,  8, 16, 8, 0, 8), objectify( 0, 16,  16, 16, 8, 0, 0)], //top
 				[objectify(16, 16, 16, 16, 16, 0, 0)], //north
-				[objectify( 0, 8,  0, 16, 8, 0, 0), objectify( 0, 16,  8, 16, 8, 0, 0)], //south
-				[objectify(16, 8, 0, 8, 8, 8, 0), objectify(16, 16, 8, 8, 16, 0, 0)], //east
-				[objectify( 0, 8, 8, 8, 8, 0, 0), objectify( 0, 16, 16, 8, 16, 8, 0)]  //west
+				[objectify( 0, 8,  0, 16, 8, 0, 8), objectify( 0, 16,  8, 16, 8, 0, 0)], //south
+				[objectify(16, 8, 0, 8, 8, 8, 8), objectify(16, 16, 8, 8, 16, 0, 0)], //east
+				[objectify( 0, 8, 8, 8, 8, 0, 8), objectify( 0, 16, 16, 8, 16, 8, 0)]  //west
 			],
 			cull: {
 				top: 0,

@@ -130,12 +130,22 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 		for (let i = x - 2; i <= x + 2; i++) {
 			for (let j = z - 2; j <= z + 2; j++) {
 				let chunk = world.loaded[(i + world.offsetX) * world.lwidth + j + world.offsetZ]
+				if (!chunk) {
+					// Outside the loaded area: nothing to wait for.
+					continue
+				}
 				if (!chunk.generated) {
-					world.generateQueue.push(chunk)
+					// Fill requests run every tick for the same neighbours, so avoid
+					// piling duplicate entries onto the queues.
+					if (!world.generateQueue.includes(chunk)) {
+						world.generateQueue.push(chunk)
+					}
 					done = false
 				}
 				if (!chunk.populated && i >= x - 1 && i <= x + 1 && j >= z - 1 && j <= z + 1) {
-					world.populateQueue.push(chunk)
+					if (!world.populateQueue.includes(chunk)) {
+						world.populateQueue.push(chunk)
+					}
 					done = false
 				}
 			}
@@ -407,13 +417,22 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 					doneWork = true
 				}
 				if (this.populateQueue.length && !doneWork) {
-					let chunk = this.populateQueue[this.populateQueue.length - 1]
-					if (!chunk.caves) {
-						chunk.carveCaves()
-						debug("Carve caves")
-					} else if (!chunk.populated) {
-						chunk.populate()
+					// Drop entries that were already finished. Leaving one of those on
+					// top used to block the whole queue forever, which froze chunk
+					// generation and made the world turn into empty sky.
+					while (this.populateQueue.length && this.populateQueue[this.populateQueue.length - 1].populated) {
 						this.populateQueue.pop()
+					}
+					if (this.populateQueue.length) {
+						let chunk = this.populateQueue[this.populateQueue.length - 1]
+						if (!chunk.caves) {
+							chunk.carveCaves()
+							debug("Carve caves")
+						} else {
+							chunk.populate()
+							// Remove every copy of this chunk, not just the top one.
+							this.populateQueue = this.populateQueue.filter(c => c !== chunk)
+						}
 					}
 					doneWork = true
 				}
@@ -541,6 +560,32 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 			}
 			this.sortedChunks = this.loaded.filter(renderFilter)
 			this.sortedChunks.sort(sortChunks)
+
+			// Throw away queued work for chunks that are no longer around the
+			// player. Otherwise every chunk visited keeps its place in the queue
+			// and generation falls further and further behind while walking.
+			let keep = renderDistance
+			let near = chunk => maxDist(chunk.x >> 4, chunk.z >> 4, cx, cz) <= keep
+			this.generateQueue = this.generateQueue.filter(near)
+			this.populateQueue = this.populateQueue.filter(chunk => !chunk.populated && near(chunk))
+			this.meshQueue = this.meshQueue.filter(near)
+			let farFirst = (c1, c2) => maxDist(c2.x >> 4, c2.z >> 4, cx, cz) - maxDist(c1.x >> 4, c1.z >> 4, cx, cz)
+			this.generateQueue.sort(farFirst)
+			this.populateQueue.sort(farFirst)
+
+			// Release the GPU buffers of chunks that are well outside the view.
+			// Their block data stays, so walking back simply remeshes them. Without
+			// this, every chunk ever visited holds a mesh buffer and long walks can
+			// exhaust WebGL memory until nothing draws.
+			for (let x in this.chunks) {
+				for (let z in this.chunks[x]) {
+					let chunk = this.chunks[x][z]
+					if (chunk.buffer && !near(chunk)) {
+						gl.deleteBuffer(chunk.buffer)
+						chunk.buffer = null
+					}
+				}
+			}
 		}
 		getSaveString() {
 			let edited = []
