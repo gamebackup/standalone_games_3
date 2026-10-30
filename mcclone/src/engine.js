@@ -1182,6 +1182,7 @@ function releasePointer() {
 	}
 	function initBackgrounds() {
 		// Home screen background
+		if (!gl || !width || !height) return
 		use3d()
 		gl.clearColor(sky[0], sky[1], sky[2], 1.0)
 		gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT)

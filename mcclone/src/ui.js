@@ -2,7 +2,7 @@ import { blockData, BLOCK_COUNT, blockIds } from './blocks.js'
 import {
 	win, doc, gl, world, setWorld, p, p2, screen, setScreen, previousScreen, setPreviousScreen,
 	gameMode, setGameMode, newWorldGameMode, setNewWorldGameMode,
-	commandOpen, setCommandOpen, inventory, invBg, setInvBg, invBgReady, setInvBgReady,
+	commandOpen, setCommandOpen, inventory, hitBox, invBg, setInvBg, invBgReady, setInvBgReady,
 	generatedChunks, mouseX, mouseY, mouseDown, setMouseDown, width, height,
 	updateHUD, setUpdateHUD, freezeFrame, setFreezeFrame, glCache, setMaxLoad, renderedChunks, setRenderedChunks,
 	creativeScroll, setCreativeScroll, creativeSearch, setCreativeSearch,
@@ -625,6 +625,33 @@ if (typeof window !== "undefined") {
 		}
 		updateHolding()
 		return count
+	}
+	// Middle-click picks the targeted block into the hotbar (creative-style).
+	function pickBlock() {
+		if (!hitBox.pos) return false
+		let block = world.getBlock(hitBox.pos[0], hitBox.pos[1], hitBox.pos[2]) & BASE_MASK
+		if (!block) return false
+		let found = -1
+		for (let i = 0; i < 36; i++) {
+			if (inventory.slots[i] && inventory.slots[i].id === block) {
+				found = i
+				break
+			}
+		}
+		if (found >= 0) {
+			if (found < 9) {
+				inventory.hotbarSlot = found
+			} else {
+				let tmp = inventory.slots[inventory.hotbarSlot]
+				inventory.slots[inventory.hotbarSlot] = inventory.slots[found]
+				inventory.slots[found] = tmp
+			}
+		} else {
+			inventory.slots[inventory.hotbarSlot] = { id: block, count: 1 }
+		}
+		updateHolding()
+		setUpdateHUD(true)
+		return true
 	}
 	function invCapacity(id) {
 		let cap = 0
@@ -1601,7 +1628,7 @@ if (typeof window !== "undefined") {
 export {
 	fill, stroke, line, text, textSize, strokeWeight, cursor,
 	Slider, Button, initButtons,
-	drawIcon, heldStack, updateHolding, addItem, invCapacity, consumeHeld, blockDrop,
+	drawIcon, heldStack, updateHolding, addItem, pickBlock, invCapacity, consumeHeld, blockDrop,
 	updateCraftResult, consumeCraft, craftOnce,
 	invLayout, slotPos, slotAt, getStack, setStack, stackIntoRange, quickMove,
 	hotbar, hud, drawInv, clickInv,

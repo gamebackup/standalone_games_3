@@ -10,6 +10,7 @@ import {
 } from './engine.js'
 import { BIOMES, BIOME_PLAINS, random, randomSeed, hash } from './noise.js'
 import { isCave, carveSphere } from './player.js'
+import { placeVillageStructure } from './structures.js'
 
 
 	function getBlock(x, y, z, blocks) {
@@ -709,7 +710,7 @@ import { isCave, carveSphere } from './player.js'
 					ground -= 4
 
 					if (random() < 3.7 / 256) {
-						let y = random() * 16 | 0 + 1
+						let y = (random() * 16 | 0) + 1
 						y = y < ground ? y : ground
 						if (this.getBlock(i, y, k)) {
 							this.setBlock(i, y < ground ? y : ground, k, blockIds.diamondOre)
@@ -717,7 +718,7 @@ import { isCave, carveSphere } from './player.js'
 					}
 
 					if (random() < 111.5 / 256) {
-						let y = random() * 64 | 0 + 1
+						let y = (random() * 64 | 0) + 1
 						y = y < ground ? y : ground
 						if (this.getBlock(i, y, k)) {
 							this.setBlock(i, y < ground ? y : ground, k, blockIds.ironOre)
@@ -725,7 +726,7 @@ import { isCave, carveSphere } from './player.js'
 					}
 
 					if (random() < 185.5 / 256) {
-						let y = random() * ground | 0 + 1
+						let y = (random() * ground | 0) + 1
 						y = y < ground ? y : ground
 						if (this.getBlock(i, y, k)) {
 							this.setBlock(i, y < ground ? y : ground, k, blockIds.coalOre)
@@ -733,7 +734,7 @@ import { isCave, carveSphere } from './player.js'
 					}
 
 					if (random() < 10.4 / 256) {
-						let y = random() * 32 | 0 + 1
+						let y = (random() * 32 | 0) + 1
 						y = y < ground ? y : ground
 						if (this.getBlock(i, y, k)) {
 							this.setBlock(i, y < ground ? y : ground, k, blockIds.goldOre)
@@ -741,7 +742,7 @@ import { isCave, carveSphere } from './player.js'
 					}
 
 					if (random() < 29.1 / 256) {
-						let y = random() * 16 | 0 + 1
+						let y = (random() * 16 | 0) + 1
 						y = y < ground ? y : ground
 						if (this.getBlock(i, y, k)) {
 							this.setBlock(i, y < ground ? y : ground, k, blockIds.redstoneOre)
@@ -749,7 +750,7 @@ import { isCave, carveSphere } from './player.js'
 					}
 
 					if (random() < 4.1 / 256) {
-						let y = random() * 32 | 0 + 1
+						let y = (random() * 32 | 0) + 1
 						y = y < ground ? y : ground
 						if (this.getBlock(i, y, k)) {
 							this.setBlock(i, y < ground ? y : ground, k, blockIds.lapisOre)
@@ -771,145 +772,13 @@ import { isCave, carveSphere } from './player.js'
 				}
 			}
 
-			// Houses only occur inside rare "village" cells, so they cluster into
-			// small groups separated by wide empty stretches.
+			// Village buildings only occur inside rare "village" cells, so they
+			// cluster into small groups separated by wide empty stretches.
 			let gx = Math.floor((this.x >> 4) / 3), gz = Math.floor((this.z >> 4) / 3)
 			let village = Math.abs(hash(gx * 1013 + gz, gz * 1013 - gx)) % 1
-			if (village < 0.04 && random() < 0.6) this.buildHouse(random())
+			if (village < 0.04 && random() < 0.6) placeVillageStructure(this, random)
 
 			this.populated = true
-		}
-		buildHouse(r) {
-			// A small village house (7x7 footprint, one-block roof overhang). It
-			// stays entirely inside the chunk so it never writes across a border,
-			// and is placed deterministically from the populate() RNG stream.
-			if (r === undefined) r = random()
-			let t = r
-			let type = t < 0.25 ? "small" : t < 0.5 ? "long" : t < 0.75 ? "tall" : "cross"
-			let sizeX = 7, sizeZ = 7
-			if (type === "long") { sizeX = 14; sizeZ = 7 }
-			if (type === "tall") { sizeX = 7; sizeZ = 9 }
-			if (type === "cross") { sizeX = 9; sizeZ = 9 }
-			// Choose the flattest site among candidate origins inside the
-			// chunk so houses favour level ground.
-			let ox = 4, oz = 4, bestSlope = 256
-			for (let cx = 2; cx <= 16 - sizeX; cx++) {
-				for (let cz = 2; cz <= 16 - sizeZ; cz++) {
-					let mn = 255, mx = 0
-					for (let i = 0; i < sizeX; i++) {
-						for (let k = 0; k < sizeZ; k++) {
-							let g = this.tops[(cz + k) * 16 + (cx + i)]
-							mn = g < mn ? g : mn
-							mx = g > mx ? g : mx
-						}
-					}
-					if (mx - mn < bestSlope) {
-						bestSlope = mx - mn
-						ox = cx
-						oz = cz
-					}
-				}
-			}
-			let minG = 255, maxG = 0
-			for (let i = 0; i < sizeX; i++) {
-				for (let k = 0; k < sizeZ; k++) {
-					let g = this.tops[(oz + k) * 16 + (ox + i)]
-					minG = g < minG ? g : minG
-					maxG = g > maxG ? g : maxG
-				}
-			}
-			// Skip steep or submerged sites so houses never float or flood.
-			if (maxG - minG > 3 || maxG < 3) {
-				return
-			}
-			let floorY = maxG
-			let wall = blockIds.oakPlanks
-			let trim = blockIds.oakLog
-			let roof = blockIds.cobblestone
-			// Foundation, levelled up to a floor at the highest ground column.
-			for (let i = 0; i < sizeX; i++) {
-				for (let k = 0; k < sizeZ; k++) {
-					let g = this.tops[(oz + k) * 16 + (ox + i)]
-					for (let y = g; y < floorY; y++) {
-						this.setBlock(ox + i, y, oz + k, blockIds.cobblestone)
-					}
-					this.setBlock(ox + i, floorY, oz + k, wall)
-				}
-			}
-			// Walls (hollow interior) with a glass window band on the middle row.
-			let wallHeight = type === "tall" ? 5 : 3
-			for (let i = 0; i < sizeX; i++) {
-				for (let k = 0; k < sizeZ; k++) {
-					let edge = i === 0 || i === sizeX - 1 || k === 0 || k === sizeZ - 1
-					let corner = (i === 0 || i === sizeX - 1) && (k === 0 || k === sizeZ - 1)
-					if (!edge) {
-						for (let y = floorY + 1; y <= floorY + wallHeight; y++) {
-							this.setBlock(ox + i, y, oz + k, 0)
-						}
-						continue
-					}
-					for (let y = floorY + 1; y <= floorY + wallHeight; y++) {
-						let block = corner ? trim : wall
-						let mid = Math.floor(wallHeight / 2) + 1
-						if (!corner && y === floorY + mid && (i + k) % 2 === 0) {
-							block = blockIds.glass
-						}
-						this.setBlock(ox + i, y, oz + k, block)
-					}
-				}
-			}
-			// Door in the middle of the north wall.
-			let doorX = ox + (sizeX >> 1)
-			this.setBlock(doorX, floorY + 1, oz, blockIds.oakDoor | NORTH)
-			this.setBlock(doorX, floorY + 2, oz, blockIds.oakDoor | NORTH | DOOR_UPPER)
-			if (type === "long") {
-				// Long house with simple sloped roof
-				let roofHeight = 3
-				for (let tier = 0; tier < roofHeight; tier++) {
-					let y = floorY + 4 + tier
-					let overhang = Math.max(0, tier - 1)
-					let x0 = ox - overhang, x1 = ox + sizeX + overhang
-					let k0 = oz, k1 = oz + sizeZ - 1
-					let midI = ox + Math.floor(sizeX / 2)
-					let limit = Math.floor(sizeX / 2) - tier
-					for (let i = x0; i <= x1; i++) {
-						for (let k = k0; k <= k1; k++) {
-							let d = Math.abs(i - midI)
-							if (d > limit) continue
-							this.setBlock(i, y, k, roof)
-						}
-					}
-				}
-			} else if (type === "cross") {
-				let roofTiers = 4
-				for (let tier = 0; tier < roofTiers; tier++) {
-					let y = floorY + wallHeight + 1 + tier
-					let x0 = ox - Math.max(0, tier - 1), x1 = ox + sizeX - Math.max(0, tier - 1)
-					let z0 = oz - Math.max(0, tier - 1), z1 = oz + sizeZ - Math.max(0, tier - 1)
-					for (let i = x0; i <= x1; i++) {
-						for (let k = z0; k <= z1; k++) {
-							this.setBlock(i, y, k, roof)
-						}
-					}
-				}
-			} else {
-				// Stepped pyramid roof with a one-block overhang.
-				let roofTiers = type === "tall" ? 5 : 4
-				for (let tier = 0; tier < roofTiers; tier++) {
-					let y = floorY + wallHeight + 1 + tier
-					let x0 = ox - Math.max(0, tier - 1), x1 = ox + sizeX - Math.max(0, tier - 1)
-					let z0 = oz - Math.max(0, tier - 1), z1 = oz + sizeZ - Math.max(0, tier - 1)
-					let mat = roof
-					for (let i = x0; i <= x1; i++) {
-						for (let k = z0; k <= z1; k++) {
-							this.setBlock(i, y, k, mat)
-						}
-					}
-				}
-			}
-			// A torch hangs from the ceiling to light the interior.
-			let torchY = floorY + wallHeight
-			this.setBlock(ox + (sizeX >> 1), torchY, oz + (sizeZ >> 1), blockIds.torch | TORCH_HANGING)
 		}
 		genMesh() {
 			let start = win.performance.now()

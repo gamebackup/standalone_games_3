@@ -1,5 +1,5 @@
 import { blockData, blockIds } from './blocks.js'
-import { textureMap, win } from './state.js'
+import { recipes, textureMap, win } from './state.js'
 
 const BASE_MASK = 0x3ff
 const MAX_STACK = 64
@@ -100,6 +100,38 @@ function idDrop(id) {
 	if (name && blockIds[name] !== undefined) return blockIds[name]
 	if (name && itemIds[name] !== undefined) return itemIds[name]
 	return base
+}
+
+// The 2x2 inventory crafting grid only supports shapeless recipes made from
+// identical ingredients, so every recipe below is "N of one item -> output".
+const SHAPELESS_RECIPES = [
+	[ 'oakLog', 'oakPlanks', 4 ],
+	[ 'acaciaLog', 'acaciaPlanks', 4 ],
+	[ 'birchLog', 'birchPlanks', 4 ],
+	[ 'darkOakLog', 'darkOakPlanks', 4 ],
+	[ 'jungleLog', 'junglePlanks', 4 ],
+	[ 'spruceLog', 'sprucePlanks', 4 ],
+	[ 'cherryLog', 'cherryPlanks', 4 ],
+	[ 'crimsonStem', 'crimsonPlanks', 4 ],
+	[ 'warpedStem', 'warpedPlanks', 4 ],
+]
+for (let [ input, output, count ] of SHAPELESS_RECIPES) {
+	if (blockIds[input] === undefined || blockIds[output] === undefined) continue
+	recipes.push({ in: { id: blockIds[input], count: 1 }, out: { id: blockIds[output], count: count } })
+}
+const SHAPELESS_COUNTED = [
+	[ 'cobblestone', 'stone', 1, 1 ],
+	[ 'stone', 'stoneBricks', 4, 4 ],
+	[ 'andesite', 'polishedAndesite', 4, 4 ],
+	[ 'diorite', 'polishedDiorite', 4, 4 ],
+	[ 'granite', 'polishedGranite', 4, 4 ],
+	[ 'sand', 'glass', 1, 1 ],
+	[ 'sand', 'sandStone', 4, 1 ],
+	[ 'sandStone', 'smoothSandStone', 4, 4 ],
+]
+for (let [ input, output, need, count ] of SHAPELESS_COUNTED) {
+	if (blockIds[input] === undefined || blockIds[output] === undefined) continue
+	recipes.push({ in: { id: blockIds[input], count: need }, out: { id: blockIds[output], count: count } })
 }
 
 if (win) {

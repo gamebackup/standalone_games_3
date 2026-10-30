@@ -62,13 +62,14 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 	function updateDrops() {
 		if (!drops.length) return
 		let now = win.performance.now()
-		let dt = (now - (dropLastFrame || now - 33)) / 33
+		let elapsed = dropLastFrame ? now - dropLastFrame : 33
+		let dt = elapsed / 33
 		if (dt < 0) dt = 0
 		dt = dt > 2 ? 2 : dt
 		dropLastFrame = now
 		for (let i = drops.length - 1; i >= 0; i--) {
 			let e = drops[i]
-			e.age += now - dropLastFrame
+			e.age += elapsed
 			if (e.onGround) {
 				if (!isDropSolid(e.x, e.y - 0.02, e.z)) {
 					e.onGround = false

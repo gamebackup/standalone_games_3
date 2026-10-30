@@ -7,7 +7,7 @@ import {
 	caveNoise, setCaveNoise, worldSeed, setWorldSeed, matrix,
 	worlds, selectedWorld, setSelectedWorld, superflat, setSuperflat,
 	trees, setTrees, caves, setCaves, version,
-	renderedChunks, setRenderedChunks
+	renderedChunks, setRenderedChunks, loadString
 } from './state.js'
 import { Button, addItem, blockDrop } from './ui.js'
 import { Chunk, emptySection, fullSection } from './chunk.js'
@@ -190,7 +190,6 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 			if (chunk.generated) {
 				return false
 			}
-			let hide = !loadString
 			let smoothness = generator.smooth
 			let hilliness = generator.height
 			let gen = 0
@@ -315,11 +314,11 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 
 			chunk.updateBlock(xm, y, zm, this, lazy)
 
-			// Update the corner chunks so shadows in adjacent chunks update correctly
-			if (xm | zm === 0) { this.updateBlock(x - 1, y, z - 1, lazy); }
+			// Update the diagonal chunks so shadows near section corners update too.
+			if (xm === 0 && zm === 0) { this.updateBlock(x - 1, y, z - 1, lazy); }
 			if (xm === 15 && zm === 0) { this.updateBlock(x + 1, y, z - 1, lazy); }
 			if (xm === 0 && zm === 15) { this.updateBlock(x - 1, y, z + 1, lazy); }
-			if (xm & zm === 15) { this.updateBlock(x + 1, y, z + 1, lazy); }
+			if (xm === 15 && zm === 15) { this.updateBlock(x + 1, y, z + 1, lazy); }
 
 			// Pop off plants (and torches) that just lost their support. In
 			// survival the displaced block drops its item.
@@ -378,10 +377,10 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 			if (Key.leftMouse && !Key.control && p.lastBreak < Date.now() - 250 && screen === "play") {
 				changeWorldBlock(0)
 			}
-			if ((Key.rightMouse || Key.leftMouse && Key.control) && p.lastPlace < Date.now() - 250) {
+			if (screen === "play" && !p.interactHold && (Key.rightMouse || Key.leftMouse && Key.control) && p.lastPlace < Date.now() - 250) {
 				newWorldBlock()
 			}
-			if (Key.leftMouse && p.autoBreak && !Key.control) {
+			if (screen === "play" && Key.leftMouse && p.autoBreak && !Key.control) {
 				changeWorldBlock(0)
 			}
 
@@ -579,7 +578,7 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 			let rnd = Math.round
 			let options = p.flying | superflat << 1 | p.spectator << 2 | caves << 3 | trees << 4 | (gameMode === "creative" ? 1 : 0) << 5
 
-			let str = world.name + ";" + worldSeed.toString(36) + ";"
+			let str = this.name + ";" + worldSeed.toString(36) + ";"
 				+ rnd(p.x).toString(36) + "," + rnd(p.y).toString(36) + "," + rnd(p.z).toString(36) + ","
 				+ (p.rx * 100 | 0).toString(36) + "," + (p.ry * 100 | 0).toString(36) + "," + options.toString(36) + "," + rnd(world.time || 0).toString(36) + ";"
 				+ version + ";"
@@ -606,7 +605,11 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 		}
 		loadSave(str) {
 			let data = str.split(";")
-			if (!str.includes("Alpha")) {
+			// Current saves start with name;seed;player;version;palette;edits...
+			// and always store seven player fields (x, y, z, rx, ry, options,
+			// time). Legacy saves start with the seed and only have x..ry.
+			let probe = (data[2] || "").split(",")
+			if (data.length < 5 || probe.length < 6) {
 				return this.loadOldSave(str)
 			}
 
@@ -656,7 +659,7 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 				})
 				for (let j = 0; j < blocks.length; j++) {
 					let block = parseInt(blocks[j], 36)
-					let index = block & 0xffffff
+					let index = block & 0xfff
 					let pid = block >> 12
 					this.loadFrom[i].blocks[index] = pallete[pid]
 				}

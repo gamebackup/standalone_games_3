@@ -4,7 +4,7 @@ import {
 	holding, gameMode, Key, modelView, glCache, move, place,
 	currentFov, setCurrentFov, settings, width, height, maxHeight,
 	blockOutlines, blockFill, caveNoise, sideEdgeBuffers, matrix, projection,
-	defaultModelView, program3D, superflat, inventory, reach
+	defaultModelView, program3D, superflat, inventory, reach, screen
 } from './state.js'
 import { generator } from './state.js'
 import {
@@ -15,10 +15,11 @@ import {
 import { PVector, noise } from './noise.js'
 import {
 	isDoorState, isTrapState, toggleDoor, toggleTrapdoor, placeDoor, placeTrapdoor, inCobweb,
-	playerFluid, refreshFences, placementMode, isTorchSupport, isSupporter, facingToPlayer
+	playerFluid, refreshFences, placementMode, isTorchSupport, isSupporter, facingToPlayer,
+	bucketUse, isTntBlock, primeTnt
 } from './features.js'
 import { consumeHeld, heldStack, addItem, blockDrop } from './ui.js'
-import { isItem } from './items.js'
+import { isItem, itemDef } from './items.js'
 
 const vec1 = new PVector(), vec2 = new PVector(), vec3 = new PVector()
 
@@ -1018,6 +1019,42 @@ function cross(v1, v2, result) {
 			}
 		}
 	}
+	// Right-click in the world: use the held item first (buckets, flint and
+	// steel, doors, trapdoors), otherwise place the held block.
+	function useHeld() {
+		if (!hitBox.pos || screen !== "play") {
+			return false
+		}
+		let pos = hitBox.pos
+		let target = world.getBlock(pos[0], pos[1], pos[2])
+		let def = isItem(holding) ? itemDef(holding) : null
+		if (def && def.behavior === "bucket" && bucketUse()) {
+			p.interactHold = true
+			return true
+		}
+		if (target && isTntBlock(target) && def && def.name === "flintAndSteel") {
+			if (primeTnt(pos[0], pos[1], pos[2])) {
+				p.lastPlace = Date.now()
+				p.interactHold = true
+				return true
+			}
+		}
+		if (isDoorState(target)) {
+			toggleDoor(pos[0], pos[1], pos[2])
+			p.interactHold = true
+			return true
+		}
+		if (isTrapState(target)) {
+			toggleTrapdoor(pos[0], pos[1], pos[2])
+			p.interactHold = true
+			return true
+		}
+		if (holding) {
+			newWorldBlock()
+			return true
+		}
+		return false
+	}
 	function newWorldBlock() {
 		if(!hitBox.pos || !holding) {
 			return
@@ -1255,7 +1292,7 @@ export {
 	rayTrace, runRayTrace, lookingAt,
 	inBox, onBox, collided, contacts, sprintWallHit,
 	resolveContactsAndUpdatePosition, runGravity,
-	box2, block2, outlinePasses, changeWorldBlock, newWorldBlock,
+	box2, block2, outlinePasses, changeWorldBlock, newWorldBlock, useHeld,
 	sphere, isCave, carveSphere,
 	controls, mouseS, initPlayer
 }

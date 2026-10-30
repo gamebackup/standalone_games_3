@@ -104,6 +104,8 @@ export let commandOpen = false;
 export function setCommandOpen(val) { commandOpen = val; }
 export let locked = true;
 export function setLocked(val) { locked = val; }
+export let loadString = "";
+export function setLoadString(val) { loadString = val; }
 
 // Dimensions & Input
 export let width = typeof window !== "undefined" ? window.innerWidth : 600;

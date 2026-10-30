@@ -6,7 +6,7 @@ import {
 	commandOpen, setCommandOpen, Key, modelView, glCache, worlds, selectedWorld, setSelectedWorld,
 	freezeFrame, setFreezeFrame, move, place, setPlace,
 	inventory, invBg, setInvBg, invBgReady, setInvBgReady,
-	currentFov, setCurrentFov, settings, locked, setLocked,
+	currentFov, setCurrentFov, settings, locked, setLocked, setLoadString,
 	generatedChunks, setGeneratedChunks, mouseX, mouseY, setMouse,
 	mouseDown, setMouseDown, width, height, setDimensions,
 	generator, maxHeight, blockOutlines, setBlockOutlines, blockFill, setBlockFill,
@@ -54,7 +54,7 @@ import {
 	Matrix, Plane, Camera, rayTrace, runRayTrace, lookingAt,
 	inBox, onBox, collided, contacts, sprintWallHit,
 	resolveContactsAndUpdatePosition, runGravity, outlinePasses,
-	box2, block2, changeWorldBlock, newWorldBlock, isCave, carveSphere,
+	box2, block2, changeWorldBlock, newWorldBlock, useHeld, isCave, carveSphere,
 	controls, mouseS, initPlayer
 } from './player.js'
 
@@ -69,7 +69,7 @@ import {
 
 import {
 	fill, stroke, line, text, textSize, strokeWeight, cursor,
-	Slider, Button, initButtons, drawIcon, heldStack, updateHolding, addItem, invCapacity, consumeHeld, blockDrop,
+	Slider, Button, initButtons, drawIcon, heldStack, updateHolding, addItem, pickBlock, invCapacity, consumeHeld, blockDrop,
 	updateCraftResult, consumeCraft, craftOnce,
 	invLayout, slotPos, slotAt, getStack, setStack, stackIntoRange, quickMove,
 	hotbar, hud, drawInv, clickInv,
@@ -91,6 +91,11 @@ if (typeof window !== "undefined") {
 	window.message = document.getElementById("message")
 	window.worlds = document.getElementById("worlds")
 	window.quota = document.getElementById("quota")
+}
+
+// index.html keeps the classic-script `loadString` hook used by embeds.
+if (typeof window !== "undefined") {
+	setLoadString(window.loadString || "")
 }
 
 randomSeed(Math.random() * 100000000 | 0)
@@ -132,7 +137,16 @@ if (typeof document !== "undefined") {
 			setLocked(true)
 		} else {
 			setLocked(false)
+			// Escaping pointer lock (or the browser dropping it) pauses the game
+			// instead of leaving it running with no mouse look.
+			if (screen === "play" && !freezeFrame && !commandOpen) {
+				changeScene("pause")
+				setUnpauseDelay(Date.now() + 1000)
+			}
 		}
+	})
+	document.addEventListener("pointerlockerror", function() {
+		setLocked(false)
 	})
 }
 
@@ -155,6 +169,14 @@ function trackMouse(e) {
 		mmoved(e)
 		return
 	}
+	if (screen === "inventory" && gameMode === "creative" && creativeDrag) {
+		let cl = creativeLayout()
+		let sb = creativeScrollbar(cl)
+		let span = Math.max(1, sb.trackH - sb.thumbH)
+		setCreativeScroll(Math.max(0, Math.min(cl.scrollMax, (e.clientY - creativeDrag.grab - sb.trackY) / span * cl.scrollMax)))
+		drawScreens.inventory()
+		return
+	}
 	cursor("")
 	drawScreens[screen]()
 	Button.draw()
@@ -175,12 +197,44 @@ if (typeof canvas !== "undefined" && canvas) {
 				return
 			}
 			if (e.button === 0) {
-				p.breaking = true
+				Key.leftMouse = true
+				if (Key.control) {
+					newWorldBlock()
+				} else {
+					changeWorldBlock(0)
+				}
+			} else if (e.button === 1) {
+				e.preventDefault()
+				pickBlock()
 			} else if (e.button === 2) {
-				setPlace(true)
+				Key.rightMouse = true
+				// Reset the interaction latch, then let useHeld() set it again if
+				// this press toggled a door/trapdoor or used a bucket/flint.
+				p.interactHold = false
+				useHeld()
 			}
 		} else if (screen === "inventory") {
 			if (gameMode === "creative") {
+				// The creative palette has a search box and a scrollbar that sit
+				// outside the slot grid, so handle those before slot clicks.
+				let cl = creativeLayout()
+				let inSearch = e.clientX >= cl.searchX && e.clientX < cl.searchX + cl.searchW && e.clientY >= cl.searchY && e.clientY < cl.searchY + cl.searchH
+				if (inSearch) {
+					setCreativeSearchActive(true)
+					drawScreens.inventory()
+					return
+				}
+				setCreativeSearchActive(false)
+				let sb = creativeScrollbar(cl)
+				let overTrack = e.clientX >= sb.trackX - 2 && e.clientX < sb.trackX + sb.trackW + 2 && e.clientY >= sb.trackY && e.clientY < sb.trackY + sb.trackH
+				if (overTrack && cl.scrollMax > 0) {
+					if (e.clientY < sb.thumbY || e.clientY > sb.thumbY + sb.thumbH) {
+						setCreativeScroll(Math.max(0, Math.min(cl.scrollMax, (e.clientY - sb.trackY - sb.thumbH / 2) / Math.max(1, sb.trackH - sb.thumbH) * cl.scrollMax)))
+					}
+					setCreativeDrag({ grab: e.clientY - creativeScrollbar(cl).thumbY })
+					drawScreens.inventory()
+					return
+				}
 				clickCreative(e.button, e.shiftKey)
 			} else {
 				clickInv(e.button, e.shiftKey)
@@ -193,9 +247,13 @@ if (typeof canvas !== "undefined" && canvas) {
 
 	canvas.onmouseup = function(e) {
 		setMouseDown(false)
+		setCreativeDrag(null)
 		Slider.release()
-		if (e.button === 0 && p) p.breaking = false
-		if (e.button === 2) setPlace(false)
+		if (e.button === 0) Key.leftMouse = false
+		if (e.button === 2) {
+			Key.rightMouse = false
+			p.interactHold = false
+		}
 	}
 
 	canvas.onkeydown = function(e) {
@@ -257,6 +315,9 @@ if (typeof canvas !== "undefined" && canvas) {
 
 	canvas.onblur = function() {
 		for (let key in Key) { Key[key] = false }
+		Key.leftMouse = false
+		Key.rightMouse = false
+		if (p) p.interactHold = false
 		setMouseDown(false)
 		Slider.release()
 	}
@@ -295,6 +356,7 @@ if (typeof window !== "undefined") {
 			gl.canvas.height = h; gl.canvas.width = w
 			gl.viewport(0, 0, w, h)
 		}
+		if (!gl || !p) return
 		initButtons(); initBackgrounds()
 		inventory.size = 40 * Math.min(w, h) / 600
 		setInvBgReady(false); genIcons(); use3d()
@@ -306,6 +368,10 @@ if (typeof window !== "undefined") {
 // Game loop
 function gameLoop() {
 	let frameStart = (win.performance || performance).now()
+	// Tabs created in the background can report a 0x0 viewport at load.
+	if (gl && canvas && (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight)) {
+		window.onresize()
+	}
 	if (!gl) { initEverything(); releasePointer() }
 	if (screen === "play" || screen === "loading") { drawScreens[screen]() }
 	if (Date.now() - analytics.lastUpdate > 500 && analytics.frames) {
