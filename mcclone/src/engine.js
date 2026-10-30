@@ -13,36 +13,37 @@ import { ensureCelestialTexture, initTextures } from './textures.js'
 import { FOV, initModelView, block2 } from './player.js'
 
 // Atlas constants
-const ATLAS_TILES = 32
+const ATLAS_TILES = 64
 const ATLAS_MASK = ATLAS_TILES - 1
 const ATLAS_SHIFT = Math.log2(ATLAS_TILES)
 const ATLAS_SCALE = 1 / ATLAS_TILES
 
 const CUBE     = 0
- 	const SLAB     = 0x400 // 11th bit
- 	const STAIR    = 0x800 // 12th bit
- 	const FLIP     = 0x1000 // 13th bit
- 	const NORTH    = 0 // 14th and 15th bits for the 4 directions
- 	const SOUTH    = 0x2000
- 	const EAST     = 0x4000
- 	const WEST     = 0x6000
- 	const ROTATION = 0x6000
- 	// Block state encoding: base block ids live in bits 0-9 (up to 1024 blocks),
- 	// owning state lives in bits 10-14. This is the "15-bit palette" layout.
- 	const BASE_MASK  = 0x3ff  // the base block id
- 	const STATE_MASK = 0x7fff // the full block state (base id | owning bits)
- 	// Door state bits. Doors own bits 10-14 (they never use slab/stair/flip),
+ 	const SLAB     = 0x800 // bit 11
+ 	const STAIR    = 0x1000 // bit 12
+ 	const FLIP     = 0x2000 // bit 13
+ 	const NORTH    = 0 // bits 14-15 hold the four directions
+ 	const SOUTH    = 0x4000
+ 	const EAST     = 0x8000
+ 	const WEST     = 0xC000
+ 	const ROTATION = 0xC000
+ 	// Block state encoding: base block ids live in bits 0-10 (2048 blocks),
+ 	// owning state lives in bits 11-15. This is the "16-bit palette" layout and
+ 	// leaves room for the full vanilla block registry (1300+ blocks).
+ 	const BASE_MASK  = 0x7ff  // the base block id
+ 	const STATE_MASK = 0xffff // the full block state (base id | owning bits)
+ 	// Door state bits. Doors own bits 11-15 (they never use slab/stair/flip),
  	// so these aliases are safe to reuse for their own variant states.
- 	const DOOR_UPPER = 0x400 // top half of the door
- 	const DOOR_OPEN  = 0x800 // swung open
- 	const DOOR_HINGE = 0x1000 // right-hand hinge (else left-hand)
- 	const DOOR_FACING = 0x6000 // the four facing directions (NORTH/SOUTH/EAST/WEST bits)
- 	// Trapdoor state bits (also own bits 10-14).
- 	const TRAPDOOR_BOTTOM = 0x400 // hangs from the underside of its cell
- 	const TRAPDOOR_OPEN   = 0x800 // folded up against an edge
- 	const TRAPDOOR_FACING = 0x6000
-	// Torch state bit (owns bit 10): hanging from the block above vs standing.
-	const TORCH_HANGING = 0x400
+ 	const DOOR_UPPER = 0x800 // top half of the door
+ 	const DOOR_OPEN  = 0x1000 // swung open
+ 	const DOOR_HINGE = 0x2000 // right-hand hinge (else left-hand)
+ 	const DOOR_FACING = 0xC000 // the four facing directions (NORTH/SOUTH/EAST/WEST bits)
+ 	// Trapdoor state bits (also own bits 11-15).
+ 	const TRAPDOOR_BOTTOM = 0x800 // hangs from the underside of its cell
+ 	const TRAPDOOR_OPEN   = 0x1000 // folded up against an edge
+ 	const TRAPDOOR_FACING = 0xC000
+	// Torch state bit (owns bit 11): hanging from the block above vs standing.
+	const TORCH_HANGING = 0x800
 	// Dynamic lighting: emissive blocks lift face brightness from LIGHT_LIFT up to 1.
 	const LIGHT_MAX = 15
 	const LIGHT_LIFT = 0.3
@@ -660,6 +661,28 @@ function releasePointer() {
 			shapes["fluid" + h] = buildFluidShape(h * 2)
 		}
 
+		// Thin horizontal blocks (carpets, rails, pressure plates).
+		function buildFlatShape(h) {
+			return {
+				verts: [
+					[objectify( 0, 0,  0, 16, 16, 0, 0)], // bottom
+					[objectify( 0, h, 16, 16, 16, 0, 0)], // top
+					[objectify(16, h, 16, 16, h, 0, 0)],  // north
+					[objectify( 0, h,  0, 16, h, 0, 0)],  // south
+					[objectify(16, h,  0, 16, h, 0, 0)],  // east
+					[objectify( 0, h, 16, 16, h, 0, 0)]   // west
+				],
+				texVerts: [],
+				cull: { top: 0, bottom: 0, north: 0, south: 0, east: 0, west: 0 },
+				buffer: null,
+				size: 6,
+				varients: [],
+				rotate: false,
+				flip: false
+			}
+		}
+		shapes.flat = buildFlatShape(1)
+
 		for (let i = 0; i < BLOCK_COUNT; i++) {
 			let baseBlock = blockData[i]
 			if (baseBlock.cross) {
@@ -687,7 +710,7 @@ function releasePointer() {
 					variant.shape = shapes["fluid" + level]
 					variant.textures = [ flow, flow, flow, flow, flow, flow ]
 					variant.flowing = true
-					blockData[i | (level << 10)] = variant
+					blockData[i | (level << 11)] = variant
 				}
 				continue
 			}
@@ -698,15 +721,32 @@ function releasePointer() {
 				for (let m = 1; m < 16; m++) {
 					let variant = Object.create(baseBlock)
 					variant.shape = shapes["fence" + m]
-					blockData[i | (m << 10)] = variant
+					blockData[i | (m << 11)] = variant
 				}
 				continue
 			}
 			if (baseBlock.facing) {
-				// Facing blocks (pumpkins) show their carved/front face on a single
-				// horizontal side, chosen by the state bits, and the side texture on
-				// the other three. The top/bottom keep the stem texture.
+				// Facing blocks show a different texture on the side they face.
+				// Generated vanilla blocks carry a complete per-facing texture set,
+				// so every face keeps its own texture (furnace, dispenser, chest...).
 				baseBlock.shape = shapes.cube
+				if (baseBlock.faceTextures) {
+					let facings = [ NORTH, SOUTH, EAST, WEST ]
+					let names = [ 'north', 'south', 'east', 'west' ]
+					for (let fi = 0; fi < 4; fi++) {
+						let texs = baseBlock.faceTextures[names[fi]]
+						if (!texs) continue
+						if (facings[fi] === NORTH) {
+							baseBlock.textures = texs
+						} else {
+							let variant = Object.create(baseBlock)
+							variant.textures = texs
+							blockData[i | facings[fi]] = variant
+						}
+					}
+					continue
+				}
+				// Legacy fallback: one front texture on the facing side.
 				let top = baseBlock.textures[0]
 				let side = baseBlock.side
 				let front = baseBlock.front
@@ -802,6 +842,39 @@ function releasePointer() {
 				baseBlock.rayShape = shapes.trapTop
 				continue
 			}
+			// Blocks that are already a slab, stair or thin plate keep their own
+			// base shape while still offering the slab/stair placement modes.
+			if (baseBlock.slabOnly || baseBlock.stairOnly || baseBlock.flat) {
+				let baseShape = baseBlock.slabOnly ? shapes.slab : (baseBlock.stairOnly ? shapes.stair : shapes.flat)
+				baseBlock.shape = baseShape
+				baseBlock.collisionShape = baseShape
+				baseBlock.rayShape = baseShape
+				let slabBlock = Object.create(baseBlock)
+				let stairBlock = Object.create(baseBlock)
+				slabBlock.shape = shapes.slab
+				slabBlock.collisionShape = shapes.slab
+				slabBlock.rayShape = shapes.slab
+				stairBlock.shape = shapes.stair
+				stairBlock.collisionShape = shapes.stair
+				stairBlock.rayShape = shapes.stair
+				blockData[i | SLAB] = slabBlock
+				blockData[i | STAIR] = stairBlock
+				let sv = shapes.slab.varients
+				for (let j = 0; j < sv.length; j++) {
+					if (!sv[j]) continue
+					let block = Object.create(slabBlock)
+					block.shape = sv[j]
+					blockData[i | SLAB | j << 13] = block
+				}
+				let tv = shapes.stair.varients
+				for (let j = 0; j < tv.length; j++) {
+					if (!tv[j]) continue
+					let block = Object.create(stairBlock)
+					block.shape = tv[j]
+					blockData[i | STAIR | j << 13] = block
+				}
+				continue
+			}
 			let slabBlock = Object.create(baseBlock)
 			let stairBlock = Object.create(baseBlock)
 			slabBlock.shape = shapes.slab
@@ -814,7 +887,7 @@ function releasePointer() {
 				if (v[j]) {
 					let block = Object.create(baseBlock)
 					block.shape = v[j]
-					blockData[i | SLAB | j << 12] = block
+					blockData[i | SLAB | j << 13] = block
 				}
 			}
 			v = stairBlock.shape.varients
@@ -822,7 +895,7 @@ function releasePointer() {
 				if (v[j]) {
 					let block = Object.create(baseBlock)
 					block.shape = v[j]
-					blockData[i | STAIR | j << 12] = block
+					blockData[i | STAIR | j << 13] = block
 				}
 			}
 		}

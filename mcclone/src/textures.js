@@ -1,4 +1,5 @@
 import { blockData, BLOCK_COUNT } from './blocks.js'
+import { VANILLA_TEXTURES } from './vanillaBlocks.js'
 import {
 	win, doc, gl, blockImages, texturesPending, setTexturesPending,
 	setPixel as globalSetPixel, setSetPixelFn, getPixels as globalGetPixels, setGetPixelsFn,
@@ -284,7 +285,7 @@ let getPixels = globalGetPixels
 	let animTempCtx = null
 	let animationKeys = ["waterStill", "waterFlow", "lavaStill", "lavaFlow"]
 	let animationTimer = null
-	const ATLAS_TILES = 32
+	const ATLAS_TILES = 64
 	const ATLAS_MASK = ATLAS_TILES - 1
 	const ATLAS_SHIFT = Math.log2(ATLAS_TILES)
 	const ATLAS_SCALE = 1 / ATLAS_TILES
@@ -346,6 +347,10 @@ let getPixels = globalGetPixels
 			celestialTex = t
 		} catch (e) { celestialTex = null }
 		gl.activeTexture(gl.TEXTURE0)
+	}
+	// Textures for the generated vanilla block registry.
+	for (let _k of VANILLA_TEXTURES) {
+		if (textures[_k] === undefined) textures[_k] = blankTexture
 	}
 	for (let _k of ["cherryPlanks", "cherryLogSide", "cherryLogTop", "crimsonPlanks", "crimsonStemSide", "crimsonStemTop", "warpedPlanks", "warpedStemSide", "warpedStemTop", "copperOre", "copperBlock", "cutCopper", "exposedCopper", "exposedCutCopper", "weatheredCopper", "weatheredCutCopper", "oxidizedCopper", "oxidizedCutCopper", "deepslateSide", "deepslateTop", "cobbledDeepslate", "polishedDeepslate", "deepslateBricks", "crackedDeepslateBricks", "deepslateTiles", "crackedDeepslateTiles", "deepslateCoalOre", "deepslateCopperOre", "deepslateDiamondOre", "deepslateEmeraldOre", "deepslateGoldOre", "deepslateIronOre", "deepslateLapisOre", "deepslateRedstoneOre", "chiseledNetherBricks", "crackedNetherBricks", "netherGoldOre", "ancientDebrisSide", "ancientDebrisTop", "netheriteBlock", "soulSoil", "blackstone", "polishedBlackstone", "gildedBlackstone", "polishedBlackstoneBricks", "crackedPolishedBlackstoneBricks", "basaltSide", "basaltTop", "polishedBasaltSide", "polishedBasaltTop", "shroomlight", "endStone", "endStoneBricks", "prismarine", "prismarineBricks", "darkPrismarine", "seaLantern", "obsidian", "cryingObsidian", "amethystBlock", "quartzBricks", "pumpkinTop", "pumpkinSide", "carvedPumpkin", "jackOLantern", "oakDoorTop", "oakDoorBottom", "warpedDoorTop", "warpedDoorBottom", "crimsonDoorTop", "crimsonDoorBottom", "ironDoorTop", "ironDoorBottom", "ironTrapdoor", "oakTrapdoor", "acaciaTrapdoor", "birchTrapdoor", "darkOakTrapdoor", "jungleTrapdoor", "spruceTrapdoor", "cherryTrapdoor", "crimsonTrapdoor", "warpedTrapdoor", "poppy", "cornflower", "dandelion", "cobweb", "waterStill", "waterFlow", "lavaStill", "lavaFlow", "bucket", "waterBucket", "lavaBucket", "coal", "ironIngot", "goldIngot", "diamond", "stick", "whiteStainedGlass", "orangeStainedGlass", "orangeTerracotta", "magentaStainedGlass", "magentaTerracotta", "lightBlueStainedGlass", "lightBlueTerracotta", "yellowStainedGlass", "yellowTerracotta", "limeStainedGlass", "limeTerracotta", "pinkStainedGlass", "pinkTerracotta", "grayStainedGlass", "grayTerracotta", "lightGrayStainedGlass", "lightGrayTerracotta", "cyanStainedGlass", "cyanTerracotta", "purpleStainedGlass", "purpleTerracotta", "blueStainedGlass", "blueTerracotta", "brownStainedGlass", "brownTerracotta", "greenStainedGlass", "greenTerracotta", "redStainedGlass", "redTerracotta", "blackTerracotta", "terracotta", "snow", "ice", "packedIce", "blueIce", "clay", "sponge", "wetSponge", "haySide", "hayTop", "melonSide", "melonTop", "magmaBlock", "redSand", "redSandStoneSide", "redSandStoneTop", "tuff", "calcite", "dripstoneBlock", "boneBlockSide", "boneBlockTop", "warpedWartBlock", "purpurBlock", "purpurPillarSide", "purpurPillarTop", "noteBlock", "jukeboxSide", "jukeboxTop", "slimeBlock", "honeyBlockSide", "honeyBlockTop", "mud", "rootedDirt", "podzolTop", "podzolSide", "myceliumTop", "myceliumSide", "coarseDirt", "mossBlock", "woodenPickaxe", "woodenAxe", "woodenShovel", "woodenSword", "woodenHoe", "stonePickaxe", "stoneAxe", "stoneShovel", "stoneSword", "stoneHoe", "ironPickaxe", "ironAxe", "ironShovel", "ironSword", "ironHoe", "goldenPickaxe", "goldenAxe", "goldenShovel", "goldenSword", "goldenHoe", "diamondPickaxe", "diamondAxe", "diamondShovel", "diamondSword", "diamondHoe", "netheritePickaxe", "netheriteAxe", "netheriteShovel", "netheriteSword", "netheriteHoe", "apple", "bread", "wheat", "wheatSeeds", "carrot", "potato", "bakedPotato", "goldenApple", "melonSlice", "sugar", "rawIron", "rawCopper", "rawGold", "copperIngot", "charcoal", "emerald", "lapisLazuli", "redstone", "quartz", "netheriteIngot", "netheriteScrap", "flint", "string", "gunpowder", "bone", "clayBall", "brick", "feather", "leather", "egg", "glowstoneDust", "paper", "book", "slimeBall", "flintAndSteel"]) textures[_k] = blankTexture
 	function initTextures() {

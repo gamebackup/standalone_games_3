@@ -1,4 +1,6 @@
 // Block registry data (pure data, no dependencies).
+import { VANILLA_BLOCKS } from './vanillaBlocks.js'
+
 export const blockData = [
 		{
 			name: "air",
@@ -159,14 +161,23 @@ export const blockData = [
       textures: [ "altLeavesTop", "altLeavesSide" ],
     },
 	{ name: "justLeaves" },
-	{ name: "dispenserBlock" },
+	{ name: "dispenserBlock",
+	  textures: [ "furnaceTop", "furnaceTop", "dispenserFront", "furnaceSide", "furnaceSide", "furnaceSide" ],
+	  facing: true,
+	  faceTextures: {
+		north: [ "furnaceTop", "furnaceTop", "dispenserFront", "furnaceSide", "furnaceSide", "furnaceSide" ],
+		south: [ "furnaceTop", "furnaceTop", "furnaceSide", "dispenserFront", "furnaceSide", "furnaceSide" ],
+		east: [ "furnaceTop", "furnaceTop", "furnaceSide", "furnaceSide", "dispenserFront", "furnaceSide" ],
+		west: [ "furnaceTop", "furnaceTop", "furnaceSide", "furnaceSide", "furnaceSide", "dispenserFront" ],
+	  } },
 	{ name: "iceBlock",
 	  transparent: true,
 	  shadows: false,
 	},
 	{ name: "cobwebBlock",
+	  textures: "cobweb",
 	  transparent: true,
-	  shadows: false,
+	  shadow: false,
 	},
 	{ name: "crackedStoneBrick" },
 	{ name: "grassLeaves",
@@ -179,7 +190,13 @@ export const blockData = [
 	  shadows: false,
 	},
 	{ name: "whiteTerracotta" },
-	{ name: "chest", textures: [ "chestTop", "chestBottom", "chestSide", "chestFront", "chestSide", "chestSide" ], transparent: true, chest: true },
+	{ name: "chest", textures: [ "chestTop", "chestBottom", "chestSide", "chestFront", "chestSide", "chestSide" ], transparent: true, chest: true, facing: true,
+	  faceTextures: {
+		north: [ "chestTop", "chestBottom", "chestFront", "chestSide", "chestSide", "chestSide" ],
+		south: [ "chestTop", "chestBottom", "chestSide", "chestFront", "chestSide", "chestSide" ],
+		east: [ "chestTop", "chestBottom", "chestSide", "chestSide", "chestFront", "chestSide" ],
+		west: [ "chestTop", "chestBottom", "chestSide", "chestSide", "chestSide", "chestFront" ],
+	  } },
 	{ name: "sidewaysPillar" },
 	{ name: "cherryPlanks" },
 	{ name: "cherryLog", textures: [ "cherryLogTop", "cherryLogSide" ] },
@@ -236,8 +253,20 @@ export const blockData = [
 	{ name: "amethystBlock" },
 	{ name: "quartzBricks" },
 	{ name: "pumpkin", textures: [ "pumpkinTop", "pumpkinSide" ], facing: true, side: "pumpkinSide", front: "pumpkinSide" },
-	{ name: "carvedPumpkin", textures: [ "pumpkinTop", "carvedPumpkin" ], facing: true, side: "pumpkinSide", front: "carvedPumpkin" },
-	{ name: "jackOLantern", textures: [ "pumpkinTop", "jackOLantern" ], light: 15, facing: true, side: "pumpkinSide", front: "jackOLantern" },
+	{ name: "carvedPumpkin", textures: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "pumpkinSide", "pumpkinSide" ], facing: true,
+	  faceTextures: {
+		north: [ "pumpkinTop", "pumpkinTop", "carvedPumpkin", "pumpkinSide", "pumpkinSide", "pumpkinSide" ],
+		south: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "carvedPumpkin", "pumpkinSide", "pumpkinSide" ],
+		east: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "carvedPumpkin", "pumpkinSide" ],
+		west: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "pumpkinSide", "carvedPumpkin" ],
+	  } },
+	{ name: "jackOLantern", textures: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "pumpkinSide", "pumpkinSide" ], light: 15, facing: true,
+	  faceTextures: {
+		north: [ "pumpkinTop", "pumpkinTop", "jackOLantern", "pumpkinSide", "pumpkinSide", "pumpkinSide" ],
+		south: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "jackOLantern", "pumpkinSide", "pumpkinSide" ],
+		east: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "jackOLantern", "pumpkinSide" ],
+		west: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "pumpkinSide", "jackOLantern" ],
+	  } },
 	{ name: "tnt", textures: [ "tntTop", "tntBottom", "tntSides" ] },
 	{ name: "poppy", textures: "poppy", transparent: true, shadow: false, cross: true, support: true },
 	{ name: "cornflower", textures: "cornflower", transparent: true, shadow: false, cross: true, support: true },
@@ -332,6 +361,16 @@ export const blockData = [
 	{ name: "lava", textures: "lavaStill", transparent: true, shadow: false, liquid: "lava", replaceable: true, light: 15 },
 
 	]
+
+// Vanilla blocks generated from the Minecraft 26.3 assets, appended after the
+// hand-written entries. Names that already exist keep their original ids.
+let _blockNames = new Set(blockData.map(block => block.name))
+for (let def of VANILLA_BLOCKS) {
+	if (_blockNames.has(def.name)) continue
+	_blockNames.add(def.name)
+	blockData.push(def)
+}
+
 blockData.forEach((block, i) => {
 	if (block.id === undefined) block.id = i
 })

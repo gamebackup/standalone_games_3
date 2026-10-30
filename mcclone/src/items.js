@@ -1,9 +1,10 @@
 import { blockData, blockIds } from './blocks.js'
 import { recipes, textureMap, win } from './state.js'
 
-const BASE_MASK = 0x3ff
+const BASE_MASK = 0x7ff
 const MAX_STACK = 64
-const ITEM_ID_BASE = 0x2000
+// Item ids sit above the 16-bit block state space (see engine.js).
+const ITEM_ID_BASE = 0x10000
 
 let itemData = []
 let itemIds = {}

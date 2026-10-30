@@ -277,7 +277,11 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 	// Blocks that own their shape (plants, fences, doors, trapdoors) ignore the slab/stair mode.
 	function placementMode(id) {
 		let data = blockData[id & STATE_MASK]
-		return data && (data.cross || data.fence || data.door || data.trap || data.torch) ? CUBE : blockMode
+		if (!data) return blockMode
+		if (data.cross || data.fence || data.door || data.trap || data.torch || data.flat) return CUBE
+		if (data.slabOnly) return SLAB
+		if (data.stairOnly) return STAIR
+		return blockMode
 	}
 	function isDoorState(block) {
 		return !!(block & STATE_MASK) && !!blockData[block & STATE_MASK].door
@@ -467,7 +471,7 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 			let cost = dist.get(c[0] + "," + c[1] + "," + c[2])
 			let level = (cost === undefined) ? 0 : Math.min(maxLevel - 1, maxLevel - cost)
 			if (level < 1) level = 0
-			let next = level === 0 ? 0 : (base | (level << 10))
+			let next = level === 0 ? 0 : (base | (level << 11))
 			if (next !== block) world.setBlock(c[0], c[1], c[2], next)
 		}
 		// Fill newly reachable air cells (one BFS layer per tick for Minecraft-like flow).
@@ -478,7 +482,7 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 			if (world.getBlock(x, y, z) !== 0) continue
 			let level = Math.min(maxLevel - 1, maxLevel - entry[1])
 			if (level < 1) continue
-			world.setBlock(x, y, z, base | (level << 10))
+			world.setBlock(x, y, z, base | (level << 11))
 		}
 	}
 	function tickFluids() {
@@ -542,7 +546,7 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 		p.lastPlace = Date.now()
 		return true
 	}
-	const FENCE_BITS = 0x3c00
+	const FENCE_BITS = 0x7800
 	function isFenceConnectable(block) {
 		if (!block) return false
 		let data = blockData[block & STATE_MASK]
@@ -560,7 +564,7 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 		if (isFenceConnectable(world.getBlock(x, y, z - 1))) mask |= 2
 		if (isFenceConnectable(world.getBlock(x + 1, y, z))) mask |= 4
 		if (isFenceConnectable(world.getBlock(x - 1, y, z))) mask |= 8
-		let next = (block & ~FENCE_BITS) | (mask << 10)
+		let next = (block & ~FENCE_BITS) | (mask << 11)
 		if (next !== block) {
 			world.setBlock(x, y, z, next)
 		}

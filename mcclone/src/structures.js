@@ -250,7 +250,7 @@ function buildBlueprint(chunk, spec, site, pal, rng) {
 						if (!meta) break
 						let facing = FACING_NAMES.indexOf(meta[3])
 						let variant = STAIR_VARIANTS[facing] + (meta[4] ? 1 : 0)
-						block = (meta[5] ? pal.foundation : pal.roof) | STAIR | (variant << 12)
+						block = (meta[5] ? pal.foundation : pal.roof) | STAIR | (variant << 13)
 						break
 					}
 					default: break

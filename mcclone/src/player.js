@@ -1087,9 +1087,9 @@ function cross(v1, v2, result) {
 				break
 		}
 		if (!inBox(x, y, z, 1, 1, 1) && !world.getBlock(x, y, z) && y > 0 && y < maxHeight) {
-			let state = holding < 0x400 ? (holding | placementMode(holding)) : holding
+			let state = holding < 0x800 ? (holding | placementMode(holding)) : holding
 			// Plants may only be placed on top of a supporting block.
-			let held = holding < 0x400 ? blockData[holding] : null
+			let held = holding < 0x800 ? blockData[holding] : null
 			if (held && held.torch) {
 				// Torches hang from the block they are placed against
 				// (bottom face) or stand on the block below; they cannot float.

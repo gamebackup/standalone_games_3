@@ -585,7 +585,7 @@ if (typeof window !== "undefined") {
 
 
 	function drawIcon(x, y, id) {
-		id = id < 0x400 ? (id | placementMode(id)) : id
+		id = id < 0x800 ? (id | placementMode(id)) : id
 		x =  x / (3 * height) - 0.1666 * width / height
 		y = y / (3 * height) - 0.1666
 		initModelView(null, x, y, 0, 0, 0)
