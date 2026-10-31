@@ -76,7 +76,7 @@ if (win) {
 }
 
 const blockDrops = {
-	grass: "dirt", leaves: "dirt", altLeaves: "dirt", grassLeaves: "dirt",
+	grass: "dirt", snowyGrass: "dirt", leaves: "dirt", altLeaves: "dirt", grassLeaves: "dirt",
 	stone: "cobblestone", deepslate: "cobbledDeepslate",
 	coalOre: "coal", deepslateCoalOre: "coal",
 	ironOre: "rawIron", deepslateIronOre: "rawIron",

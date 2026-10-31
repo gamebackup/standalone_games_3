@@ -331,8 +331,9 @@ import { win } from "./state.js"
 	// climate space (temperature x humidity). Two low-frequency noise fields are
 	// sampled and passed through a logistic curve that flattens the noise into a
 	// roughly uniform value, then the nearest climate point wins (a Voronoi
-	// diagram), so every biome gets a similar share of the world. Biomes also
-	// carry a smooth height scale/offset so terrain rises toward mountains.
+	// diagram). A per-biome rarity weight lets common biomes take more space.
+	// Biomes also carry a smooth height scale/offset so terrain rises toward
+	// mountains.
 	let biomeNoiseProfile = { generator: undefined, octaves: 3, fallout: 0.5 }
 	function seedBiomeNoise(seed) {
 		// Offset the seed so the biome field does not line up with the terrain.
@@ -353,6 +354,15 @@ import { win } from "./state.js"
 	// pushes the middle of the noise distribution toward 0/1.
 	const BIOME_SCALE = 0.0018
 	const BIOME_SIGMA = 0.07
+	// Sample climate through a smooth displacement field. Without this the
+	// nearest-point biome lookup produces long, ruler-straight borders; warping
+	// the lookup position bends those edges into irregular, organic shapes.
+	const BIOME_WARP_SCALE = 0.0064
+	const BIOME_WARP_AMOUNT = 56
+	function biomeWarp2d(x, z) {
+		let generator = biomeNoiseProfile.generator
+		return generator ? generator.noise2d(x, z) : 0
+	}
 	function biomeSpread(value) {
 		// Logistic CDF of the (roughly normal) noise field; flattens it into a
 		// near-uniform climate value so climate points are hit evenly.
@@ -360,40 +370,43 @@ import { win } from "./state.js"
 	}
 	function biomeClimateAt(x, z) {
 		if (!biomeNoiseProfile.generator) return [ 0.5, 0.5 ]
+		// One octave per axis is enough for a broad warp and keeps worldgen fast.
+		let wx = x + biomeWarp2d(x * BIOME_WARP_SCALE + 41.7, z * BIOME_WARP_SCALE - 93.1) * BIOME_WARP_AMOUNT
+		let wz = z + biomeWarp2d(x * BIOME_WARP_SCALE - 128.9, z * BIOME_WARP_SCALE + 57.3) * BIOME_WARP_AMOUNT
 		return [
-			biomeSpread(biomeNoise2d(x * BIOME_SCALE, z * BIOME_SCALE)),
-			biomeSpread(biomeNoise2d(x * BIOME_SCALE + 137.31, z * BIOME_SCALE - 91.77)),
+			biomeSpread(biomeNoise2d(wx * BIOME_SCALE, wz * BIOME_SCALE)),
+			biomeSpread(biomeNoise2d(wx * BIOME_SCALE + 137.31, wz * BIOME_SCALE - 91.77)),
 		]
 	}
 	// temperature: 0 = freezing, 1 = scorching; humidity: 0 = arid, 1 = soaked.
 	// layers are the blocks placed under the surface, top to bottom.
 	const BIOMES = [
 		{
-			name: "plains", temperature: 0.4, humidity: 0.15,
+			name: "plains", temperature: 0.4, humidity: 0.15, rarity: 0.85,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.005, trees: [ blockIds.oakLog, blockIds.birchLog ], leaves: blockIds.leaves,
 			flowerChance: 0.012, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
 		},
 		{
-			name: "forest", temperature: 0.45, humidity: 0.87,
+			name: "forest", temperature: 0.45, humidity: 0.87, rarity: 0.9,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.045, trees: [ blockIds.oakLog, blockIds.birchLog ], leaves: blockIds.leaves,
 			flowerChance: 0.006, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
 		},
 		{
-			name: "birch_forest", temperature: 0.42, humidity: 0.65,
+			name: "birch_forest", temperature: 0.42, humidity: 0.65, rarity: 1.05,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.045, trees: [ blockIds.birchLog ], leaves: blockIds.justLeaves,
 			flowerChance: 0.01, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
 		},
 		{
-			name: "dark_forest", temperature: 0.65, humidity: 0.65, heightScale: 0.95,
+			name: "dark_forest", temperature: 0.65, humidity: 0.65, heightScale: 0.95, rarity: 1.4,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.06, trees: [ blockIds.darkOakLog ], leaves: blockIds.altLeaves,
 			flowerChance: 0.003, flowers: [ blockIds.poppy ],
 		},
 		{
-			name: "cherry_grove", temperature: 0.5, humidity: 0.72,
+			name: "cherry_grove", temperature: 0.5, humidity: 0.72, rarity: 1.5,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.04, trees: [ blockIds.cherryLog ], leaves: blockIds.altLeaves,
 			flowerChance: 0.02, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
@@ -405,14 +418,14 @@ import { win } from "./state.js"
 			flowerChance: 0.004, flowers: [ blockIds.poppy, blockIds.dandelion ],
 		},
 		{
-			name: "snowy_taiga", temperature: 0.1, humidity: 0.85, heightScale: 1.1,
-			surface: blockIds.snow, layers: [ [ blockIds.dirt, 3 ] ],
+			name: "snowy_taiga", temperature: 0.1, humidity: 0.85, heightScale: 1.1, rarity: 1.05,
+			surface: blockIds.snowyGrass, layers: [ [ blockIds.dirt, 3 ] ], snowCover: true,
 			treeChance: 0.022, trees: [ blockIds.spruceLog ], leaves: blockIds.altLeaves,
 			flowerChance: 0, flowers: [],
 		},
 		{
 			name: "snowy_plains", temperature: 0.12, humidity: 0.15,
-			surface: blockIds.snow, layers: [ [ blockIds.dirt, 3 ] ],
+			surface: blockIds.snowyGrass, layers: [ [ blockIds.dirt, 3 ] ], snowCover: true,
 			treeChance: 0.004, trees: [ blockIds.spruceLog ], leaves: blockIds.altLeaves,
 			flowerChance: 0, flowers: [],
 		},
@@ -423,7 +436,7 @@ import { win } from "./state.js"
 			flowerChance: 0, flowers: [],
 		},
 		{
-			name: "badlands", temperature: 0.9, humidity: 0.4, heightScale: 1.1, heightOffset: 4,
+			name: "badlands", temperature: 0.9, humidity: 0.4, heightScale: 1.1, heightOffset: 4, rarity: 1.6,
 			surface: blockIds.redSand,
 			layers: [
 				[ blockIds.redSand, 1 ], [ blockIds.redSandStone, 2 ], [ blockIds.terracotta, 1 ],
@@ -433,38 +446,39 @@ import { win } from "./state.js"
 			flowerChance: 0, flowers: [],
 		},
 		{
-			name: "savanna", temperature: 0.68, humidity: 0.18, heightScale: 0.9, heightOffset: 2,
+			name: "savanna", temperature: 0.68, humidity: 0.18, heightScale: 0.9, heightOffset: 2, rarity: 0.95,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.012, trees: [ blockIds.acaciaLog ], leaves: blockIds.leaves,
 			flowerChance: 0.004, flowers: [ blockIds.dandelion ],
 		},
 		{
-			name: "jungle", temperature: 0.88, humidity: 0.85, heightScale: 1.15, heightOffset: 6,
+			name: "jungle", temperature: 0.88, humidity: 0.85, heightScale: 1.15, heightOffset: 6, rarity: 1.5,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.06, trees: [ blockIds.jungleLog ], leaves: blockIds.leaves,
 			flowerChance: 0.02, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
 		},
 		{
-			name: "swamp", temperature: 0.68, humidity: 0.9, heightScale: 0.85, heightOffset: -6,
+			name: "swamp", temperature: 0.68, humidity: 0.9, heightScale: 0.85, heightOffset: -6, rarity: 1.4,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 2 ], [ blockIds.mud, 1 ] ],
 			treeChance: 0.02, trees: [ blockIds.oakLog ], leaves: blockIds.leaves,
 			flowerChance: 0.006, flowers: [ blockIds.poppy ],
 		},
 		{
-			name: "flower_forest", temperature: 0.6, humidity: 0.4,
+			name: "flower_forest", temperature: 0.6, humidity: 0.4, rarity: 1.2,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.008, trees: [ blockIds.oakLog, blockIds.birchLog ], leaves: blockIds.leaves,
 			flowerChance: 0.12, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
 		},
 		{
-			name: "meadow", temperature: 0.4, humidity: 0.4, heightScale: 1.05, heightOffset: 4,
+			name: "meadow", temperature: 0.4, humidity: 0.4, heightScale: 1.05, heightOffset: 4, rarity: 1.1,
 			surface: blockIds.grass, layers: [ [ blockIds.dirt, 3 ] ],
 			treeChance: 0.003, trees: [ blockIds.oakLog ], leaves: blockIds.leaves,
 			flowerChance: 0.06, flowers: [ blockIds.poppy, blockIds.cornflower, blockIds.dandelion ],
 		},
 		{
-			name: "stony_peaks", temperature: 0.06, humidity: 0.5, heightScale: 1.7, heightOffset: 22,
+			name: "stony_peaks", temperature: 0.06, humidity: 0.5, heightScale: 1.7, heightOffset: 22, rarity: 2.0,
 			surface: blockIds.stone, layers: [ [ blockIds.gravel, 2 ], [ blockIds.stone, 2 ] ],
+			snowCover: true, snowLine: 112,
 			treeChance: 0, trees: [], leaves: blockIds.leaves,
 			flowerChance: 0, flowers: [],
 		},
@@ -479,8 +493,13 @@ import { win } from "./state.js"
 			let dt = climate[0] - biome.temperature
 			let dh = climate[1] - biome.humidity
 			let dist = dt * dt + dh * dh
-			if (dist < bestDist) { bestDist = dist; best = i }
+			// Rarity pushes a biome's border inward without adding gaps: common
+			// biomes get most of the map, while peaks, badlands and jungles stay
+			// occasional the way they are in Minecraft instead of an equal split.
+			let weighted = dist * (biome.rarity === undefined ? 1 : biome.rarity)
+			if (weighted < bestDist) { bestDist = weighted; best = i }
 			// Blend height scale/offset so terrain flows smoothly between biomes.
+			// This uses the real distance, not the rarity-weighted one.
 			let weight = 1 / (dist + 0.0005)
 			weightSum += weight
 			scale += weight * (biome.heightScale === undefined ? 1 : biome.heightScale)

@@ -1,12 +1,13 @@
 import { blockData, BLOCK_COUNT, blockIds } from './blocks.js'
 import {
 	win, world, p, gl, tex, textureMap, texCoordsBuffers, hitBox, holding, gameMode,
-	place, maxHeight, blockFill, blockMode, program3D, sideEdgeBuffers, dropEdgeBuffers
+	place, maxHeight, blockFill, blockMode, program3D, sideEdgeBuffers, dropEdgeBuffers,
+	fluidsReady
 } from './state.js'
 import {
 	CUBE, SLAB, STAIR, FLIP, NORTH, SOUTH, EAST, WEST, ROTATION, BASE_MASK, STATE_MASK,
 	DOOR_UPPER, DOOR_OPEN, DOOR_HINGE, DOOR_FACING, TRAPDOOR_BOTTOM, TRAPDOOR_OPEN, TRAPDOOR_FACING,
-	TORCH_HANGING, LIGHT_MAX, LIGHT_LIFT, uniformMatrix, Block, Sides, vertexAttribPointer
+	TORCH_HANGING, FLUID_FALLING, LIGHT_MAX, LIGHT_LIFT, uniformMatrix, Block, Sides, vertexAttribPointer
 } from './engine.js'
 import { idStack, idTexture, itemDef, itemIds } from './items.js'
 import { heldStack, consumeHeld, addItem } from './ui.js'
@@ -278,7 +279,7 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 	function placementMode(id) {
 		let data = blockData[id & STATE_MASK]
 		if (!data) return blockMode
-		if (data.cross || data.fence || data.door || data.trap || data.torch || data.flat) return CUBE
+		if (data.cross || data.fence || data.bars || data.door || data.trap || data.torch || data.flat || data.facing || data.liquid) return CUBE
 		if (data.slabOnly) return SLAB
 		if (data.stairOnly) return STAIR
 		return blockMode
@@ -289,6 +290,57 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 	function isTrapState(block) {
 		return !!(block & STATE_MASK) && !!blockData[block & STATE_MASK].trap
 	}
+
+	// A closed door that closes around the player would otherwise be resolved
+	// as a ceiling by the collision pass and launch them upwards. Remember any
+	// door that closed on the player so collision can let them walk out of it.
+	const doorPassThrough = new Set()
+	function doorKey(x, y, z) {
+		return x + ',' + y + ',' + z
+	}
+	function doorOverlapsPlayer(x, y, z, shape) {
+		if (!shape || !shape.verts) return false
+		let px0 = p.x - p.w, px1 = p.x + p.w
+		let py0 = p.y - p.bottomH, py1 = p.y + p.topH
+		let pz0 = p.z - p.w, pz1 = p.z + p.w
+		let pad = 0.001
+		for (let faces of shape.verts) {
+			for (let face of faces) {
+				let min = face.min, max = face.max
+				if (px1 > x + min[0] + pad && px0 < x + max[0] - pad &&
+					py1 > y + min[1] + pad && py0 < y + max[1] - pad &&
+					pz1 > z + min[2] + pad && pz0 < z + max[2] - pad) return true
+			}
+		}
+		return false
+	}
+	function doorPassesPlayer(x, y, z, shape) {
+		let key = doorKey(x, y, z)
+		if (!doorPassThrough.has(key)) return false
+		if (doorOverlapsPlayer(x, y, z, shape)) return true
+		// The player has walked clear of the panel; make the door solid again.
+		doorPassThrough.delete(key)
+		return false
+	}
+	function clearDoorPassThrough(x, y, z) {
+		doorPassThrough.delete(doorKey(x, y - 1, z))
+		doorPassThrough.delete(doorKey(x, y, z))
+		doorPassThrough.delete(doorKey(x, y + 1, z))
+	}
+	function refreshDoorPassThrough() {
+		if (!doorPassThrough.size) return
+		for (let key of doorPassThrough) {
+			let parts = key.split(',')
+			let x = +parts[0], y = +parts[1], z = +parts[2]
+			let block = world.getBlock(x, y, z)
+			let data = block && blockData[block]
+			if (!data || !data.door || (block & DOOR_OPEN) ||
+				!doorOverlapsPlayer(x, y, z, data.collisionShape || data.shape)) {
+				doorPassThrough.delete(key)
+			}
+		}
+	}
+
 	function toggleDoor(x, y, z) {
 		let block = world.getBlock(x, y, z)
 		if (!isDoorState(block)) {
@@ -298,35 +350,104 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 		let upper = block & DOOR_UPPER
 		let otherY = upper ? y - 1 : y + 1
 		let other = otherY >= 0 && otherY < maxHeight ? world.getBlock(x, otherY, z) : 0
+		let halves = [ [ x, y, z, block ] ]
 		if (other && (other & BASE_MASK) === base && isDoorState(other)) {
-			world.setBlock(x, otherY, z, (other & ~DOOR_OPEN) | (block & DOOR_OPEN ? 0 : DOOR_OPEN))
+			halves.push([ x, otherY, z, other ])
 		}
-		world.setBlock(x, y, z, (block & ~DOOR_OPEN) | (block & DOOR_OPEN ? 0 : DOOR_OPEN))
+		let open = !(block & DOOR_OPEN)
+		for (let half of halves) {
+			world.setBlock(half[0], half[1], half[2], (half[3] & ~DOOR_OPEN) | (open ? DOOR_OPEN : 0))
+		}
+		if (open) {
+			clearDoorPassThrough(x, y, z)
+		} else {
+			let overlaps = false
+			for (let half of halves) {
+				let data = blockData[world.getBlock(half[0], half[1], half[2])]
+				if (data && doorOverlapsPlayer(half[0], half[1], half[2], data.collisionShape || data.shape)) {
+					overlaps = true
+					break
+				}
+			}
+			if (overlaps) {
+				for (let half of halves) doorPassThrough.add(doorKey(half[0], half[1], half[2]))
+			}
+		}
 		refreshFences(x, y, z)
 		p.lastPlace = Date.now()
+	}
+
+	// Vanilla hinge bits are left (0) / right (1) as seen from the door's
+	// front. Convert a physical edge of the cell into that bit.
+	function hingeForSide(facing, high) {
+		if (facing === NORTH) return high ? DOOR_HINGE : 0
+		if (facing === SOUTH) return high ? 0 : DOOR_HINGE
+		if (facing === EAST) return high ? DOOR_HINGE : 0
+		return high ? 0 : DOOR_HINGE // WEST
+	}
+	function doorFacingFromYaw() {
+		let quarter = Math.PI / 4
+		let yaw = p.ry % (Math.PI * 2)
+		if (yaw < 0) yaw += Math.PI * 2
+		if (yaw <= quarter || yaw >= 7 * quarter) return SOUTH
+		if (yaw < 3 * quarter) return WEST
+		if (yaw < 5 * quarter) return NORTH
+		return EAST
 	}
 	function placeDoor(baseId, x, y, z) {
 		if (y + 1 >= maxHeight || world.getBlock(x, y + 1, z)) {
 			return false
 		}
-		// Facing is decided exactly like the normal rotate-on-place path.
-		let pi = Math.PI / 4
-		let facing = NORTH
-		if (p.ry > pi) {
-			if (p.ry < 3 * pi) facing = WEST
-			else if (p.ry < 5 * pi) facing = SOUTH
-			else if (p.ry < 7 * pi) facing = EAST
+		let facing = doorFacingFromYaw()
+		let horizontal = facing === NORTH || facing === SOUTH
+		// The hinge goes on the side of the cell the player pointed at,
+		// matching vanilla placement. Fall back to the player's position for
+		// programmatic placements without a ray hit.
+		// Cell centers sit on integer block coordinates (cells span x-0.5..x+0.5).
+		let high = horizontal ? p.x >= x : p.z >= z
+		let point = hitBox.point
+		if (point && point[0] >= x - 0.5 && point[0] <= x + 0.5 && point[2] >= z - 0.5 && point[2] <= z + 0.5) {
+			high = horizontal ? point[0] >= x : point[2] >= z
 		}
-		// Pick the hinge so the door swings away from the player.
-		let hinge = 0
-		if (facing === NORTH || facing === SOUTH) {
-			hinge = p.x >= x + 0.5 ? 0 : DOOR_HINGE
-		} else {
-			hinge = p.z >= z + 0.5 ? 0 : DOOR_HINGE
+		let hinge = hingeForSide(facing, high)
+
+		// Placing a door beside another door creates a double door; vanilla
+		// forces the pair to open away from each other.
+		let neighbors = []
+		for (let d of [ -1, 1 ]) {
+			let nx = x + (horizontal ? d : 0)
+			let nz = z + (horizontal ? 0 : d)
+			let n = world.getBlock(nx, y, nz)
+			if (n && isDoorState(n) && (n & BASE_MASK) === baseId && (n & DOOR_FACING) === facing) {
+				neighbors.push({ x: nx, z: nz, d: d, y: y - (n & DOOR_UPPER ? 1 : 0) })
+			}
 		}
+		if (neighbors.length === 1) {
+			hinge = hingeForSide(facing, neighbors[0].d < 0)
+		}
+
 		let state = baseId | facing | hinge
 		world.setBlock(x, y, z, state)
 		world.setBlock(x, y + 1, z, state | DOOR_UPPER)
+
+		if (neighbors.length === 1) {
+			let n = neighbors[0]
+			// Look one cell past the existing door, away from the new one.
+			let farX = x + (horizontal ? 2 * n.d : 0)
+			let farZ = z + (horizontal ? 0 : 2 * n.d)
+			let far = world.getBlock(farX, n.y, farZ)
+			let inLongerRow = far && isDoorState(far) && (far & BASE_MASK) === baseId && (far & DOOR_FACING) === facing
+			if (!inLongerRow) {
+				// The existing half hinges away from the new door.
+				let neighborHinge = hingeForSide(facing, n.d > 0)
+				for (let yy of [ n.y, n.y + 1 ]) {
+					let nb = world.getBlock(n.x, yy, n.z)
+					if (nb && isDoorState(nb) && (nb & BASE_MASK) === baseId) {
+						world.setBlock(n.x, yy, n.z, (nb & ~DOOR_HINGE) | neighborHinge)
+					}
+				}
+			}
+		}
 		refreshFences(x, y, z)
 		p.lastPlace = Date.now()
 		return true
@@ -375,16 +496,16 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 	// ---------------------------------------------------------------
 	// Fluid simulation
 	// A fluid source is the plain base id (state 0). Flowing fluid stores
-	// its level (1..7) in bits 10-12. When any block changes we mark the
-	// cell and its neighbours; a throttled tick settles each affected
-	// connected region by a 0-1 BFS out from the sources (falling costs
-	// nothing, spreading costs one level per step).
+	// its level (1..7) in bits 11-13, and bit 14 marks a falling column.
+	// When any block changes we mark the cell and its neighbours; a
+	// throttled tick settles each affected connected region by a 0-1 BFS
+	// out from the sources (falling costs nothing, spreading costs a level).
 	// ---------------------------------------------------------------
-	const FLUID_TICK_MS = 160
+	// Minecraft water advances one block every 5 game ticks (4 blocks/second).
+	const FLUID_TICK_MS = 250
 	let fluidCellList = []
 	let fluidCellSeen = new Set()
 	let fluidLastTick = 0
-	let fluidsReady = false
 
 	function markFluid(x, y, z) {
 		let k = x + "," + y + "," + z
@@ -428,6 +549,14 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 	}
 	function settleFluid(cells, base, maxLevel) {
 		let dist = new Map()
+		// Snapshot of the body before this tick. New cells are checked against
+		// it so the fluid advances one layer per tick instead of filling the
+		// whole reachable area in a single pass.
+		let wet = new Set()
+		for (let i = 0; i < cells.length; i++) wet.add(cells[i][0] + "," + cells[i][1] + "," + cells[i][2])
+		// Cells reached by falling keep their column together: they only
+		// spread sideways once they land on a solid block.
+		let fell = new Set()
 		let buckets = []
 		for (let i = 0; i <= maxLevel; i++) buckets.push([])
 		// Sources seed the BFS; a cell is reachable if it is air or the same
@@ -444,9 +573,22 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 			let b = buckets[cost]
 			for (let i = 0; i < b.length; i++) {
 				let c = b[i]
-				if (dist.get(c[0] + "," + c[1] + "," + c[2]) !== cost) continue
+				let ck = c[0] + "," + c[1] + "," + c[2]
+				if (dist.get(ck) !== cost) continue
+				let below = world.getBlock(c[0], c[1] - 1, c[2])
+				let current = world.getBlock(c[0], c[1], c[2])
+				// Air below always means fall. A falling cell below continues a
+				// column, so keep it falling even after the column fills in; a
+				// source sitting on top of still water is a pool surface.
+				let canFall = below === 0 || (below & FLUID_FALLING) !== 0 || ((below & BASE_MASK) === base && current !== base)
+				// Water with somewhere to fall goes straight down and only fans
+				// out sideways once it lands, like Minecraft waterfalls. This also
+				// stops a suspended source from growing a new ring at every level.
 				for (let d = 0; d < 6; d++) {
 					let nx = c[0] + fluidDirs[d][0], ny = c[1] + fluidDirs[d][1], nz = c[2] + fluidDirs[d][2]
+					// Water and lava never flow upward on their own.
+					if (ny > c[1]) continue
+					if (canFall && ny !== c[1] - 1) continue
 					let nb = world.getBlock(nx, ny, nz)
 					let ndata = blockData[nb & BASE_MASK]
 					let passable = nb === 0 || (ndata && ndata.liquid && (nb & BASE_MASK) === base)
@@ -457,33 +599,55 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 					let cur = dist.has(nk) ? dist.get(nk) : Infinity
 					if (ncost < cur) {
 						dist.set(nk, ncost)
+						if (ny < c[1]) fell.add(nk)
+						else fell.delete(nk)
 						buckets[ncost].push([ nx, ny, nz ])
-						if (dist.size > cap) return
+						if (dist.size > cap) return dist
 					}
 				}
 			}
 		}
-		// Re-level (or drain) the existing cells.
+		// Re-level (or drain) the existing cells. Falling cells use the
+		// full-height state so a waterfall is a continuous sheet.
 		for (let i = 0; i < cells.length; i++) {
 			let c = cells[i]
 			let block = world.getBlock(c[0], c[1], c[2])
 			if (block === base) continue
-			let cost = dist.get(c[0] + "," + c[1] + "," + c[2])
-			let level = (cost === undefined) ? 0 : Math.min(maxLevel - 1, maxLevel - cost)
-			if (level < 1) level = 0
-			let next = level === 0 ? 0 : (base | (level << 11))
+			let k = c[0] + "," + c[1] + "," + c[2]
+			let cost = dist.get(k)
+			let next = 0
+			if (cost !== undefined) {
+				if (fell.has(k)) {
+					next = base | FLUID_FALLING
+				} else {
+					let level = Math.min(maxLevel - 1, maxLevel - cost)
+					if (level >= 1) next = base | (level << 11)
+				}
+			}
 			if (next !== block) world.setBlock(c[0], c[1], c[2], next)
 		}
-		// Fill newly reachable air cells (one BFS layer per tick for Minecraft-like flow).
+		// Fill newly reachable air cells that touch the existing fluid body.
+		// Only the cells on the edge of the body advance each tick, so water
+		// spreads one block per tick instead of appearing all at once.
 		for (let entry of dist) {
-			if (entry[1] > 1) continue
 			let c = entry[0].split(",")
 			let x = Number(c[0]), y = Number(c[1]), z = Number(c[2])
 			if (world.getBlock(x, y, z) !== 0) continue
 			let level = Math.min(maxLevel - 1, maxLevel - entry[1])
 			if (level < 1) continue
-			world.setBlock(x, y, z, base | (level << 11))
+			let touching = false
+			for (let d = 0; d < 6; d++) {
+				let ny = y + fluidDirs[d][1]
+				// Only fluid beside this cell or above it can pour in; a fluid
+				// sitting below must not push water upward.
+				if (ny < y) continue
+				if (wet.has((x + fluidDirs[d][0]) + "," + ny + "," + (z + fluidDirs[d][2]))) { touching = true; break }
+			}
+			if (!touching) continue
+			let next = fell.has(entry[0]) ? (base | FLUID_FALLING) : (base | (level << 11))
+			world.setBlock(x, y, z, next)
 		}
+		return dist
 	}
 	function tickFluids() {
 		if (!fluidCellList.length) return
@@ -505,7 +669,13 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 			let cells = collectFluidComponent(c[0], c[1], c[2], base)
 			for (let j = 0; j < cells.length; j++) settled.add(cells[j][0] + "," + cells[j][1] + "," + cells[j][2])
 			if (cells.length > 3000) continue
-			settleFluid(cells, base, fluidMaxLevel(data.liquid))
+			let reached = settleFluid(cells, base, fluidMaxLevel(data.liquid))
+			// Newly placed water is usually already in this pass's wake list.
+			// Mark the whole reachable set as handled so it cannot re-settle the
+			// same component several times in one tick and skip ahead by rings.
+			if (reached) {
+				for (let k of reached.keys()) settled.add(k)
+			}
 		}
 	}
 	function fluidAt(x, y, z) {
@@ -523,7 +693,8 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 			let target = world.getBlock(pos[0], pos[1], pos[2])
 			let base = target & BASE_MASK
 			let data = blockData[base]
-			if (!data || !data.liquid || (target & STATE_MASK) !== 0) return false
+			// Only a full source can be scooped; flowing levels cannot.
+			if (!data || !data.liquid || target !== base) return false
 			world.setBlock(pos[0], pos[1], pos[2], 0)
 			consumeHeld(1)
 			if (gameMode !== "creative") addItem(itemIds[data.liquid + "Bucket"], 1)
@@ -551,12 +722,12 @@ import { heldStack, consumeHeld, addItem } from './ui.js'
 		if (!block) return false
 		let data = blockData[block & STATE_MASK]
 		if (!data) return false
-		return data.fence === true || data.transparent === false
+		return data.fence === true || data.bars === true || data.transparent === false
 	}
 	function updateFence(x, y, z) {
 		let block = world.getBlock(x, y, z)
 		let data = blockData[block & STATE_MASK]
-		if (!data || !data.fence) {
+		if (!data || (!data.fence && !data.bars)) {
 			return
 		}
 		let mask = 0
@@ -607,7 +778,7 @@ export {
 	spawnDrop, dropHeld, isDropSolid, updateDrops, drawDropCube, renderDrops,
 	isTntBlock, primeTnt, drawTntCube, renderTnts, updateTnts, explodeTnt,
 	isSupporter, isTorchSupport, placementMode, isDoorState, isTrapState,
-	toggleDoor, placeDoor, facingFromYaw, facingToPlayer, toggleTrapdoor, placeTrapdoor, inCobweb,
+	toggleDoor, placeDoor, doorPassesPlayer, clearDoorPassThrough, refreshDoorPassThrough, facingFromYaw, facingToPlayer, toggleTrapdoor, placeTrapdoor, inCobweb,
 	markFluid, fluidWakeAround, fluidMaxLevel, collectFluidComponent, settleFluid,
 	tickFluids, fluidAt, playerFluid, bucketUse,
 	isFenceConnectable, updateFence, refreshFences

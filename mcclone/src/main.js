@@ -73,6 +73,7 @@ import {
 	updateCraftResult, consumeCraft, craftOnce,
 	invLayout, slotPos, slotAt, getStack, setStack, stackIntoRange, quickMove,
 	hotbar, hud, drawInv, clickInv,
+	closeChest, clickChest,
 	creativeIds, creativeLayout, creativeScrollbar, creativeSlotAt, drawCreative, clickCreative,
 	openCommand, closeCommand, runCommand, drawScreens, changeScene, play, title
 } from './ui.js'
@@ -239,6 +240,8 @@ if (typeof canvas !== "undefined" && canvas) {
 			} else {
 				clickInv(e.button, e.shiftKey)
 			}
+		} else if (screen === "chest") {
+			clickChest(e.button, e.shiftKey)
 		} else {
 			Button.click()
 			Slider.click()
@@ -258,6 +261,9 @@ if (typeof canvas !== "undefined" && canvas) {
 
 	canvas.onkeydown = function(e) {
 		let k = e.key.toLowerCase()
+		// Held keys fire keydown repeatedly; only a fresh press counts as a tap
+		// (otherwise auto-repeat would instantly trigger a sprint).
+		let freshPress = !e.repeat && !Key[k]
 		Key[k] = true
 		if (screen === "play") {
 			if (commandOpen) return
@@ -271,6 +277,13 @@ if (typeof canvas !== "undefined" && canvas) {
 				e.preventDefault()
 				return
 			}
+			if (k === "w" && freshPress) {
+				let tap = Date.now()
+				if (tap - p.lastForwardTap < 350) {
+					p.sprintRequest = tap
+				}
+				p.lastForwardTap = tap
+			}
 			if (k === "p") { releasePointer(); changeScene("pause") }
 			if (k === "b") { p.autoBreak = !p.autoBreak; setUpdateHUD(true) }
 			if (k === " " && !p.spectator && gameMode === "creative") {
@@ -283,7 +296,7 @@ if (typeof canvas !== "undefined" && canvas) {
 				p.sprinting = false; p.speed = 0.03; p.bottomH = 1.32
 			}
 			if (k === "l" && gameMode === "creative") { p.spectator = !p.spectator; p.flying = true; p.onGround = false; setUpdateHUD(true) }
-			if (k === "e") { changeScene("inventory"); releasePointer() }
+			if (k === "e" && freshPress) { changeScene("inventory"); releasePointer() }
 			if (k === ";") { releasePointer(); setFreezeFrame(true) }
 			if (Number(k)) { inventory.hotbarSlot = Number(k) - 1; updateHolding(); setUpdateHUD(true) }
 			if (k === "q") { dropHeld() }
@@ -300,6 +313,8 @@ if (typeof canvas !== "undefined" && canvas) {
 			}
 			if (k === "e") { play() }
 			if (k === "enter") { drawScreens.inventory() }
+		} else if (screen === "chest") {
+			if (k === "e" || k === "escape") { closeChest() }
 		}
 	}
 
@@ -333,6 +348,7 @@ if (typeof canvas !== "undefined" && canvas) {
 			drawScreens.inventory()
 			return
 		}
+		if (screen === "chest") return
 		if (e.deltaY > 0) { inventory.hotbarSlot++ } else if (e.deltaY < 0) { inventory.hotbarSlot-- }
 		if (inventory.hotbarSlot > 8) { inventory.hotbarSlot = 0 } else if (inventory.hotbarSlot < 0) { inventory.hotbarSlot = 8 }
 		setUpdateHUD(true); updateHolding()

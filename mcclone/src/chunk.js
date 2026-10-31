@@ -13,8 +13,28 @@ import { isCave, carveSphere } from './player.js'
 import { placeVillageStructure } from './structures.js'
 
 
+	// Older village data used the fence connection bits at 10-13 instead of
+	// 11-14, which could spill into the base block id and leave a state that no
+	// longer maps to a block. Recover those fences before falling back to air.
+	function normalizeState(state) {
+		// The old decorative "Water Block" is gone; turn it into real water so
+		// existing saves get flowing, non-solid water instead of a static cube.
+		if ((state & BASE_MASK) === blockIds.waterBlock) return blockIds.water
+		// Likewise, old full-block cobwebs become the cross-shaped plant.
+		if ((state & BASE_MASK) === blockIds.cobwebBlock) return blockIds.cobweb
+		if (!state || blockData[state]) return state
+		let legacyBase = state & 0x3ff
+		let legacyData = blockData[legacyBase]
+		if (legacyData && legacyData.fence) {
+			return legacyBase | ((state & 0x3c00) << 1)
+		}
+		return 0
+	}
 	function getBlock(x, y, z, blocks) {
-		return blocks[((x >> 4) + 1) * 9 + ((y >> 4) + 1) * 3 + (z >> 4) + 1][((x & 15) << 8) + ((y & 15) << 4) + (z & 15)]
+		let state = blocks[((x >> 4) + 1) * 9 + ((y >> 4) + 1) * 3 + (z >> 4) + 1][((x & 15) << 8) + ((y & 15) << 4) + (z & 15)]
+		// A stale save can contain state bits with no block behind them. Treat
+		// those cells as air so face culling and shadows stay valid.
+		return normalizeState(state)
 	}
 	/**
 	 * Returns a 1 if the face is exposed and should be drawn, or a 0 if the face is hidden
@@ -34,17 +54,23 @@ import { placeVillageStructure } from './structures.js'
 
 		let data = blockData[block]
 		let sourceData = blockData[type]
-		if (!data) {
+		if (!data || !sourceData || !data.shape || !sourceData.shape) {
 			return 1
 		}
 
-		let sourceRange = 3
-		let hiderRange = 3
-		if (func !== getBlock || screen === "loading") {
-			// getBlock is only used during the optimize phase of worldGen
-			sourceRange = sourceData.shape.cull[sourceDir]
-			hiderRange = data.shape.cull[dir]
+		// A snow layer covers the whole column above the block below it. Hide
+		// that top face explicitly; otherwise it is drawn in the same plane as
+		// the layer's bottom and z-fights through the snow.
+		if (data.snowLayer && sourceDir === "top") {
+			return 0
 		}
+
+		// Always use the shapes' real cull masks. Forcing full-face culling
+		// during the initial optimize pass hid the uncovered half of a slab or
+		// the open side of a stair when two partial blocks touched, which let
+		// the player see straight through the terrain.
+		let sourceRange = sourceData.shape.cull[sourceDir]
+		let hiderRange = data.shape.cull[dir]
 
 		if ((sourceRange & hiderRange) !== sourceRange || sourceRange === 0 || block !== type && data.transparent || data.transparent && data.shadow) {
 			return 1
@@ -283,6 +309,12 @@ import { placeVillageStructure } from './structures.js'
 				for (let j = 0; j < s; j++) {
 					for (let k = 0; k < s; k++, index++) {
 						blockState = blocks[index]
+						if (blockState && (!blockData[blockState] || (blockState & BASE_MASK) === blockIds.waterBlock || (blockState & BASE_MASK) === blockIds.cobwebBlock)) {
+							// Repair invalid states (and the removed Water Block and
+							// full-block Cobweb Block) left by older world data.
+							blockState = normalizeState(blockState)
+							blocks[index] = blockState
+						}
 
 						if (this.palleteMap[blockState] === undefined) {
 							this.palleteMap[blockState] = this.pallete.length
@@ -440,7 +472,17 @@ import { placeVillageStructure } from './structures.js'
 						// }
 						for (let facei = 0; facei < directionalFaces.length; facei++) {
 							verts = directionalFaces[facei]
-							texVerts = textureCoords[textureMap[tex[texNum]]]
+							// The cube shape stores the bottom face first, but the top
+							// visibility bit is tested as "bottom" (and vice versa). Swap
+							// the texture indices so top textures stay on top faces.
+							let texIndex = side === "top" ? 1 : side === "bottom" ? 0 : texNum
+							texVerts = textureCoords[textureMap[tex[texIndex]]]
+							if (!texVerts) {
+								// A missing atlas entry must not abort the whole render
+								// loop (that leaves the player staring at a blank canvas).
+								texVerts = textureCoords[textureMap.blank]
+								if (!texVerts) continue
+							}
 							tx = texVerts[0]
 							ty = texVerts[1]
 							texShapeVerts = shapeTexVerts[n][facei]
@@ -507,7 +549,8 @@ import { placeVillageStructure } from './structures.js'
 					let x = (rnd >> 8) + this.x
 					let y = (rnd >> 4 & 15) + this.y
 					let z = (rnd & 15) + this.z
-					if (!blockData[world.getBlock(x, y + 1, z)].transparent) {
+					let above = blockData[world.getBlock(x, y + 1, z)]
+					if (!above || !above.transparent) {
 						world.setBlock(x, y, z, blockIds.dirt, false)
 						return
 					}
@@ -549,12 +592,20 @@ import { placeVillageStructure } from './structures.js'
 			this.edited = false
 			this.loaded = false
 			this.caves = !caves
+			this.hasFence = false
 		}
 		getBlock(x, y, z) {
 			let s = y >> 4
 			return this.sections.length > s ? this.sections[s].getBlock(x, y & 15, z) : 0
 		}
 		setBlock(x, y, z, blockID, hidden, user) {
+			// A stale save or an old hotbar can still hand us the removed
+			// full-block cobweb. Store the cross-shaped cobweb instead.
+			if ((blockID & BASE_MASK) === blockIds.cobwebBlock) blockID = blockIds.cobweb
+			let placed = blockID ? blockData[blockID & BASE_MASK] : null
+			if (placed && (placed.fence || placed.bars)) {
+				this.hasFence = true
+			}
 			if (!this.sections[y >> 4]) {
 				do {
 					this.sections.push(new Section(this.x, this.sections.length * 16, this.z, 16, this))
@@ -567,7 +618,47 @@ import { placeVillageStructure } from './structures.js'
 			}
 			this.sections[y >> 4].setBlock(x, y & 15, z, blockID, hidden)
 		}
+		// Blueprints place fences with every connection bit set so the mesh is
+		// valid before neighbours exist. Recompute the mask from the blocks
+		// that actually surround each post before the first mesh; otherwise
+		// generated fence posts keep all four arms (and look like crosses)
+		// until a block update happens to touch them. Iron bars use the same
+		// connection bits and need the same refresh.
+		refreshFences() {
+			if (!this.hasFence) return
+			const FENCE_BITS = 0x7800
+			let connects = (state) => {
+				if (!state) return false
+				let data = blockData[state & BASE_MASK]
+				return !!data && (data.fence === true || data.bars === true || data.transparent === false)
+			}
+			for (let s = 0; s < this.sections.length; s++) {
+				let section = this.sections[s]
+				let blocks = section.blocks
+				for (let index = 0; index < blocks.length; index++) {
+					let state = blocks[index]
+					if (!state) continue
+					if (!blockData[state]) {
+						state = normalizeState(state)
+						blocks[index] = state
+					}
+					let data = blockData[state & BASE_MASK]
+					if (!data || (!data.fence && !data.bars)) continue
+					let x = (index >> 8) + this.x
+					let y = ((index >> 4) & 15) + section.y
+					let z = (index & 15) + this.z
+					let mask = 0
+					if (connects(world.getBlock(x, y, z + 1))) mask |= 1
+					if (connects(world.getBlock(x, y, z - 1))) mask |= 2
+					if (connects(world.getBlock(x + 1, y, z))) mask |= 4
+					if (connects(world.getBlock(x - 1, y, z))) mask |= 8
+					let next = (state & ~FENCE_BITS) | (mask << 11)
+					if (next !== state) blocks[index] = next
+				}
+			}
+		}
 		optimize() {
+			this.refreshFences()
 			for (let i = 0; i < this.sections.length; i++) {
 				this.sections[i].optimize()
 			}
@@ -782,6 +873,15 @@ import { placeVillageStructure } from './structures.js'
 			let village = Math.abs(hash(gx * 1013 + gz, gz * 1013 - gx)) % 1
 			if (village < 0.04 && random() < 0.6) placeVillageStructure(this, random)
 
+			// Structures can be written after this chunk was optimized (the
+			// optimize queue only waits for generation, not population). Fix
+			// their fence masks now and force another optimize so the first
+			// mesh uses the corrected connections instead of four-way crosses.
+			this.refreshFences()
+			if (this.optimized) {
+				this.optimized = false
+				if (!world.chunkGenQueue.includes(this)) world.chunkGenQueue.push(this)
+			}
 			this.populated = true
 		}
 		genMesh() {
@@ -830,9 +930,16 @@ import { placeVillageStructure } from './structures.js'
 			for (let i = 0; i < world.loadFrom.length; i++) {
 				load = world.loadFrom[i]
 				if (load.x === chunkX && load.z === chunkZ) {
+					// Saved chunks can predate the fence-mask repair, so let the
+					// optimizer rescan this one even if the save block slice did
+					// not include a fence entry here.
+					this.hasFence = true
 					let y = load.y * 16
 					for (let j in load.blocks) {
-						world.setBlock((j >> 8 & 15) + this.x, (j >> 4 & 15) + y, (j & 15) + this.z, load.blocks[j])
+						let state = load.blocks[j]
+						let data = blockData[state & BASE_MASK]
+						if (data && (data.fence || data.bars)) this.hasFence = true
+						world.setBlock((j >> 8 & 15) + this.x, (j >> 4 & 15) + y, (j & 15) + this.z, state)
 					}
 					world.loadFrom.splice(i--, 1)
 				}

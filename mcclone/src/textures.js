@@ -216,7 +216,6 @@ let getPixels = globalGetPixels
     ironBarsSide: "0g0g200000000sywflk0010000010000100001000001000010000100000100001000010000010000100001000001000010000100000100001000010000010000100001000001000010011111111111111110010000010000100001000001000010000100000100001000010000010000100001000001000010000100000100001000010000010000100",
     ironBarsTop: "0g0g100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     waterBlock: "0g0g70b5rqnk0b62z740ddzq9c0deaysw0dem7cg0fmiyeo0fmu6y83100001333211366000133100000000033310100013352133000000000000101000000000000013100000131000000001001000012113452100012310000013321112111111343331100000000011323000000000000011000000000000000001200001100000000110000001111110100000000121362000000121346633311",
-    altLeavesSide: "0g0gr029gzjs04hdqm006qjhfc08yg8hk08yrh1408yrim008z2pko08z2r5k0b6zi7s0b7aqrc0dg59140dgghko0fod8mw0fooh6g0fooirc0fozpq00fozraw0hwwid40hx7pbs0hx7qwo0hxizg80hxu7zs0k20auw0k5fqig0k5qz200k6296g11vskc8j9dck8cpj31111ch1111112doeoj1111114on11111bi0dpl14dfo15gj30111fj060111ceo4311314mmmmmmmmmmmmmmmmmqqqqqqqqqqqqqqmmqqqqqqqqqqqqqqmmqqqqqqqqqqqqqqmmqqqqqqqqqqqqqqmmqqqqqqqqqqqqqqmmmmmmmmmmmmmmmmm113dc441111cceo0dol10fnp336111344dk231dh151dno11o41jk11476achk3k",
     altLeavesTop: "0g0gp029gzjs04hdqm006qjhfc08yg8hk08yrh1408yrim008z2pko08z2r5k0b6zi7s0b7aqrc0dg59140dgghko0fod8mw0fooh6g0fooirc0fozpq00fozraw0hwwid40hx7pbs0hx7qwo0hxizg80hxu7zs0k5fqig0k5qz200k6296gj9dck8coj31111ch1111112dnenj1111114nm11111bi0dol14dfn15gj30111fj060111cen4311314hbjm121341cjmn3111cn14hfmj63bj113111111ddk111011k101kk41113fkh4an83cfk1ek1hchk21331111ddo91137111deek1113141nnn1113dc441111ccen0dnl10fmo336111344dk231dh151dmn11n41jk11476achk3k",
     justLeaves: "0g0gp029gzjs04hdqm006qjhfc08yg8hk08yrh1408yrim008z2pko08z2r5k0b6zi7s0b7aqrc0dg59140dgghko0fod8mw0fooh6g0fooirc0fozpq00fozraw0hwwid40hx7pbs0hx7qwo0hxizg80hxu7zs0k5fqig0k5qz200k6296gj9dck8coj31111ch1111112dnenj1111114nm11111bi0dol14dfn15gj30111fj060111cen4311314hbjm121341cjmn3111cn14hfmj63bj113111111ddk111011k101kk41113fkh4an83cfk1ek1hchk21331111ddo91137111deek1113141nnn1113dc441111ccen0dnl10fmo336111344dk231dh151dmn11n41jk11476achk3k",
     dispenserBlock: "0g0gt000006w06oo26006oo3qw0hts83c0k209a00k20auw0k2bjeg0ma8ago0ma8c1k0oigbnc0oigd880qqd4ag0qqocu00qqoeew0qqzmyg0syl5h40sywe0o0sywflk0sz7o540v6t6ns0v74f7c0v74gs80v7fpbs0xf17ug0xfcge00xfchyw0xfnqig0zn99140znkhkopspkslslnookaooorspkrloonlolcpposrphropppprocpooooogoopqopooboooppssp222211goppoc374p000000c763ak4sks000000ccp8kiopop000000dookg9cccpspooossca9anoogr554445gaklloookpooooook9kklooogoloomkkh8khhgghdoghhgggh8dcdkkooookhkkkkkjkhhkkkkkjkkkkkkkkkedggggghkfgggggd",
@@ -285,6 +284,28 @@ let getPixels = globalGetPixels
 	let animTempCtx = null
 	let animationKeys = ["waterStill", "waterFlow", "lavaStill", "lavaFlow"]
 	let animationTimer = null
+	// Minecraft stores water as a greyscale mask and applies a biome tint in
+	// game. This renderer has no tint pass, so bake the default blue into the
+	// water textures (still and flowing) while keeping their alpha.
+	function isWaterTexture(name) {
+		return name === "waterStill" || name === "waterFlow"
+	}
+	function tintWaterImage(img) {
+		if (!img || !img.width) return img
+		let c = document.createElement("canvas")
+		c.width = img.width
+		c.height = img.height
+		let g = c.getContext("2d")
+		g.drawImage(img, 0, 0)
+		g.globalCompositeOperation = "multiply"
+		g.fillStyle = "#3f76e4"
+		g.fillRect(0, 0, c.width, c.height)
+		// Restore the original alpha mask (the multiply fill is opaque).
+		g.globalCompositeOperation = "destination-in"
+		g.drawImage(img, 0, 0)
+		g.globalCompositeOperation = "source-over"
+		return c
+	}
 	const ATLAS_TILES = 64
 	const ATLAS_MASK = ATLAS_TILES - 1
 	const ATLAS_SHIFT = Math.log2(ATLAS_TILES)
@@ -323,7 +344,7 @@ let getPixels = globalGetPixels
 		function done() { if (--pending <= 0) animatedReady = true }
 		for (let key of animationKeys) {
 			let img = new Image()
-			img.onload = function() { animatedStrips[key] = img; done() }
+			img.onload = function() { animatedStrips[key] = isWaterTexture(key) ? tintWaterImage(img) : img; done() }
 			img.onerror = done
 			img.src = "textures/" + key + ".anim.png"
 		}
@@ -352,7 +373,20 @@ let getPixels = globalGetPixels
 	for (let _k of VANILLA_TEXTURES) {
 		if (textures[_k] === undefined) textures[_k] = blankTexture
 	}
+	// The snow-topped grass side is used by the blockstate variant of grass in
+	// vanilla, not by a standalone block model, so the generated list misses it.
+	if (textures.grassBlockSnow === undefined) textures.grassBlockSnow = blankTexture
 	for (let _k of ["cherryPlanks", "cherryLogSide", "cherryLogTop", "crimsonPlanks", "crimsonStemSide", "crimsonStemTop", "warpedPlanks", "warpedStemSide", "warpedStemTop", "copperOre", "copperBlock", "cutCopper", "exposedCopper", "exposedCutCopper", "weatheredCopper", "weatheredCutCopper", "oxidizedCopper", "oxidizedCutCopper", "deepslateSide", "deepslateTop", "cobbledDeepslate", "polishedDeepslate", "deepslateBricks", "crackedDeepslateBricks", "deepslateTiles", "crackedDeepslateTiles", "deepslateCoalOre", "deepslateCopperOre", "deepslateDiamondOre", "deepslateEmeraldOre", "deepslateGoldOre", "deepslateIronOre", "deepslateLapisOre", "deepslateRedstoneOre", "chiseledNetherBricks", "crackedNetherBricks", "netherGoldOre", "ancientDebrisSide", "ancientDebrisTop", "netheriteBlock", "soulSoil", "blackstone", "polishedBlackstone", "gildedBlackstone", "polishedBlackstoneBricks", "crackedPolishedBlackstoneBricks", "basaltSide", "basaltTop", "polishedBasaltSide", "polishedBasaltTop", "shroomlight", "endStone", "endStoneBricks", "prismarine", "prismarineBricks", "darkPrismarine", "seaLantern", "obsidian", "cryingObsidian", "amethystBlock", "quartzBricks", "pumpkinTop", "pumpkinSide", "carvedPumpkin", "jackOLantern", "oakDoorTop", "oakDoorBottom", "warpedDoorTop", "warpedDoorBottom", "crimsonDoorTop", "crimsonDoorBottom", "ironDoorTop", "ironDoorBottom", "ironTrapdoor", "oakTrapdoor", "acaciaTrapdoor", "birchTrapdoor", "darkOakTrapdoor", "jungleTrapdoor", "spruceTrapdoor", "cherryTrapdoor", "crimsonTrapdoor", "warpedTrapdoor", "poppy", "cornflower", "dandelion", "cobweb", "waterStill", "waterFlow", "lavaStill", "lavaFlow", "bucket", "waterBucket", "lavaBucket", "coal", "ironIngot", "goldIngot", "diamond", "stick", "whiteStainedGlass", "orangeStainedGlass", "orangeTerracotta", "magentaStainedGlass", "magentaTerracotta", "lightBlueStainedGlass", "lightBlueTerracotta", "yellowStainedGlass", "yellowTerracotta", "limeStainedGlass", "limeTerracotta", "pinkStainedGlass", "pinkTerracotta", "grayStainedGlass", "grayTerracotta", "lightGrayStainedGlass", "lightGrayTerracotta", "cyanStainedGlass", "cyanTerracotta", "purpleStainedGlass", "purpleTerracotta", "blueStainedGlass", "blueTerracotta", "brownStainedGlass", "brownTerracotta", "greenStainedGlass", "greenTerracotta", "redStainedGlass", "redTerracotta", "blackTerracotta", "terracotta", "snow", "ice", "packedIce", "blueIce", "clay", "sponge", "wetSponge", "haySide", "hayTop", "melonSide", "melonTop", "magmaBlock", "redSand", "redSandStoneSide", "redSandStoneTop", "tuff", "calcite", "dripstoneBlock", "boneBlockSide", "boneBlockTop", "warpedWartBlock", "purpurBlock", "purpurPillarSide", "purpurPillarTop", "noteBlock", "jukeboxSide", "jukeboxTop", "slimeBlock", "honeyBlockSide", "honeyBlockTop", "mud", "rootedDirt", "podzolTop", "podzolSide", "myceliumTop", "myceliumSide", "coarseDirt", "mossBlock", "woodenPickaxe", "woodenAxe", "woodenShovel", "woodenSword", "woodenHoe", "stonePickaxe", "stoneAxe", "stoneShovel", "stoneSword", "stoneHoe", "ironPickaxe", "ironAxe", "ironShovel", "ironSword", "ironHoe", "goldenPickaxe", "goldenAxe", "goldenShovel", "goldenSword", "goldenHoe", "diamondPickaxe", "diamondAxe", "diamondShovel", "diamondSword", "diamondHoe", "netheritePickaxe", "netheriteAxe", "netheriteShovel", "netheriteSword", "netheriteHoe", "apple", "bread", "wheat", "wheatSeeds", "carrot", "potato", "bakedPotato", "goldenApple", "melonSlice", "sugar", "rawIron", "rawCopper", "rawGold", "copperIngot", "charcoal", "emerald", "lapisLazuli", "redstone", "quartz", "netheriteIngot", "netheriteScrap", "flint", "string", "gunpowder", "bone", "clayBall", "brick", "feather", "leather", "egg", "glowstoneDust", "paper", "book", "slimeBall", "flintAndSteel"]) textures[_k] = blankTexture
+	// Door models mirror their texture on one hinge side so the handle stays
+	// opposite the hinge. These atlas slots are filled from mirrored copies
+	// of the base door images in loadBlockImages(). This must run after the
+	// hand-written legacy doors are registered above; doing it earlier left
+	// oak/iron/crimson/warped doors without their mirror slots.
+	for (let _k of Object.keys(textures)) {
+		if (!_k.endsWith("Mirror") && (_k.endsWith("DoorBottom") || _k.endsWith("DoorTop"))) {
+			if (textures[_k + "Mirror"] === undefined) textures[_k + "Mirror"] = blankTexture
+		}
+	}
 	function initTextures() {
 		let textureSize = ATLAS_TILES * 16
 		let scale = ATLAS_SCALE
@@ -510,13 +544,27 @@ let getPixels = globalGetPixels
 			}
 		}
 		for (let i = 0; i < names.length; i++) {
+			let name = names[i]
+			let mirror = name.endsWith("Mirror")
+			let source = mirror ? name.slice(0, -6) : name
 			let img = new Image()
 			img.onload = function() {
-				blockImages[names[i]] = img
+				if (mirror) {
+					let canvas = document.createElement("canvas")
+					canvas.width = 16
+					canvas.height = 16
+					let ctx = canvas.getContext("2d")
+					ctx.translate(16, 0)
+					ctx.scale(-1, 1)
+					ctx.drawImage(img, 0, 0, 16, 16)
+					blockImages[name] = canvas
+				} else {
+					blockImages[name] = isWaterTexture(name) ? tintWaterImage(img) : img
+				}
 				onDone()
 			}
 			img.onerror = onDone
-			img.src = "textures/" + names[i] + ".png"
+			img.src = "textures/" + source + ".png"
 		}
 	}
 	export {

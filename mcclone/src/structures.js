@@ -13,10 +13,11 @@ import {
 } from './engine.js'
 import { VILLAGE_BLUEPRINTS } from './villageBlueprints.js'
 
-const FENCE_ALL = 0x3c00
+// Fence connections live in state bits 11-14 (m << 11 for masks 1..15).
+const FENCE_ALL = 0x7800
 // FACING_NAMES order is north, east, south, west. Engine stair variants are
-// [base(+south), east, north, west] x [bottom, top]; Minecraft south is +z.
-const STAIR_VARIANTS = [ 4, 2, 0, 6 ]
+// [base(+south), north, east, west] x [bottom, top]; Minecraft south is +z.
+const STAIR_VARIANTS = [ 2, 4, 0, 6 ]
 const FACING_NAMES = [ 'north', 'east', 'south', 'west' ]
 
 function housePalette(planks, log, foundation, trim, extra) {
@@ -240,7 +241,7 @@ function buildBlueprint(chunk, spec, site, pal, rng) {
 					case 'p': block = pal.path; break
 					case 'w': block = blockIds.water; break
 					case 'B': block = blockIds.bookshelf; break
-					case 'f': block = pal.fence | FENCE_ALL; break
+					case 'f': block = pal.fence | FENCE_ALL; chunk.hasFence = true; break
 					case 'b': block = pal.bed | SLAB; break
 					case 'q': block = pal.wall | SLAB; break
 					case 'n': block = pal.bell; break

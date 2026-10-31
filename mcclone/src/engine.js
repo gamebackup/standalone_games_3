@@ -1,4 +1,5 @@
 import { blockData, BLOCK_COUNT } from './blocks.js'
+import { ITEM_ID_BASE, itemData } from './items.js'
 import {
 	win, doc, gl, setGl, glCache, program3D, setProgram3D, program2D, setProgram2D,
 	programSky, setProgramSky, skyCache, textures, textureMap, dirtBuffer, setDirtBuffer,
@@ -27,6 +28,10 @@ const CUBE     = 0
  	const EAST     = 0x8000
  	const WEST     = 0xC000
  	const ROTATION = 0xC000
+ 	// Vertical facing states. Facing blocks never use slab/stair bits, so the
+ 	// spare 0x2000 bit distinguishes up/down from the four horizontal states.
+ 	const FACING_UP = 0x2000
+ 	const FACING_DOWN = 0x6000
  	// Block state encoding: base block ids live in bits 0-10 (2048 blocks),
  	// owning state lives in bits 11-15. This is the "16-bit palette" layout and
  	// leaves room for the full vanilla block registry (1300+ blocks).
@@ -44,6 +49,9 @@ const CUBE     = 0
  	const TRAPDOOR_FACING = 0xC000
 	// Torch state bit (owns bit 11): hanging from the block above vs standing.
 	const TORCH_HANGING = 0x800
+	// Fluid bit 14 marks a falling column. Falling fluid renders full-height so
+	// a waterfall reads as one continuous sheet instead of stacked shallow slabs.
+	const FLUID_FALLING = 0x4000
 	// Dynamic lighting: emissive blocks lift face brightness from LIGHT_LIFT up to 1.
 	const LIGHT_MAX = 15
 	const LIGHT_LIFT = 0.3
@@ -392,7 +400,12 @@ function releasePointer() {
 			}
 		}
 
-		// Reflect over the y plane; returns a new shape object
+		// Mirror over the y plane; returns a new shape object. This is the
+		// upside-down slab/stair variant. A mirror reverses the winding of every
+		// face, so each face is walked in reverse; the texture verts are reversed
+		// in step to keep every corner on its own sprite point, and each v is
+		// flipped inside its tile so the sprite still reads upright on the
+		// mirrored face.
 		function flip(shape) {
 			let verts = shape.verts
 			let texVerts = shape.texVerts
@@ -404,19 +417,21 @@ function releasePointer() {
 				pos[i] = []
 				tex[i] = []
 				for (let j = 0; j < side.length; j++) {
-					let face = side[j].slice().reverse()
+					let face = side[j]
+					let uvs = texVerts[i][j]
 					let c = []
-					pos[i][j] = c
-					for (let k = 0; k < face.length; k += 3) {
-						c[k] = face[k + 2]
-						c[k + 1] = -face[k + 1]
-						c[k + 2] = face[k]
+					let t = []
+					for (let k = face.length - 3; k >= 0; k -= 3) {
+						c.push(face[k], -face[k + 1], face[k + 2])
+					}
+					for (let k = uvs.length - 2; k >= 0; k -= 2) {
+						t.push(uvs[k], ATLAS_SCALE - uvs[k + 1])
 					}
 					let minmax = compareArr(c, [])
 					c.max = minmax.splice(3, 3)
 					c.min = minmax
-
-					tex[i][j] = texVerts[i][j].slice() // Copy texture verts exactly
+					pos[i][j] = c
+					tex[i][j] = t
 				}
 			}
 			let temp = pos[0] // Bottom
@@ -543,12 +558,17 @@ function releasePointer() {
 				const A  = [ -s, -s, -s ], B  = [  s, -s,  s ], C  = [  s,  s,  s ], D  = [ -s,  s, -s ]
 				const A2 = [  s, -s, -s ], B2 = [ -s, -s,  s ], C2 = [ -s,  s,  s ], D2 = [  s,  s, -s ]
 				let uv = [ ATLAS_SCALE, ATLAS_SCALE, 0, ATLAS_SCALE, 0, 0, ATLAS_SCALE, 0 ]
+				// The back-facing quad reverses the winding, so its UV list is
+				// reversed in lockstep. Every corner then keeps the sprite point
+				// it has on the front and the plant stays upright from behind;
+				// reusing the front UVs rotates the sprite 180 degrees instead.
+				let uvR = [ uv[6], uv[7], uv[4], uv[5], uv[2], uv[3], uv[0], uv[1] ]
 				let q1  = makeQuad(A,  B,  C,  D)
 				let q1r = makeQuad(D,  C,  B,  A)
 				let q2  = makeQuad(A2, B2, C2, D2)
 				let q2r = makeQuad(D2, C2, B2, A2)
 				obj.verts = [ [], [], [ q1 ], [ q1r ], [ q2 ], [ q2r ] ]
-				obj.texVerts = [ [], [], [ uv.slice() ], [ uv.slice() ], [ uv.slice() ], [ uv.slice() ] ]
+				obj.texVerts = [ [], [], [ uv.slice() ], [ uvR.slice() ], [ uv.slice() ], [ uvR.slice() ] ]
 				verts = obj.verts
 			} else {
 				// Populate the vertex coordinates
@@ -590,38 +610,71 @@ function releasePointer() {
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts.flat(2)), gl.STATIC_DRAW)
 		}
 
+		// Shapes built after the main pass (fluids, flats) still hold raw
+		// objectify() rectangles. Map them into vertex/UV arrays like the rest.
+		function finalizeShape(obj) {
+			let verts = obj.verts
+			for (let i = 0; i < verts.length; i++) {
+				let side = verts[i]
+				let texArr = []
+				obj.texVerts.push(texArr)
+				for (let j = 0; j < side.length; j++) {
+					let mapped = mapCoords(side[j], i)
+					side[j] = mapped.pos
+					texArr.push(mapped.tex)
+				}
+			}
+			obj.buffer = gl.createBuffer()
+			gl.bindBuffer(gl.ARRAY_BUFFER, obj.buffer)
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts.flat(2)), gl.STATIC_DRAW)
+			return obj
+		}
+
 		// Torches are small glowing posts. They either stand on the block below
-		// or hang from the block above (flame pointing down). Every face is drawn
-		// double-sided so the culled back face never hides the torch.
-		function pushTorchBox(verts, texVerts, x0, y0, z0, x1, y1, z1) {
+		// or hang from the block above (flame pointing down). The model is one
+		// thin box whose sides sample the middle 2px of the torch sprite, the way
+		// vanilla's torch model does. Stamping the whole 16x16 sprite on every
+		// face (the old version used a separate post and flame cube) drew the
+		// torch several times on top of itself. Every face is drawn double-sided
+		// so the culled back face never hides the torch.
+		function pushTorchBox(verts, texVerts, x0, y0, z0, x1, y1, z1, hanging) {
 			let cv = (x, y, z) => [ x / 16 - 0.5, y / 16 - 0.5, z / 16 - 0.5 ]
-			let uv = [ ATLAS_SCALE, 0, 0, 0, 0, ATLAS_SCALE, ATLAS_SCALE, ATLAS_SCALE ]
+			let scale = ATLAS_SCALE / 16
+			// The visible torch occupies x=7..9 of the sprite. Its flame is at
+			// the top (y=2..7) and the stick runs to the bottom (y=16).
+			let u0 = 7 * scale, u1 = 9 * scale
+			let vTop = (hanging ? 16 : 2) * scale
+			let vBottom = (hanging ? 2 : 16) * scale
+			let capTop = (hanging ? 14 : 2) * scale
+			let capBottom = (hanging ? 2 : 14) * scale
 			let faces = [
-				[ 0, [ [x0,y1,z0], [x0,y1,z1], [x1,y1,z1], [x1,y1,z0] ] ], // top
-				[ 1, [ [x0,y0,z0], [x1,y0,z0], [x1,y0,z1], [x0,y0,z1] ] ], // bottom
-				[ 2, [ [x0,y0,z0], [x0,y1,z0], [x1,y1,z0], [x1,y0,z0] ] ], // north
-				[ 3, [ [x1,y0,z1], [x1,y1,z1], [x0,y1,z1], [x0,y0,z1] ] ], // south
-				[ 4, [ [x1,y0,z0], [x1,y0,z1], [x1,y1,z1], [x1,y1,z0] ] ], // east
-				[ 5, [ [x0,y0,z1], [x0,y0,z0], [x0,y1,z0], [x0,y1,z1] ] ]  // west
+				[ 0, [ [x0,y1,z0], [x0,y1,z1], [x1,y1,z1], [x1,y1,z0] ],
+					[ u0,capTop, u0,capTop + 2 * scale, u1,capTop + 2 * scale, u1,capTop ] ], // top
+				[ 1, [ [x0,y0,z0], [x1,y0,z0], [x1,y0,z1], [x0,y0,z1] ],
+					[ u0,capBottom, u1,capBottom, u1,capBottom + 2 * scale, u0,capBottom + 2 * scale ] ], // bottom
+				[ 2, [ [x0,y0,z0], [x0,y1,z0], [x1,y1,z0], [x1,y0,z0] ],
+					[ u0,vBottom, u0,vTop, u1,vTop, u1,vBottom ] ], // north
+				[ 3, [ [x1,y0,z1], [x1,y1,z1], [x0,y1,z1], [x0,y0,z1] ],
+					[ u0,vBottom, u0,vTop, u1,vTop, u1,vBottom ] ], // south
+				[ 4, [ [x1,y0,z0], [x1,y0,z1], [x1,y1,z1], [x1,y1,z0] ],
+					[ u0,vBottom, u0,vTop, u1,vTop, u1,vBottom ] ], // east
+				[ 5, [ [x0,y0,z1], [x0,y0,z0], [x0,y1,z0], [x0,y1,z1] ],
+					[ u0,vBottom, u0,vTop, u1,vTop, u1,vBottom ] ]  // west
 			]
 			for (let f of faces) {
 				let pts = f[1]
+				let uv = f[2]
 				let flat = pts.map(q => cv(q[0], q[1], q[2])).flat()
 				let flatRev = pts.slice().reverse().map(q => cv(q[0], q[1], q[2])).flat()
+				let uvRev = [ uv[6],uv[7], uv[4],uv[5], uv[2],uv[3], uv[0],uv[1] ]
 				verts[f[0]].push(flat, flatRev)
-				texVerts[f[0]].push(uv.slice(), uv.slice())
+				texVerts[f[0]].push(uv.slice(), uvRev)
 			}
 		}
 		function buildTorchShape(hanging) {
 			let verts = [ [], [], [], [], [], [] ]
 			let texVerts = [ [], [], [], [], [], [] ]
-			if (hanging) {
-				pushTorchBox(verts, texVerts, 7, 7, 7, 9, 16, 9)   // post
-				pushTorchBox(verts, texVerts, 6, 3, 6, 10, 7, 10)  // flame
-			} else {
-				pushTorchBox(verts, texVerts, 7, 0, 7, 9, 9, 9)    // post
-				pushTorchBox(verts, texVerts, 6, 9, 6, 10, 13, 10) // flame
-			}
+			pushTorchBox(verts, texVerts, 7, hanging ? 3 : 0, 7, 9, hanging ? 16 : 13, 9, hanging)
 			return {
 				verts: verts,
 				texVerts: texVerts,
@@ -637,7 +690,8 @@ function releasePointer() {
 		shapes.torchDown = buildTorchShape(true)
 
 		// Fluids render as a box whose top surface sits at a height determined by
-		// the fluid level (2..14px); a full source uses the normal cube.
+		// the fluid level (2..14px). The full-height source uses the same shape so
+		// it can be non-solid like the flowing levels.
 		function buildFluidShape(h) {
 			return {
 				verts: [
@@ -658,8 +712,9 @@ function releasePointer() {
 			}
 		}
 		for (let h = 1; h <= 7; h++) {
-			shapes["fluid" + h] = buildFluidShape(h * 2)
+			shapes["fluid" + h] = finalizeShape(buildFluidShape(h * 2))
 		}
+		shapes.fluidSource = finalizeShape(buildFluidShape(16))
 
 		// Thin horizontal blocks (carpets, rails, pressure plates).
 		function buildFlatShape(h) {
@@ -681,7 +736,111 @@ function releasePointer() {
 				flip: false
 			}
 		}
-		shapes.flat = buildFlatShape(1)
+		shapes.flat = finalizeShape(buildFlatShape(1))
+		// Snow layers are two pixels tall. They cover the top of the block below,
+		// but they must not cull the bottom face of a block above: that face sits
+		// 14 pixels higher, so hiding it would open a hole under anything placed
+		// on top of a snow layer.
+		let snowLayerShape = buildFlatShape(2)
+		snowLayerShape.cull = { top: 0, bottom: 3, north: 3, south: 3, east: 3, west: 3 }
+		shapes.snowLayer = finalizeShape(snowLayerShape)
+
+		// Iron bars are a thin lattice, not a cube. These shapes mirror the
+		// vanilla multipart models: a central cross-shaped post, small caps at
+		// the top and bottom, and one 2px-wide rail per connected side. They are
+		// built directly (like torches) so every face can sample the correct
+		// strip of the 16x16 bar sprite instead of stretching the whole texture
+		// across a block face.
+		function pushBarQuad(verts, texVerts, face, points, uv) {
+			let scale = ATLAS_SCALE / 16
+			let cv = (p) => [ p[0] / 16 - 0.5, p[1] / 16 - 0.5, p[2] / 16 - 0.5 ]
+			let front = points.flatMap(cv)
+			let back = points.slice().reverse().flatMap(cv)
+			let fuv = uv.map(c => c * scale)
+			let buv = []
+			for (let i = 3; i >= 0; i--) {
+				buv.push(fuv[i * 2], fuv[i * 2 + 1])
+			}
+			verts[face].push(front, back)
+			texVerts[face].push(fuv, buv)
+		}
+		// Vertical planes run along either Z (fixed X) or X (fixed Z). They
+		// carry the left or right half of the bar sprite, which is where the
+		// repeated vertical bars in vanilla's side models come from.
+		function pushBarPlaneZ(verts, texVerts, face, x, z0, z1, u0, u1) {
+			pushBarQuad(verts, texVerts, face,
+				[ [x, 0, z0], [x, 0, z1], [x, 16, z1], [x, 16, z0] ],
+				[ u0, 16, u1, 16, u1, 0, u0, 0 ])
+		}
+		function pushBarPlaneX(verts, texVerts, face, z, x0, x1, u0, u1) {
+			pushBarQuad(verts, texVerts, face,
+				[ [x0, 0, z], [x1, 0, z], [x1, 16, z], [x0, 16, z] ],
+				[ u0, 16, u1, 16, u1, 0, u0, 0 ])
+		}
+		function pushBarPlate(verts, texVerts, face, x0, z0, x1, z1, y, u0, v0, u1, v1) {
+			pushBarQuad(verts, texVerts, face,
+				[ [x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1] ],
+				[ u0, v0, u1, v0, u1, v1, u0, v1 ])
+		}
+		function buildBarsShape(mask) {
+			let verts = [ [], [], [], [], [], [] ]
+			let texVerts = [ [], [], [], [], [], [] ]
+
+			// Central post: two crossed planes and the little end caps that
+			// vanilla always draws with the post_ends model.
+			pushBarPlaneZ(verts, texVerts, 4, 8, 7, 9, 7, 9)
+			pushBarPlaneX(verts, texVerts, 2, 8, 7, 9, 7, 9)
+			pushBarPlate(verts, texVerts, 0, 7, 7, 9, 9, 0.5, 7, 7, 9, 9)
+			pushBarPlate(verts, texVerts, 1, 7, 7, 9, 9, 15.5, 7, 7, 9, 9)
+
+			// Side rails start at the edge of the post so the transparent
+			// planes never z-fight with each other in the centre of the cell.
+			if (mask & 1) { // +z
+				pushBarPlaneZ(verts, texVerts, 4, 8, 9, 16, 8, 16)
+				pushBarQuad(verts, texVerts, 2,
+					[ [7, 0, 15.99], [9, 0, 15.99], [9, 16, 15.99], [7, 16, 15.99] ],
+					[ 7, 16, 9, 16, 9, 0, 7, 0 ])
+				pushBarPlate(verts, texVerts, 0, 7, 9, 9, 16, 0.5, 9, 9, 7, 16)
+				pushBarPlate(verts, texVerts, 1, 7, 9, 9, 16, 15.5, 7, 9, 9, 16)
+			}
+			if (mask & 2) { // -z
+				pushBarPlaneZ(verts, texVerts, 5, 8, 0, 7, 0, 8)
+				pushBarQuad(verts, texVerts, 3,
+					[ [7, 0, 0.01], [9, 0, 0.01], [9, 16, 0.01], [7, 16, 0.01] ],
+					[ 9, 16, 7, 16, 7, 0, 9, 0 ])
+				pushBarPlate(verts, texVerts, 0, 7, 0, 9, 7, 0.5, 7, 0, 9, 7)
+				pushBarPlate(verts, texVerts, 1, 7, 0, 9, 7, 15.5, 9, 0, 7, 7)
+			}
+			if (mask & 4) { // +x
+				pushBarPlaneX(verts, texVerts, 4, 8, 9, 16, 8, 16)
+				pushBarQuad(verts, texVerts, 4,
+					[ [15.99, 0, 7], [15.99, 0, 9], [15.99, 16, 9], [15.99, 16, 7] ],
+					[ 8, 16, 16, 16, 16, 0, 8, 0 ])
+				pushBarPlate(verts, texVerts, 0, 9, 7, 16, 9, 0.5, 9, 7, 16, 9)
+				pushBarPlate(verts, texVerts, 1, 9, 7, 16, 9, 15.5, 9, 7, 16, 9)
+			}
+			if (mask & 8) { // -x
+				pushBarPlaneX(verts, texVerts, 5, 8, 0, 7, 0, 8)
+				pushBarQuad(verts, texVerts, 5,
+					[ [0.01, 0, 7], [0.01, 0, 9], [0.01, 16, 9], [0.01, 16, 7] ],
+					[ 16, 16, 8, 16, 8, 0, 16, 0 ])
+				pushBarPlate(verts, texVerts, 0, 0, 7, 7, 9, 0.5, 0, 7, 7, 9)
+				pushBarPlate(verts, texVerts, 1, 0, 7, 7, 9, 15.5, 0, 7, 7, 9)
+			}
+
+			return {
+				verts: verts,
+				texVerts: texVerts,
+				cull: { top: 0, bottom: 0, north: 0, south: 0, east: 0, west: 0 },
+				size: 6,
+				varients: [],
+				rotate: false,
+				flip: false
+			}
+		}
+		for (let mask = 0; mask < 16; mask++) {
+			shapes["bars" + mask] = buildBarsShape(mask)
+		}
 
 		for (let i = 0; i < BLOCK_COUNT; i++) {
 			let baseBlock = blockData[i]
@@ -700,10 +859,11 @@ function releasePointer() {
 				continue
 			}
 			if (baseBlock.liquid) {
-				// Fluids own bits 10-12: level 1..7 (a full/source block uses the
+				// Fluids own bits 11-13: level 1..7 (a full/source block uses the
 				// base id with no level bits). Lower levels use a shorter box.
-				baseBlock.shape = shapes.cube
-				baseBlock.rayShape = shapes.cube
+				// Fluids are not solid: the player can walk and swim through them.
+				baseBlock.shape = shapes.fluidSource
+				baseBlock.rayShape = shapes.fluidSource
 				let flow = baseBlock.liquid === "lava" ? "lavaFlow" : "waterFlow"
 				for (let level = 1; level <= 7; level++) {
 					let variant = Object.create(baseBlock)
@@ -712,6 +872,12 @@ function releasePointer() {
 					variant.flowing = true
 					blockData[i | (level << 11)] = variant
 				}
+				let falling = Object.create(baseBlock)
+				falling.shape = shapes.fluidSource
+				falling.textures = [ flow, flow, flow, flow, flow, flow ]
+				falling.flowing = true
+				falling.falling = true
+				blockData[i | FLUID_FALLING] = falling
 				continue
 			}
 			if (baseBlock.fence) {
@@ -721,6 +887,17 @@ function releasePointer() {
 				for (let m = 1; m < 16; m++) {
 					let variant = Object.create(baseBlock)
 					variant.shape = shapes["fence" + m]
+					blockData[i | (m << 11)] = variant
+				}
+				continue
+			}
+			if (baseBlock.bars) {
+				baseBlock.shape = shapes.bars0
+				baseBlock.rayShape = shapes.cube
+				baseBlock.collisionShape = shapes.cube
+				for (let m = 1; m < 16; m++) {
+					let variant = Object.create(baseBlock)
+					variant.shape = shapes["bars" + m]
 					blockData[i | (m << 11)] = variant
 				}
 				continue
@@ -742,6 +919,23 @@ function releasePointer() {
 							let variant = Object.create(baseBlock)
 							variant.textures = texs
 							blockData[i | facings[fi]] = variant
+						}
+					}
+					// Dispensers, droppers, pistons, observers and barrels can
+					// also point up or down. Their vertical models carry the
+					// front texture on the top/bottom face instead of a side.
+					if (baseBlock.verticalFacing) {
+						let up = baseBlock.faceTextures.up
+						let down = baseBlock.faceTextures.down
+						if (up) {
+							let variant = Object.create(baseBlock)
+							variant.textures = up
+							blockData[i | FACING_UP] = variant
+						}
+						if (down) {
+							let variant = Object.create(baseBlock)
+							variant.textures = down
+							blockData[i | FACING_DOWN] = variant
 						}
 					}
 					continue
@@ -767,26 +961,25 @@ function releasePointer() {
 			}
 			if (baseBlock.door) {
 				// Create all 32 block states: facing (4) x open (2) x hinge (2)
-				// x upper/lower half (2). The closed door sits at the facing edge;
-				// the open door swings to a perpendicular edge that depends on the
-				// hinge.
-				let topTex = baseBlock.textures[0].replace("DoorBottom", "DoorTop")
-				let topTextures = [ topTex, topTex, topTex, topTex, topTex, topTex ]
+				// x upper/lower half (2). Vanilla models put the closed panel on
+				// the side of the cell facing the player, i.e. opposite the door's
+				// facing value. An open panel always rotates onto the hinge edge.
+				let bottomTex = baseBlock.textures[0]
+				let topTex = bottomTex.replace("DoorBottom", "DoorTop")
 				let facings = [ NORTH, SOUTH, EAST, WEST ]
 				let closedByFacing = {
-					[NORTH]: shapes.doorNorth,
-					[SOUTH]: shapes.doorSouth,
-					[EAST]: shapes.doorEast,
-					[WEST]: shapes.doorWest,
+					[NORTH]: shapes.doorSouth,
+					[SOUTH]: shapes.doorNorth,
+					[EAST]: shapes.doorWest,
+					[WEST]: shapes.doorEast,
 				}
-				// Open door panel edge for each (facing, hinge).
+				// Open door panel edge for facing x hinge, matching vanilla's
+				// left/right hinge models (index 0 = left hinge, 1 = right).
 				let openByHinge = {
-					// facing NORTH/SOUTH: panel spans x, opens to west/east edge
 					[NORTH]: [ shapes.doorWest, shapes.doorEast ],
-					[SOUTH]: [ shapes.doorWest, shapes.doorEast ],
-					// facing EAST/WEST: panel spans z, opens to north/south edge
+					[SOUTH]: [ shapes.doorEast, shapes.doorWest ],
 					[EAST]: [ shapes.doorNorth, shapes.doorSouth ],
-					[WEST]: [ shapes.doorNorth, shapes.doorSouth ],
+					[WEST]: [ shapes.doorSouth, shapes.doorNorth ],
 				}
 				for (let f = 0; f < facings.length; f++) {
 					let facing = facings[f]
@@ -795,13 +988,18 @@ function releasePointer() {
 						for (let hinge = 0; hinge < 2; hinge++) {
 							let shape = open ? openShapes[hinge] : closedByFacing[facing]
 							let state = facing | (open ? DOOR_OPEN : 0) | (hinge ? DOOR_HINGE : 0)
+							// Left-hinged doors use the horizontally mirrored texture so
+							// the handle remains on the side opposite the hinge.
+							let bottomTexture = hinge ? bottomTex : bottomTex + "Mirror"
+							let topTexture = hinge ? topTex : topTex + "Mirror"
 							let lower = Object.create(baseBlock)
 							lower.shape = shape
 							lower.collisionShape = shape
 							lower.rayShape = shape
+							lower.textures = [ bottomTexture, bottomTexture, bottomTexture, bottomTexture, bottomTexture, bottomTexture ]
 							blockData[i | state] = lower
 							let upper = Object.create(lower)
-							upper.textures = topTextures
+							upper.textures = [ topTexture, topTexture, topTexture, topTexture, topTexture, topTexture ]
 							blockData[i | state | DOOR_UPPER] = upper
 						}
 					}
@@ -842,6 +1040,14 @@ function releasePointer() {
 				baseBlock.rayShape = shapes.trapTop
 				continue
 			}
+			// Snow layers are full-footprint plates; unlike carpets they should
+			// not offer slab/stair placement modes.
+			if (baseBlock.snowLayer) {
+				baseBlock.shape = shapes.snowLayer
+				baseBlock.collisionShape = shapes.snowLayer
+				baseBlock.rayShape = shapes.snowLayer
+				continue
+			}
 			// Blocks that are already a slab, stair or thin plate keep their own
 			// base shape while still offering the slab/stair placement modes.
 			if (baseBlock.slabOnly || baseBlock.stairOnly || baseBlock.flat) {
@@ -849,14 +1055,20 @@ function releasePointer() {
 				baseBlock.shape = baseShape
 				baseBlock.collisionShape = baseShape
 				baseBlock.rayShape = baseShape
+				// A slab or stair does not fill its cell. If it is left marked
+				// opaque, every full block beside it has that whole face culled,
+				// which opens an x-ray window over the empty half of the cell.
+				baseBlock.transparent = true
 				let slabBlock = Object.create(baseBlock)
 				let stairBlock = Object.create(baseBlock)
 				slabBlock.shape = shapes.slab
 				slabBlock.collisionShape = shapes.slab
 				slabBlock.rayShape = shapes.slab
+				slabBlock.transparent = true
 				stairBlock.shape = shapes.stair
 				stairBlock.collisionShape = shapes.stair
 				stairBlock.rayShape = shapes.stair
+				stairBlock.transparent = true
 				blockData[i | SLAB] = slabBlock
 				blockData[i | STAIR] = stairBlock
 				let sv = shapes.slab.varients
@@ -864,6 +1076,10 @@ function releasePointer() {
 					if (!sv[j]) continue
 					let block = Object.create(slabBlock)
 					block.shape = sv[j]
+					// Collisions and ray tracing follow the visible orientation too,
+					// otherwise top slabs keep the bottom slab's hitbox.
+					block.collisionShape = sv[j]
+					block.rayShape = sv[j]
 					blockData[i | SLAB | j << 13] = block
 				}
 				let tv = shapes.stair.varients
@@ -871,6 +1087,10 @@ function releasePointer() {
 					if (!tv[j]) continue
 					let block = Object.create(stairBlock)
 					block.shape = tv[j]
+					// Without this, every rotated or upside-down stair collides
+					// and ray-traces as the default north-facing bottom stair.
+					block.collisionShape = tv[j]
+					block.rayShape = tv[j]
 					blockData[i | STAIR | j << 13] = block
 				}
 				continue
@@ -880,12 +1100,16 @@ function releasePointer() {
 			slabBlock.shape = shapes.slab
 			baseBlock.shape = shapes.cube
 			stairBlock.shape = shapes.stair
+			// Slabs and stairs are partial blocks, so neighbours must keep the
+			// faces they do not cover. Only the full base block is opaque.
+			slabBlock.transparent = true
+			stairBlock.transparent = true
 			blockData[i | SLAB] = slabBlock
 			blockData[i | STAIR] = stairBlock
 			let v = slabBlock.shape.varients
 			for (let j = 0; j < v.length; j++) {
 				if (v[j]) {
-					let block = Object.create(baseBlock)
+					let block = Object.create(slabBlock)
 					block.shape = v[j]
 					blockData[i | SLAB | j << 13] = block
 				}
@@ -893,7 +1117,7 @@ function releasePointer() {
 			v = stairBlock.shape.varients
 			for (let j = 0; j < v.length; j++) {
 				if (v[j]) {
-					let block = Object.create(baseBlock)
+					let block = Object.create(stairBlock)
 					block.shape = v[j]
 					blockData[i | STAIR | j << 13] = block
 				}
@@ -943,39 +1167,176 @@ function releasePointer() {
 		if (!gl || !blockData) return
 		blockIcons = [null]
 		blockIcons.lengths = []
-		let texOrder = [1, 2, 3]
+		// Face order for the isometric inventory icons: top, north, east.
+		// Textures are stored [top, bottom, north, south, east, west].
+		let texOrder = [0, 2, 4]
 		let shadows = [1, 0.4, 0.7]
 		let scale = 0.16 / height * inventory.size
+
+		function iconTexture(name) {
+			if (!name) return undefined
+			let slot = textureMap[name]
+			if (slot === undefined || !textureCoords[slot]) return undefined
+			return textureCoords[slot]
+		}
+
+		// Add a textured quad. The vertex order matches indexOrder:
+		// bottom-left, bottom-right, top-right, top-left. `crop` optionally
+		// restricts sampling to a sub-rectangle of the tile (u0, v0, u1, v1);
+		// thin fence posts/rails use it so the 16x16 plank tile is not crushed
+		// into a few pixels and loses its grain.
+		function addQuad(data, tex, x0, y0, x1, y1, shade, crop) {
+			let c = iconTexture(tex)
+			if (!c) return
+			let u0 = crop ? crop[0] : 0
+			let v0 = crop ? crop[1] : 0
+			let u1 = crop ? crop[2] : 1
+			let v1 = crop ? crop[3] : 1
+			let cu0 = c[0] + (c[2] - c[0]) * u0
+			let cu1 = c[0] + (c[2] - c[0]) * u1
+			let cv0 = c[1] + (c[5] - c[1]) * v0
+			let cv1 = c[1] + (c[5] - c[1]) * v1
+			let points = [ [x0, y0], [x1, y0], [x1, y1], [x0, y1] ]
+			let uv = [ cu0, cv1, cu1, cv1, cu1, cv0, cu0, cv0 ]
+			for (let k = 0; k < 4; k++) {
+				data.push(-points[k][0] * scale)
+				data.push(points[k][1] * scale)
+				data.push(0.1666666)
+				data.push(uv[k * 2])
+				data.push(uv[k * 2 + 1])
+				data.push(shade)
+			}
+		}
+
+		// A flat sprite is the correct inventory icon for plants, torches,
+		// signs, rails, tools and other non-cube items.
+		function addSprite(data, tex, halfW, halfH, shade) {
+			addQuad(data, tex, -halfW, -halfH, halfW, halfH, shade === undefined ? 1 : shade)
+		}
+
+		// Fences, walls and panes get a small front-facing fence instead of a
+		// full plank cube. Fence gates get their frame and diagonal brace.
+		function addFence(data, tex, gate) {
+			// A post is roughly one quarter of a plank tile wide; taking the
+			// whole tile made the wood grain vanish into vertical streaks. Rails
+			// similarly need only a thin horizontal band of the tile.
+			let postUV = [ 0.25, 0, 0.5, 1 ]
+			let railUV = [ 0, 0.25, 1, 0.5 ]
+			let post = 0.09
+			let px = 0.55
+			addQuad(data, tex, -px - post, -0.9, -px + post, 0.9, 0.8, postUV)
+			addQuad(data, tex, px - post, -0.9, px + post, 0.9, 0.65, postUV)
+			if (gate) {
+				addQuad(data, tex, -px - post, 0.42, px + post, 0.6, 1, railUV)
+				addQuad(data, tex, -px - post, -0.6, px + post, -0.42, 0.75, railUV)
+				// Diagonal brace.
+				let x0 = -px, y0 = -0.42, x1 = px, y1 = 0.42
+				let dx = x1 - x0, dy = y1 - y0
+				let len = Math.sqrt(dx * dx + dy * dy)
+				let nx = -dy / len * 0.055, ny = dx / len * 0.055
+				addQuad(data, tex, x0 + nx, y0 + ny, x1 + nx, y1 + ny, 0.9, [ 0.25, 0.25, 0.75, 0.75 ])
+				addQuad(data, tex, x0 - nx, y0 - ny, x1 - nx, y1 - ny, 0.7, [ 0.25, 0.25, 0.75, 0.75 ])
+				return
+			}
+			addQuad(data, tex, -0.8, -0.03, 0.8, 0.16, 0.95, railUV)
+			addQuad(data, tex, -0.8, -0.5, 0.8, -0.31, 0.7, railUV)
+		}
+
+		// Doors use their bottom and top textures on two vertical panels.
+		function addDoor(data, texs) {
+			// The base door state uses the mirrored hinge texture. Inventory
+			// icons should use the normal handle side, and it also guarantees
+			// the texture exists for every generated door type.
+			let bottom = (texs[0] || texs[1] || texs[2] || "").replace(/Mirror$/, "")
+			let top = bottom ? bottom.replace("DoorBottom", "DoorTop") : bottom
+			if (!iconTexture(top)) top = bottom
+			addQuad(data, bottom, -0.46, -0.95, 0.46, 0, 1)
+			addQuad(data, top, -0.46, 0, 0.46, 0.95, 0.95)
+			// A narrow side edge gives the sprite some depth.
+			addQuad(data, bottom, 0.46, -0.95, 0.53, 0, 0.6)
+			addQuad(data, top, 0.46, 0, 0.53, 0.95, 0.55)
+		}
+
+		// Trapdoors, plates and carpets are thin slabs, not full cubes.
+		function addPlate(data, topTex, sideTex) {
+			let tx = topTex || sideTex
+			let sx = sideTex || topTex
+			let top = [ [0, 0.3], [0.8, -0.05], [0, -0.4], [-0.8, -0.05] ]
+			let bottom = [ [0, -0.05], [0.8, -0.4], [0, -0.75], [-0.8, -0.4] ]
+			function plateQuad(a, b, c, d, tex, shade) {
+				let coords = iconTexture(tex)
+				if (!coords) return
+				let pts = [ a, b, c, d ]
+				let uv = [ coords[6], coords[7], coords[4], coords[5], coords[2], coords[3], coords[0], coords[1] ]
+				for (let k = 0; k < 4; k++) {
+					data.push(-pts[k][0] * scale)
+					data.push(pts[k][1] * scale)
+					data.push(0.1666666)
+					data.push(uv[k * 2])
+					data.push(uv[k * 2 + 1])
+					data.push(shade)
+				}
+			}
+			plateQuad(top[0], top[1], top[2], top[3], tx, 1)
+			plateQuad(top[3], top[2], bottom[2], bottom[3], sx, 0.7)
+			plateQuad(top[2], top[1], bottom[1], bottom[2], sx, 0.55)
+			plateQuad(top[0], top[3], bottom[3], bottom[0], sx, 0.8)
+			plateQuad(top[1], top[0], bottom[0], bottom[1], sx, 0.65)
+		}
+
+		function makeIcon(id, data) {
+			if (!data.length) return
+			let buffer = gl.createBuffer()
+			gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW)
+			blockIcons[id] = buffer
+			blockIcons.lengths[id] = data.length / 4
+		}
+
 		for (let i = 1; i < BLOCK_COUNT; i++) {
 			let data = []
 			let block = blockData[i]
 			if (!block || !block.textures) continue
 			let texs = block.textures
 			if (typeof texs === "string") texs = [texs, texs, texs, texs, texs, texs]
+			let name = block.name || ""
 
-			// normal
-			for (let j = 11; j >= 0; j--) {
-				data.push(-hexagonVerts[j * 3 + 0] * scale)
-				data.push(hexagonVerts[j * 3 + 1] * scale)
-				data.push(0.1666666)
-				let t = block.door ? (texs[0] || texs[1] || texs[2]) : (texs[texOrder[Math.floor(j / 4)]] || texs[0])
-				if (!t) continue
-				let tm = textureMap[t]
-				if (tm === undefined || !textureCoords[tm]) continue
-				data.push(textureCoords[tm][(j * 2 + 0) % 8])
-				data.push(textureCoords[tm][(j * 2 + 1) % 8])
-				data.push(shadows[Math.floor(j / 4)])
+			if (block.cross || block.torch) {
+				// A plant/torch texture is already a complete sprite. Putting it
+				// on three overlapping cube faces repeated the stem and flame.
+				addSprite(data, texs[0] || name, 0.78, 0.78)
+			} else if (block.door) {
+				addDoor(data, texs)
+			} else if (block.fence || /Bars$/.test(name)) {
+				// Bamboo fences use their own cut-out texture; the solid planks
+				// read much better when the icon is split into posts and rails.
+				let fenceTex = /^bambooFence/.test(name) ? "bambooPlanks" : (texs[0] || name)
+				addFence(data, fenceTex, /FenceGate/.test(name))
+			} else if (/Sign$/.test(name) || /Rail$/.test(name) || /Ladder$/.test(name) || /(Chain|Candle|LightningRod)$/.test(name) || /(CopperLantern|SoulLantern)$/.test(name) || /^(lever|candle|rail|ladder)$/.test(name)) {
+				addSprite(data, texs[0] || name, 0.78, 0.78)
+			} else if (block.trap || block.flat || /Bed$/.test(name) || /Carpet$/.test(name) || /PressurePlate$/.test(name)) {
+				addPlate(data, texs[0] || name, texs[2] || texs[0] || name)
+			} else {
+				// Normal isometric cube icon.
+				for (let j = 11; j >= 0; j--) {
+					data.push(-hexagonVerts[j * 3 + 0] * scale)
+					data.push(hexagonVerts[j * 3 + 1] * scale)
+					data.push(0.1666666)
+					let t = texs[texOrder[Math.floor(j / 4)]] || texs[0]
+					if (!t) continue
+					let tm = textureMap[t]
+					if (tm === undefined || !textureCoords[tm]) continue
+					data.push(textureCoords[tm][(j * 2 + 0) % 8])
+					data.push(textureCoords[tm][(j * 2 + 1) % 8])
+					data.push(shadows[Math.floor(j / 4)])
+				}
 			}
-			let buffer = gl.createBuffer()
-			gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW)
-			blockIcons[i] = buffer
-			blockIcons.lengths[i] = 6 * 3
+			makeIcon(i, data)
 
 			// slab
 			data = []
 			for (let j = 11; j >= 0; j--) {
-				let t = block.door ? (texs[0] || texs[1] || texs[2]) : (texs[texOrder[Math.floor(j / 4)]] || texs[0])
+				let t = texs[texOrder[Math.floor(j / 4)]] || texs[0]
 				if (!t) continue
 				let tm = textureMap[t]
 				if (tm === undefined || !textureCoords[tm]) continue
@@ -987,11 +1348,7 @@ function releasePointer() {
 				data.push(texc[(j * 2 + 1) % 8])
 				data.push(shadows[Math.floor(j / 4)])
 			}
-			buffer = gl.createBuffer()
-			gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW)
-			blockIcons[i | SLAB] = buffer
-			blockIcons.lengths[i | SLAB] = 6 * 3
+			makeIcon(i | SLAB, data)
 
 			// stair
 			data = []
@@ -1012,11 +1369,14 @@ function releasePointer() {
 				data.push(ty + v[j * 5 + 3] * ATLAS_SCALE)
 				data.push(shadows[num])
 			}
-			buffer = gl.createBuffer()
-			gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW)
-			blockIcons[i | STAIR] = buffer
-			blockIcons.lengths[i | STAIR] = 6 * 6
+			makeIcon(i | STAIR, data)
+		}
+
+		// Non-block items (tools, food, ingots...) are flat sprites, not cubes.
+		for (let i = 0; i < itemData.length; i++) {
+			let data = []
+			addSprite(data, itemData[i].texture, 0.78, 0.78)
+			makeIcon(ITEM_ID_BASE + i, data)
 		}
 	}
 
@@ -1358,9 +1718,9 @@ function releasePointer() {
 
 
 export {
-	CUBE, SLAB, STAIR, FLIP, NORTH, SOUTH, EAST, WEST, ROTATION, BASE_MASK, STATE_MASK,
+	CUBE, SLAB, STAIR, FLIP, NORTH, SOUTH, EAST, WEST, ROTATION, FACING_UP, FACING_DOWN, BASE_MASK, STATE_MASK,
 	DOOR_UPPER, DOOR_OPEN, DOOR_HINGE, DOOR_FACING, TRAPDOOR_BOTTOM, TRAPDOOR_OPEN, TRAPDOOR_FACING,
-	TORCH_HANGING, LIGHT_MAX, LIGHT_LIFT, MAX_STACK, DAY_LENGTH,
+	TORCH_HANGING, FLUID_FALLING, LIGHT_MAX, LIGHT_LIFT, MAX_STACK, DAY_LENGTH,
 	ATLAS_TILES, ATLAS_MASK, ATLAS_SHIFT, ATLAS_SCALE,
 	getPointer, releasePointer,
 	Block, Sides,

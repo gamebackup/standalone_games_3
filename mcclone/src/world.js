@@ -187,6 +187,7 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 			this.generateQueue = []
 			this.meshQueue = []
 			this.loadFrom = []
+			this.chests = {}
 			this.lastChunk = ","
 			this.time = 150000 // Time of day in milliseconds (150s = morning)
 			this.lastRender = 0
@@ -220,6 +221,12 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 					chunk.biomes[k * 16 + i] = bi
 
 					chunk.setBlock(i, gen, k, biome.surface)
+					// Snowy biomes get a thin snow cover instead of a solid snow
+					// block, so slopes keep the shape of the ground beneath. Stony
+					// peaks only hold snow above the snow line.
+					if (biome.snowCover && gen + 1 < maxHeight && (biome.snowLine === undefined || gen >= biome.snowLine)) {
+						chunk.setBlock(i, gen + 1, k, blockIds.snowLayer)
+					}
 					let y = gen - 1
 					for (let l = 0; l < biome.layers.length; l++) {
 						let layer = biome.layers[l]
@@ -272,6 +279,17 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 				return blockIds.air
 			}
 			return this.chunks[x >> 4][z >> 4].getBlock(x & 15, y, z & 15)
+		}
+		chestKey(x, y, z) {
+			return x + "," + y + "," + z
+		}
+		getChest(x, y, z) {
+			let key = this.chestKey(x, y, z)
+			if (!this.chests[key]) this.chests[key] = new Array(27).fill(null)
+			return this.chests[key]
+		}
+		deleteChest(x, y, z) {
+			delete this.chests[this.chestKey(x, y, z)]
 		}
 		getBlock(x, y, z) {
 			let X = (x >> 4) + this.offsetX
@@ -583,6 +601,10 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 					if (chunk.buffer && !near(chunk)) {
 						gl.deleteBuffer(chunk.buffer)
 						chunk.buffer = null
+						// The face mask in renderData can go stale while the mesh is
+						// unloaded (fluid ticks and edits still change block data).
+						// Recompute it when this chunk is meshed again.
+						chunk.optimized = false
 					}
 				}
 			}
@@ -646,6 +668,26 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 				str += ";"
 			}
 			if (str.match(/;$/)) str = str.substr(0, str.length - 1)
+
+			// Chest inventories are appended after the chunk edits. Older saves
+			// have no section, and the marker is not a valid base36 coordinate,
+			// so both formats load correctly.
+			let chests = []
+			for (let key in this.chests) {
+				let slots = this.chests[key]
+				if (!slots) continue
+				let items = []
+				for (let i = 0; i < slots.length; i++) {
+					let st = slots[i]
+					if (st && st.count > 0) {
+						items.push(i.toString(36) + "," + st.id.toString(36) + "," + st.count.toString(36))
+					}
+				}
+				if (!items.length) continue
+				let coords = key.split(",").map(n => parseInt(n, 10).toString(36)).join(",")
+				chests.push(coords + ":" + items.join(","))
+			}
+			if (chests.length) str += ";~" + chests.join("|")
 			return str
 		}
 		loadSave(str) {
@@ -693,25 +735,46 @@ import { isSupporter, isTorchSupport, fluidWakeAround, renderDrops, renderTnts }
 
 			let pallete = data.shift().split(",").map(n => parseInt(n, 36))
 			this.loadFrom = []
+			this.chests = {}
 
-			for (let i = 0; data.length; i++) {
-				let blocks = data.shift().split(",")
-				this.loadFrom.push({
+			while (data.length) {
+				let section = data.shift()
+				if (section[0] === "~") {
+					for (let part of section.slice(1).split("|")) {
+						let colon = part.indexOf(":")
+						if (colon < 0) continue
+						let coords = part.slice(0, colon).split(",").map(n => parseInt(n, 36))
+						let slots = new Array(27).fill(null)
+						let values = part.slice(colon + 1).split(",")
+						for (let i = 0; i + 2 < values.length; i += 3) {
+							let slot = parseInt(values[i], 36)
+							let id = parseInt(values[i + 1], 36)
+							let count = parseInt(values[i + 2], 36)
+							if (slot >= 0 && slot < 27 && id > 0 && count > 0) slots[slot] = { id: id, count: count }
+						}
+						this.chests[coords.join(",")] = slots
+					}
+					continue
+				}
+				let blocks = section.split(",")
+				let chunk = {
 					x: parseInt(blocks.shift(), 36),
 					y: parseInt(blocks.shift(), 36),
 					z: parseInt(blocks.shift(), 36),
 					blocks: [],
-				})
+				}
+				this.loadFrom.push(chunk)
 				for (let j = 0; j < blocks.length; j++) {
 					let block = parseInt(blocks[j], 36)
 					let index = block & 0xfff
 					let pid = block >> 12
-					this.loadFrom[i].blocks[index] = pallete[pid]
+					chunk.blocks[index] = pallete[pid]
 				}
 			}
 		}
 		loadOldSave(str) {
 			let data = str.split(";");
+			this.chests = {};
 			setWorldSeed(parseInt(data.shift(), 36));
 			this.id = Date.now()
 			this.name = "Old World " + (Math.random() * 1000 | 0)

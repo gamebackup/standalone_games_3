@@ -8,7 +8,7 @@ import {
 } from './state.js'
 import { generator } from './state.js'
 import {
-	CUBE, SLAB, STAIR, FLIP, NORTH, SOUTH, EAST, WEST, ROTATION, BASE_MASK, STATE_MASK,
+	CUBE, SLAB, STAIR, FLIP, NORTH, SOUTH, EAST, WEST, ROTATION, FACING_UP, FACING_DOWN, BASE_MASK, STATE_MASK,
 	DOOR_UPPER, DOOR_OPEN, DOOR_HINGE, DOOR_FACING, TRAPDOOR_BOTTOM, TRAPDOOR_OPEN, TRAPDOOR_FACING,
 	TORCH_HANGING, LIGHT_MAX, LIGHT_LIFT, uniformMatrix, Block, Sides, vertexAttribPointer
 } from './engine.js'
@@ -16,9 +16,9 @@ import { PVector, noise } from './noise.js'
 import {
 	isDoorState, isTrapState, toggleDoor, toggleTrapdoor, placeDoor, placeTrapdoor, inCobweb,
 	playerFluid, refreshFences, placementMode, isTorchSupport, isSupporter, facingToPlayer,
-	bucketUse, isTntBlock, primeTnt
+	doorPassesPlayer, clearDoorPassThrough, refreshDoorPassThrough, bucketUse, isTntBlock, primeTnt
 } from './features.js'
-import { consumeHeld, heldStack, addItem, blockDrop } from './ui.js'
+import { consumeHeld, heldStack, addItem, blockDrop, openChest } from './ui.js'
 import { isItem, itemDef } from './items.js'
 
 const vec1 = new PVector(), vec2 = new PVector(), vec3 = new PVector()
@@ -462,6 +462,7 @@ function cross(v1, v2, result) {
 		let cf, cd = 1e9; //Closest face and distance
 		let m; //Absolute distance to intersection point
 		let ix, iy, iz; //Intersection coords
+		let hx, hy, hz; //Closest hit point, returned to the caller
 		let minX, minY, minZ, maxX, maxY, maxZ, min, max; //Bounds of face coordinates
 		let east = p.direction.x < 0
 		let top = p.direction.y < 0
@@ -488,6 +489,7 @@ function cross(v1, v2, result) {
 				if (m > 0 && m < cd && ix >= x + minX && ix <= x + maxX && iz >= z + minZ && iz <= z + maxZ) {
 					cd = m; //Ray crosses bottom face
 					cf = top ? "top" : "bottom"
+					hx = ix; hy = y + face[1]; hz = iz
 				}
 			}
 		}
@@ -512,6 +514,7 @@ function cross(v1, v2, result) {
 				if (m > 0 && m < cd && iy >= y + minY && iy <= y + maxY && iz >= z + minZ && iz <= z + maxZ) {
 					cd = m
 					cf = east ? "east" : "west"
+					hx = x + face[0]; hy = iy; hz = iz
 				}
 			}
 		}
@@ -536,15 +539,18 @@ function cross(v1, v2, result) {
 				if (m > 0 && m < cd && ix >= x + minX && ix <= x + maxX && iy >= y + minY && iy <= y + maxY) {
 					cd = m
 					cf = north ? "north" : "south"
+					hx = ix; hy = iy; hz = z + face[2]
 				}
 			}
 		}
-		return [ cd, cf ]
+		return [ cd, cf, hx, hy, hz ]
 	}
 	function runRayTrace(x, y, z) {
 		let block = world.getBlock(x, y, z)
 		if (block) {
 			let data = blockData[block]
+			// Fluids are not targetable, so aiming passes through water and lava.
+			if (!data || data.liquid) return
 			let shape = data.rayShape || data.shape
 			let rt = rayTrace(x, y, z, shape)
 
@@ -553,22 +559,26 @@ function cross(v1, v2, result) {
 				hitBox.face = rt[1]
 				hitBox.pos = [ x, y, z ]
 				hitBox.shape = shape
+				hitBox.point = [ rt[2], rt[3], rt[4] ]
 			}
 		}
 	}
 	function lookingAt() {
 		// Checks blocks in front of the player to see which one they're looking at
 		hitBox.pos = null
+		hitBox.point = null
 		hitBox.closest = 1e9
 
 		if (p.spectator) {
 			return
 		}
 		let blockState = world.getBlock(p2.x, p2.y, p2.z)
-		if (blockState) {
+		let blockDataAtPlayer = blockState && blockData[blockState]
+		if (blockState && (!blockDataAtPlayer || !blockDataAtPlayer.liquid)) {
 			hitBox.pos = [ p2.x, p2.y, p2.z ]
+			hitBox.point = [ p.x, p.y, p.z ]
 			hitBox.closest = 0
-			hitBox.shape = blockData[blockState].rayShape || blockData[blockState].shape
+			hitBox.shape = blockDataAtPlayer.rayShape || blockDataAtPlayer.shape
 			return
 		}
 
@@ -648,6 +658,9 @@ function cross(v1, v2, result) {
 			return false
 		}
 		let shapeData = blockData[block].collisionShape || blockData[block].shape
+		if (blockData[block].door && doorPassesPlayer(x, y, z, shapeData)) {
+			return false
+		}
 		if (shapeData.noCollide) {
 			return false
 		}
@@ -894,6 +907,7 @@ function cross(v1, v2, result) {
 
 		p.lastUpdate = win.performance.now()
 		contacts.clear()
+		refreshDoorPassThrough()
 		lookingAt()
 	}
 	let runGravity = function() {
@@ -995,11 +1009,18 @@ function cross(v1, v2, result) {
 				}
 			}
 
+			// Vanilla picks the top half when the player clicks the bottom face or
+			// the upper half of a side. Blocks here are centered on integer
+			// coordinates (they span y-0.5..y+0.5), so the upper half of a face
+			// lands in the lower half of world-space `% 1`.
 			if (t && shape.flip && hitBox.face !== "top" && (hitBox.face === "bottom" || (p.direction.y * hitBox.closest + p.y) % 1 < 0.5)) {
 				t |= FLIP
 			}
 
 			let old = world.getBlock(hitBox.pos[0], hitBox.pos[1], hitBox.pos[2])
+			if ((old & BASE_MASK) === blockIds.chest && (t & BASE_MASK) !== blockIds.chest) {
+				world.deleteChest(hitBox.pos[0], hitBox.pos[1], hitBox.pos[2])
+			}
 			if (!t && old && isDoorState(old)) {
 				// Breaking a door takes out both halves at once.
 				let base = old & BASE_MASK
@@ -1008,6 +1029,7 @@ function cross(v1, v2, result) {
 				if (other && isDoorState(other) && (other & BASE_MASK) === base) {
 					world.setBlock(hitBox.pos[0], otherY, hitBox.pos[2], 0)
 				}
+				clearDoorPassThrough(hitBox.pos[0], hitBox.pos[1], hitBox.pos[2])
 			}
 			world.setBlock(hitBox.pos[0], hitBox.pos[1], hitBox.pos[2], t)
 			refreshFences(hitBox.pos[0], hitBox.pos[1], hitBox.pos[2])
@@ -1048,6 +1070,11 @@ function cross(v1, v2, result) {
 		}
 		if (isTrapState(target)) {
 			toggleTrapdoor(pos[0], pos[1], pos[2])
+			p.interactHold = true
+			return true
+		}
+		if ((target & BASE_MASK) === blockIds.chest) {
+			openChest(pos[0], pos[1], pos[2])
 			p.interactHold = true
 			return true
 		}
@@ -1111,11 +1138,25 @@ function cross(v1, v2, result) {
 				return
 			}
 			if (held && held.facing) {
-				// Pumpkins place with their carved face toward the player.
+				// Most facing blocks (pumpkins, furnaces, chests) point their
+				// front at the player. Dispensers, droppers, pistons, observers
+				// and barrels also have vertical models: placing one on a floor
+				// or ceiling makes its front face up or down.
+				let facing = facingToPlayer(x, z)
+				if (held.verticalFacing) {
+					// Dispensers, pistons, observers and barrels face away from
+					// the block they were placed against, including straight
+					// up or down when placed on a floor or ceiling.
+					let faceFacing = {
+						top: FACING_UP, bottom: FACING_DOWN,
+						north: NORTH, south: SOUTH, east: EAST, west: WEST,
+					}
+					if (faceFacing[hitBox.face] !== undefined) facing = faceFacing[hitBox.face]
+				}
 				pos[0] = x
 				pos[1] = y
 				pos[2] = z
-				changeWorldBlock(holding | facingToPlayer(x, z))
+				changeWorldBlock(holding | facing)
 				if (gameMode !== "creative") {
 					consumeHeld(1)
 				}

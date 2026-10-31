@@ -11,7 +11,7 @@ export const blockData = [
 		},
 		{
 			name: "grass",
-			textures: ["grassTop", "grassSide"],
+			textures: ["grassTop", "dirt", "grassSide"],
 		},
 		{ name: "dirt" },
 		{ name: "stone" },
@@ -121,7 +121,7 @@ export const blockData = [
 		{ name: "netherQuartzOre" },
 		{
 			name: "quartzBlock",
-			textures: ["quartzBlockBottom", "quartzBlockTop", "quartzBlockSide"]
+			textures: ["quartzBlockTop", "quartzBlockBottom", "quartzBlockSide"]
 		},
 		{
 			name: "quartzPillar",
@@ -152,32 +152,52 @@ export const blockData = [
       textures: [ "ironBarsTop", "ironBarsSide" ],
       transparent: true,
 	  shadow: false,
+      bars: true,
     },
+    // Legacy decorative water cube. Its id is kept so existing save
+    // palettes stay valid, but it is hidden from the creative inventory and
+    // old cells are migrated to real water when a chunk is meshed.
     { name: "waterBlock",
       transparent: true,
 	  shadow: false,
+      hidden: true,
+      legacy: "water",
     },
+    // Vanilla leaves use one texture on every face. The old separate side
+    // texture was the same pattern with an unfinished grey patch stamped
+    // over its middle rows. Both legacy leaf blocks have cut-out pixels, so
+    // they must stay transparent; marking them opaque culled the faces of
+    // every block underneath them and produced one-block "x-ray" holes.
     { name: "altLeaves",
-      textures: [ "altLeavesTop", "altLeavesSide" ],
+      textures: "altLeavesTop",
+      transparent: true,
     },
-	{ name: "justLeaves" },
-	{ name: "dispenserBlock",
+	{ name: "justLeaves", transparent: true },
+	{ name: "dispenser",
 	  textures: [ "furnaceTop", "furnaceTop", "dispenserFront", "furnaceSide", "furnaceSide", "furnaceSide" ],
 	  facing: true,
+	  verticalFacing: true,
 	  faceTextures: {
 		north: [ "furnaceTop", "furnaceTop", "dispenserFront", "furnaceSide", "furnaceSide", "furnaceSide" ],
 		south: [ "furnaceTop", "furnaceTop", "furnaceSide", "dispenserFront", "furnaceSide", "furnaceSide" ],
 		east: [ "furnaceTop", "furnaceTop", "furnaceSide", "furnaceSide", "dispenserFront", "furnaceSide" ],
 		west: [ "furnaceTop", "furnaceTop", "furnaceSide", "furnaceSide", "furnaceSide", "dispenserFront" ],
+		up: [ "dispenserFrontVertical", "furnaceTop", "furnaceTop", "furnaceTop", "furnaceTop", "furnaceTop" ],
+		down: [ "furnaceTop", "dispenserFrontVertical", "furnaceTop", "furnaceTop", "furnaceTop", "furnaceTop" ],
 	  } },
 	{ name: "iceBlock",
 	  transparent: true,
 	  shadows: false,
 	},
+	// Old full-block cobweb. Its id is kept so existing saves stay valid,
+	// but the creative menu only lists the real cross-shaped cobweb and old
+	// placements are migrated to it when a chunk is optimized.
 	{ name: "cobwebBlock",
 	  textures: "cobweb",
 	  transparent: true,
 	  shadow: false,
+	  hidden: true,
+	  legacy: "cobweb",
 	},
 	{ name: "crackedStoneBrick" },
 	{ name: "grassLeaves",
@@ -252,7 +272,7 @@ export const blockData = [
 	{ name: "cryingObsidian" },
 	{ name: "amethystBlock" },
 	{ name: "quartzBricks" },
-	{ name: "pumpkin", textures: [ "pumpkinTop", "pumpkinSide" ], facing: true, side: "pumpkinSide", front: "pumpkinSide" },
+	{ name: "pumpkin", textures: [ "pumpkinTop", "pumpkinSide" ] },
 	{ name: "carvedPumpkin", textures: [ "pumpkinTop", "pumpkinTop", "pumpkinSide", "pumpkinSide", "pumpkinSide", "pumpkinSide" ], facing: true,
 	  faceTextures: {
 		north: [ "pumpkinTop", "pumpkinTop", "carvedPumpkin", "pumpkinSide", "pumpkinSide", "pumpkinSide" ],
@@ -366,6 +386,19 @@ export const blockData = [
 // hand-written entries. Names that already exist keep their original ids.
 let _blockNames = new Set(blockData.map(block => block.name))
 for (let def of VANILLA_BLOCKS) {
+	if (_blockNames.has(def.name)) continue
+	_blockNames.add(def.name)
+	blockData.push(def)
+}
+
+// Terrain blocks the generated vanilla list does not model. They are appended
+// after every existing block so old saves keep their block ids.
+// snowyGrass uses the snow-topped grass side from the assets, so snowy biomes
+// do not have to be solid snow cubes. snowLayer is the thin cover on top.
+for (let def of [
+	{ name: "snowyGrass", textures: [ "snow", "dirt", "grassBlockSnow", "grassBlockSnow", "grassBlockSnow", "grassBlockSnow" ] },
+	{ name: "snowLayer", textures: "snow", transparent: true, shadow: false, flat: true, snowLayer: true },
+]) {
 	if (_blockNames.has(def.name)) continue
 	_blockNames.add(def.name)
 	blockData.push(def)

@@ -98,6 +98,7 @@ if (typeof window !== "undefined") {
 		"pause": () => {},
 		"creation menu": () => {},
 		"inventory": () => {},
+		"chest": () => {},
 		"multiplayer menu": () => {},
 		"comingsoon menu": () => {},
 		"loadsave menu": () => {},
@@ -586,16 +587,22 @@ if (typeof window !== "undefined") {
 
 	function drawIcon(x, y, id) {
 		id = id < 0x800 ? (id | placementMode(id)) : id
+		let buffer = blockIcons[id]
+		if (!buffer || !blockIcons.lengths[id]) return
 		x =  x / (3 * height) - 0.1666 * width / height
 		y = y / (3 * height) - 0.1666
 		initModelView(null, x, y, 0, 0, 0)
 
-		let buffer = blockIcons[id]
+		// Icons are flat/simple geometry; drawing both sides keeps a winding
+		// mistake from making a texture disappear.
+		let cull = gl.isEnabled(gl.CULL_FACE)
+		if (cull) gl.disable(gl.CULL_FACE)
 		gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
 		gl.vertexAttribPointer(glCache.aVertex, 3, gl.FLOAT, false, 24, 0)
 		gl.vertexAttribPointer(glCache.aTexture, 2, gl.FLOAT, false, 24, 12)
 		gl.vertexAttribPointer(glCache.aShadow, 1, gl.FLOAT, false, 24, 20)
 		gl.drawElements(gl.TRIANGLES, blockIcons.lengths[id], gl.UNSIGNED_INT, 0)
+		if (cull) gl.enable(gl.CULL_FACE)
 	}
 
 	function heldStack() {
@@ -1154,12 +1161,293 @@ if (typeof window !== "undefined") {
 		drawScreens.inventory()
 	}
 
+	// Chest storage uses the same slot and cursor rules as the survival
+	// inventory, but with a 3x9 container above the player's 3x9 + hotbar.
+	let chestSlots = null
+	function chestLayout() {
+		let s = inventory.size
+		let pad = Math.round(s * 0.6)
+		let gap = Math.round(s * 0.6)
+		let titleH = Math.round(s * 1.1)
+		let panelW = 9 * s + 2 * pad
+		let panelH = pad + titleH + 3 * s + gap + 3 * s + gap + s + pad
+		let px = Math.round((width - panelW) / 2)
+		let py = Math.round((height - panelH) / 2)
+		return {
+			s: s, pad: pad, gap: gap, titleH: titleH,
+			panelX: px, panelY: py, panelW: panelW, panelH: panelH,
+			chestX: px + pad, chestY: py + pad + titleH,
+			mainX: px + pad, mainY: py + pad + titleH + 3 * s + gap,
+			hotX: px + pad, hotY: py + pad + titleH + 3 * s + gap + 3 * s + gap,
+		}
+	}
+	function chestSlotPos(l, region, index) {
+		if (region === "chest") return { x: l.chestX + (index % 9) * l.s, y: l.chestY + ((index / 9) | 0) * l.s }
+		if (region === "main") return { x: l.mainX + (index % 9) * l.s, y: l.mainY + ((index / 9) | 0) * l.s }
+		return { x: l.hotX + index * l.s, y: l.hotY }
+	}
+	function chestSlotAt(mx, my) {
+		let l = chestLayout()
+		let s = l.s
+		let inside = (x, y) => mx >= x && mx < x + s && my >= y && my < y + s
+		for (let i = 0; i < 27; i++) {
+			let p = chestSlotPos(l, "chest", i)
+			if (inside(p.x, p.y)) return { region: "chest", index: i }
+		}
+		for (let i = 0; i < 27; i++) {
+			let p = chestSlotPos(l, "main", i)
+			if (inside(p.x, p.y)) return { region: "main", index: i }
+		}
+		for (let i = 0; i < 9; i++) {
+			let p = chestSlotPos(l, "hotbar", i)
+			if (inside(p.x, p.y)) return { region: "hotbar", index: i }
+		}
+		return null
+	}
+	function chestGet(ref) {
+		if (!ref) return null
+		if (ref.region === "chest") return chestSlots[ref.index]
+		return getStack(ref)
+	}
+	function chestSet(ref, stack) {
+		if (!ref) return
+		if (ref.region === "chest") chestSlots[ref.index] = stack
+		else setStack(ref, stack)
+	}
+	function chestInto(id, count, start, end) {
+		for (let i = start; i < end && count > 0; i++) {
+			let st = chestSlots[i]
+			if (st && st.id === id && st.count < MAX_STACK) {
+				let add = Math.min(MAX_STACK - st.count, count)
+				st.count += add
+				count -= add
+			}
+		}
+		for (let i = start; i < end && count > 0; i++) {
+			if (!chestSlots[i]) {
+				let add = Math.min(MAX_STACK, count)
+				chestSlots[i] = { id: id, count: add }
+				count -= add
+			}
+		}
+		return count
+	}
+	function chestQuickMove(ref) {
+		let stack = chestGet(ref)
+		if (!stack) return
+		let left
+		if (ref.region === "chest") {
+			left = stackIntoRange(stack.id, stack.count, 9, 36)
+			if (left > 0) left = stackIntoRange(stack.id, left, 0, 9)
+		} else {
+			left = chestInto(stack.id, stack.count, 0, 27)
+		}
+		if (left <= 0) chestSet(ref, null)
+		else stack.count = left
+	}
+	function openChest(x, y, z) {
+		if (!world || !world.getChest) return
+		chestSlots = world.getChest(x, y, z)
+		if (screen !== "play") return
+		releasePointer()
+		changeScene("chest")
+	}
+	function closeChest() {
+		if (screen !== "chest") return
+		if (inventory.cursor) {
+			addItem(inventory.cursor.id, inventory.cursor.count)
+			inventory.cursor = null
+		}
+		chestSlots = null
+		play()
+	}
+	function drawChest() {
+		if (!chestSlots) return
+		let l = chestLayout()
+		let s = l.s
+
+		if (!invBgReady) {
+			invBg.width = width
+			invBg.height = height
+			invBg.getContext("2d").drawImage(gl.canvas, 0, 0)
+			setInvBgReady(true)
+		}
+		ctx.clearRect(0, 0, width, height)
+		ctx.drawImage(invBg, 0, 0)
+		ctx.fillStyle = "rgba(0, 0, 0, 0.55)"
+		ctx.fillRect(0, 0, width, height)
+
+		let drawSlotBg = (x, y) => {
+			ctx.fillStyle = "#8b8b8b"
+			ctx.fillRect(x, y, s, s)
+			ctx.fillStyle = "#373737"
+			ctx.fillRect(x, y, s, 2)
+			ctx.fillRect(x, y, 2, s)
+			ctx.fillStyle = "#ffffff"
+			ctx.fillRect(x, y + s - 2, s, 2)
+			ctx.fillRect(x + s - 2, y, 2, s)
+		}
+
+		ctx.fillStyle = "#c6c6c6"
+		ctx.fillRect(l.panelX, l.panelY, l.panelW, l.panelH)
+		ctx.strokeStyle = "#ffffff"
+		ctx.lineWidth = 2
+		ctx.strokeRect(l.panelX + 1, l.panelY + 1, l.panelW - 2, l.panelH - 2)
+		ctx.strokeStyle = "#555555"
+		ctx.strokeRect(l.panelX + 0.5, l.panelY + 0.5, l.panelW - 1, l.panelH - 1)
+
+		ctx.fillStyle = "#404040"
+		ctx.textAlign = "left"
+		ctx.font = Math.round(s * 0.42) + "px Poppins"
+		ctx.fillText("Chest", l.panelX + l.pad, l.panelY + l.pad + Math.round(l.titleH * 0.65))
+
+		for (let i = 0; i < 27; i++) {
+			let p = chestSlotPos(l, "chest", i)
+			drawSlotBg(p.x, p.y)
+		}
+		for (let i = 0; i < 27; i++) {
+			let p = chestSlotPos(l, "main", i)
+			drawSlotBg(p.x, p.y)
+		}
+		for (let i = 0; i < 9; i++) {
+			let p = chestSlotPos(l, "hotbar", i)
+			drawSlotBg(p.x, p.y)
+		}
+
+		let hover = chestSlotAt(mouseX, mouseY)
+		if (hover) {
+			let p = chestSlotPos(l, hover.region, hover.index)
+			ctx.strokeStyle = "white"
+			ctx.lineWidth = 2
+			ctx.strokeRect(p.x + 1, p.y + 1, s - 2, s - 2)
+		}
+
+		use3d()
+		FOV(90)
+		gl.clearColor(0, 0, 0, 0)
+		gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT)
+		gl.disable(gl.DEPTH_TEST)
+		for (let i = 0; i < 27; i++) {
+			let st = chestSlots[i]
+			if (st) {
+				let p = chestSlotPos(l, "chest", i)
+				drawIcon(p.x + s / 2, p.y + s / 2, st.id)
+			}
+		}
+		for (let i = 0; i < 27; i++) {
+			let st = inventory.slots[9 + i]
+			if (st) {
+				let p = chestSlotPos(l, "main", i)
+				drawIcon(p.x + s / 2, p.y + s / 2, st.id)
+			}
+		}
+		for (let i = 0; i < 9; i++) {
+			let st = inventory.slots[i]
+			if (st) {
+				let p = chestSlotPos(l, "hotbar", i)
+				drawIcon(p.x + s / 2, p.y + s / 2, st.id)
+			}
+		}
+		if (inventory.cursor) drawIcon(mouseX, mouseY, inventory.cursor.id)
+		gl.enable(gl.DEPTH_TEST)
+		ctx.drawImage(gl.canvas, 0, 0)
+
+		ctx.textAlign = "right"
+		ctx.fillStyle = "white"
+		ctx.strokeStyle = "black"
+		ctx.lineWidth = 2
+		ctx.font = Math.max(10, Math.round(s * 0.42)) + "px Poppins"
+		let drawCount = (x, y, stack) => {
+			if (stack && stack.count > 1) {
+				ctx.strokeText(stack.count, x + s - 3, y + s - 4)
+				ctx.fillText(stack.count, x + s - 3, y + s - 4)
+			}
+		}
+		for (let i = 0; i < 27; i++) drawCount(l.chestX + (i % 9) * s, l.chestY + ((i / 9) | 0) * s, chestSlots[i])
+		for (let i = 0; i < 27; i++) {
+			let p = chestSlotPos(l, "main", i)
+			drawCount(p.x, p.y, inventory.slots[9 + i])
+		}
+		for (let i = 0; i < 9; i++) drawCount(l.hotX + i * s, l.hotY, inventory.slots[i])
+		if (inventory.cursor) drawCount(mouseX, mouseY, inventory.cursor)
+
+		let tip = hover ? chestGet(hover) : null
+		if (tip) {
+			ctx.textAlign = "left"
+			ctx.font = Math.max(12, Math.round(s * 0.4)) + "px Poppins"
+			let name = itemName(tip.id)
+			let tw = ctx.measureText(name).width
+			ctx.fillStyle = "rgba(16, 0, 16, 0.94)"
+			ctx.fillRect(mouseX + 8, mouseY + 4, tw + 10, 22)
+			ctx.fillStyle = "white"
+			ctx.fillText(name, mouseX + 13, mouseY + 20)
+		}
+		ctx.textAlign = "left"
+	}
+	function clickChest(button, shift) {
+		let ref = chestSlotAt(mouseX, mouseY)
+		if (!ref) {
+			if (button === 0 && inventory.cursor) {
+				addItem(inventory.cursor.id, inventory.cursor.count)
+				inventory.cursor = null
+			}
+			drawChest()
+			return
+		}
+		if (shift) {
+			chestQuickMove(ref)
+			updateHolding()
+			drawChest()
+			return
+		}
+		let stack = chestGet(ref)
+		if (button === 0) {
+			if (inventory.cursor) {
+				if (!stack) {
+					chestSet(ref, inventory.cursor)
+					inventory.cursor = null
+				} else if (stack.id === inventory.cursor.id) {
+					let add = Math.min(MAX_STACK - stack.count, inventory.cursor.count)
+					stack.count += add
+					inventory.cursor.count -= add
+					if (inventory.cursor.count <= 0) inventory.cursor = null
+				} else {
+					chestSet(ref, inventory.cursor)
+					inventory.cursor = stack
+				}
+			} else if (stack) {
+				inventory.cursor = stack
+				chestSet(ref, null)
+			}
+		} else if (button === 2) {
+			if (inventory.cursor) {
+				if (!stack) {
+					chestSet(ref, { id: inventory.cursor.id, count: 1 })
+					inventory.cursor.count--
+					if (inventory.cursor.count <= 0) inventory.cursor = null
+				} else if (stack.id === inventory.cursor.id && stack.count < MAX_STACK) {
+					stack.count++
+					inventory.cursor.count--
+					if (inventory.cursor.count <= 0) inventory.cursor = null
+				}
+			} else if (stack) {
+				let half = Math.ceil(stack.count / 2)
+				inventory.cursor = { id: stack.id, count: half }
+				stack.count -= half
+				if (stack.count <= 0) chestSet(ref, null)
+			}
+		}
+		updateHolding()
+		drawChest()
+	}
+
 	// Creative inventory: compact survival-style panel with a scrollable, searchable block list
 	function creativeIds() {
 		let q = creativeSearch.trim().toLowerCase()
 		if (q === creativeIdsKey && creativeIdsCache) return creativeIdsCache
 		let list = []
 		for (let id = 1; id < BLOCK_COUNT; id++) {
+			if (blockData[id].hidden) continue
 			if (q === "" || itemName(id).toLowerCase().includes(q)) list.push(id)
 		}
 		setCreativeIdsKey(q)
@@ -1586,6 +1874,8 @@ if (typeof window !== "undefined") {
 			}
 		}
 
+		drawScreens.chest = drawChest
+
 		drawScreens.pause = () => {
 			strokeWeight(1)
 			clear()
@@ -1632,6 +1922,7 @@ export {
 	updateCraftResult, consumeCraft, craftOnce,
 	invLayout, slotPos, slotAt, getStack, setStack, stackIntoRange, quickMove,
 	hotbar, hud, drawInv, clickInv,
+	openChest, closeChest, drawChest, clickChest,
 	creativeIds, creativeLayout, creativeScrollbar, creativeSlotAt, drawCreative, clickCreative,
 	openCommand, closeCommand, runCommand,
 	drawScreens, changeScene, play, title
