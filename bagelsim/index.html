@@ -5,7 +5,16 @@
 <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
 <link href="./favicon.ico" rel="icon" type="image/x-icon">
 <meta content="yes" name="apple-mobile-web-app-capable">
-<script src="coi-serviceworker.min.js"></script>
+<script>
+      /* COOP/COEP can only be applied by the top-level document (or by real
+         response headers). When this page is embedded in a game frame on a
+         static host such as gamebackup.github.io, registering the worker here
+         just adds a reload and never makes the frame cross-origin isolated, so
+         only register it when we are the top-level document. index.js falls
+         back to single-threaded execution when not isolated. */
+      window.coi = { shouldRegister: function () { return window.top === window; } };
+    </script>
+    <script src="coi-serviceworker.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Bagel Simulator</title>
