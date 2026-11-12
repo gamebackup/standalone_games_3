@@ -1,0 +1,191 @@
+<!doctypehtml><html lang=en-us><head><meta charset=utf-8><meta content="text/html; charset=utf-8"http-equiv=Content-Type><title>Scarlet Hollow — Demo</title><meta content="width=device-width,initial-scale=1"name=viewport><meta content=#000 name=theme-color><style>html{background:#444;font-family:sans-serif}#canvas{position:absolute;top:0;left:0;width:100%;height:100%;background:#000;border:0 none}.visible{visibility:visible;opacity:1;transition:opacity .1s linear}.hidden{visibility:hidden;opacity:0;transition:visibility 0s .25s,opacity .25s linear}#inputDiv,#statusDiv{background:rgba(0,0,0,.75);width:50%;margin:auto;min-width:340px;padding:10px;position:absolute;top:0;left:0;right:0;border-radius:0 0 5px 5px}#statusTextDiv{overflow:auto;max-height:40vh;color:#ccc;font-size:14px}#statusProgress{display:none;width:100%}#inputDiv{width:65%;padding-left:10px;padding-right:20px}#inputPrompt{color:#eee;font-size:150%;margin-bottom:1em;margin-top:1em}#inputText{width:100%;font-size:175%;padding:5px;background:inherit;color:#eee}#inputText:focus{color:#fff}#ContextContainer{position:absolute;left:0;top:0;color:#fff}#ContextContainer.shown{background:rgba(0,0,0,.5);border-radius:0 0 5px 0}#ContextButton{text-decoration:none;color:#d3d3d3;font-size:xx-large;cursor:pointer;user-select:none;-moz-user-select:none;padding:10px 10px;opacity:.75}#ContextButton:focus{outline:0;color:#fff;opacity:1}#ContextMenu a{text-decoration:none;color:#d3d3d3;background:#444;height:48px;width:250px;border-radius:5px;border:1px solid #d3d3d3;display:flex;align-items:center;justify-content:center;margin:5px 5px;opacity:1}#ContextMenu a:hover{text-decoration:none;background:#666;color:#fff}#presplash{position:absolute;top:0;left:0;display:block;margin:auto;width:100%;height:100%;object-fit:contain}</style></head><body><canvas id=canvas oncontextmenu=event.preventDefault() tabindex=-1></canvas><img id=presplash src=web-presplash.jpg><div id=ContextContainer><a id=ContextButton>≡</a><br><div id=ContextMenu style=display:none><input id=ID_SavegamesImport accept=application/zip onchange=onSavegamesImport(this) style=display:none type=file><a href="javascript:document.getElementById('ID_SavegamesImport').click();">Import Saves</a><a href=javascript:onSavegamesExport();>Export Saves</a><a href="javascript:FSDownload('/log.txt', 'text/plain');">Download Log</a><a href=https://www.renpy.org/ target=_blank>Powered by Ren'Py</a></div></div><div id=statusDiv class=hidden><div id=statusTextDiv></div><progress id=statusProgress max=100 value=0></progress></div><div id=inputDiv class=hidden><form id=inputForm><div id=inputPrompt></div><input id=inputText></form></div><link href=web-icon.png rel=icon><script>
+/* Chunked game.zip loader.
+   Streams each part directly into the engine filesystem instead of merging
+   every part into one giant in-memory Blob (which made the tab accumulate
+   ~20 MB per part and caused the browser to abort fetches mid-download). */
+(function () {
+  "use strict";
+  /* Fixed for this build: game.zip.part1..86, 20 MiB each except the last.
+     Declaring them lets us skip the probe HEAD on part N+1, which the browser
+     reported as a (harmless but noisy) 404. Set PARTS to 0 to rediscover. */
+  var PARTS = 86;
+  var TOTAL = 1799104983;
+  var CACHE = "scarlet-hollow-demo-" + TOTAL;
+  var USE_CACHE = location.search.indexOf("nocache") < 0;
+  var ATTEMPTS = 6;
+  var origFetch = window.fetch.bind(window);
+
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  var cachePromise = (function () {
+    if (!USE_CACHE || !window.caches) return Promise.resolve(null);
+    return caches.open(CACHE).catch(function (e) {
+      console.warn("[shim] cache open failed:", e);
+      return null;
+    });
+  })();
+
+  window.__shim = {
+    count: 0,
+    total: 0,
+    partName: function (i) { return "game.zip.part" + i; },
+
+    discover: async function () {
+      if (PARTS) {
+        this.count = PARTS;
+        this.total = TOTAL;
+        return PARTS;
+      }
+      var head = async function (url) {
+        try { return await origFetch(url, { method: "HEAD", cache: "no-store" }); }
+        catch (e) { return null; }
+      };
+      var r = await head(this.partName(1));
+      if (!r || !r.ok) return 0;
+      var n = 1;
+      var total = parseInt(r.headers.get("Content-Length") || "0", 10);
+      while (n < 512) {
+        var h = await head(this.partName(n + 1));
+        if (!h || !h.ok) break;
+        total += parseInt(h.headers.get("Content-Length") || "0", 10);
+        n++;
+      }
+      this.count = n;
+      this.total = total;
+      return n;
+    },
+
+    part: async function (i) {
+      var cache = await cachePromise;
+      var key = "part:" + i;
+      if (cache) {
+        try {
+          var hit = await cache.match(key);
+          if (hit) return await hit.blob();
+        } catch (e) { /* fall through to network */ }
+      }
+      var last = null;
+      for (var a = 1; a <= ATTEMPTS; a++) {
+        try {
+          var res = await origFetch(this.partName(i), { cache: "no-store" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          var blob = await res.blob();
+          if (cache) {
+            try { await cache.put(key, new Response(blob)); } catch (e) { /* quota */ }
+          }
+          return blob;
+        } catch (e) {
+          last = e;
+          console.warn("[shim] " + this.partName(i) + " attempt " + a + "/" + ATTEMPTS + " failed: " + e.message);
+          if (a < ATTEMPTS) await sleep(400 * a);
+        }
+      }
+      throw new Error(this.partName(i) + " failed after " + ATTEMPTS + " attempts (" + last.message + ")");
+    }
+  };
+})();
+</script>
+<script src=renpy-pre.js></script><script>
+/* Replace Ren'Py's game.zip fetch with a streaming writer into the
+   Emscripten filesystem. */
+(function () {
+  "use strict";
+  var Module = window.Module || (window.Module = {});
+  var pre = Module.preRun || (Module.preRun = []);
+  var removed = 0;
+  for (var i = pre.length - 1; i >= 0; i--) {
+    if (String(pre[i]).indexOf("loadGameZip") >= 0) { pre.splice(i, 1); removed++; }
+  }
+  console.log("[shim] removed engine game.zip hooks:", removed);
+
+  Module.preRun.push(function () {
+    Module.addRunDependency("shim_game_zip");
+    (async function () {
+      function say(t) {
+        var d = document.getElementById("statusDiv"), s = document.getElementById("statusTextDiv");
+        if (d) d.className = t ? "visible" : "hidden";
+        if (s && t) s.textContent = t;
+      }
+      async function pipe(stream, f) {
+        var reader = stream.getReader(), n = 0;
+        for (;;) {
+          var r = await reader.read();
+          if (r.done) break;
+          FS.write(f, r.value, 0, r.value.length);
+          n += r.value.length;
+        }
+        return n;
+      }
+      try {
+        var s = window.__shim;
+        var n = await s.discover();
+        var f = FS.open("/game.zip", "w");
+        var got = 0;
+        if (!n) {
+          say("Downloading game data...");
+          var resp = await fetch("game.zip");
+          if (!resp.ok) throw new Error("game.zip HTTP " + resp.status);
+          got = await pipe(resp.body, f);
+        } else {
+          for (var i = 1; i <= n; i++) {
+            say("Loading game data " + i + " / " + n);
+            var blob = await s.part(i);
+            got += await pipe(blob.stream(), f);
+          }
+        }
+        FS.close(f);
+        if (!got) throw new Error("wrote 0 bytes to /game.zip");
+        if (n && s.total && got !== s.total) {
+          console.warn("[shim] size mismatch: wrote " + got + " expected " + s.total);
+        }
+        console.log("[shim] wrote /game.zip: " + got + " bytes (" + (n || "unchunked") + ")");
+        say("");
+        Module.removeRunDependency("shim_game_zip");
+      } catch (e) {
+        console.error("[shim] failed:", e);
+        say("Could not load game data: " + e.message + " - reload to retry");
+        /* Keep the dependency: never boot Python with an empty /game.zip. */
+      }
+    })();
+  });
+})();
+</script>
+<script>
+/* Ren'Py 8.1.3's web audio queue() dereferences a null filename during
+   rewinds (doRewind), throwing "can't access property startsWith, file is null".
+   Newer Ren'Py rejects that on the Python side; here we simply ignore the call. */
+(function () {
+  /* No time budget: renpyAudio only appears once the engine has finished
+     unpacking /game.zip, which takes seconds on a warm cache but minutes on a
+     cold one. A fixed give-up deadline made the guard silently expire before
+     audio ever existed, so keep watching until it shows up. */
+  window.__shimGuardPolls = 0;
+
+  function install() {
+    var a = window.renpyAudio;
+    if (!a || typeof a.queue !== "function" || a.__shimGuarded) return false;
+    var orig = a.queue;
+    var warned = {};
+    a.queue = function (channel, file) {
+      if (file === null || file === undefined) {
+        /* Rewinds hit this repeatedly, so warn once per channel. */
+        if (!warned[channel]) {
+          warned[channel] = true;
+          console.warn("[shim] ignoring empty audio queue on channel " + channel);
+        }
+        return;
+      }
+      return orig.apply(this, arguments);
+    };
+    a.__shimGuarded = true;
+    console.log("[shim] guarded renpyAudio.queue");
+    return true;
+  }
+
+  var timer = setInterval(function () {
+    window.__shimGuardPolls++;
+    if (install()) clearInterval(timer);
+  }, 50);
+})();
+</script>
+<script src=renpy.js></script></body></html>
