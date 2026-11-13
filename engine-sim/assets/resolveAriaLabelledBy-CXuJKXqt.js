@@ -1,0 +1,2 @@
+import{r as u}from"./vendor-react-CLEC0ccb.js";const l=u.createContext(void 0),o={disableStyleElements:!1};function E(){return u.useContext(l)??o}function c(e,t,n=(r,a)=>r===a){return e.length===t.length&&e.every((r,a)=>n(r,t[a]))}function i(e,t=Number.MIN_SAFE_INTEGER,n=Number.MAX_SAFE_INTEGER){return Math.max(t,Math.min(e,n))}function f(e){return e==null?void 0:`${e}-label`}function m(e,t){return e??t}export{c as a,i as c,f as g,m as r,E as u};
+//# sourceMappingURL=resolveAriaLabelledBy-CXuJKXqt.js.map

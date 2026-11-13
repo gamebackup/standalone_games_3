@@ -1,0 +1,2 @@
+import{fk as r}from"./index-BGemXSDc.js";function i(t){let e=t.activeElement;for(;e?.shadowRoot?.activeElement!=null;)e=e.shadowRoot.activeElement;return e}function s(t,e){if(!t||!e)return!1;const n=e.getRootNode?.();if(t.contains(e))return!0;if(n&&r(n)){let o=e;for(;o;){if(t===o)return!0;o=o.parentNode||o.host}}return!1}function u(t){return"composedPath"in t?t.composedPath()[0]:t.target}export{i as a,s as c,u as g};
+//# sourceMappingURL=shadowDom-4DhKIfo9.js.map

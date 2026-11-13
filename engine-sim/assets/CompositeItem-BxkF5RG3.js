@@ -1,0 +1,2 @@
+import{d9 as f,cA as t,cp as u}from"./index-BGemXSDc.js";import{u as d}from"./useCompositeItem-IhI43dX9.js";function M(e){const{render:l,className:A,style:C,state:s=f,props:o=t,refs:r=t,metadata:a,stateAttributesMapping:p,tag:m="div",...i}=e,{compositeProps:n,compositeRef:c}=d({metadata:a});return u(m,e,{state:s,ref:[c,...r],props:[n,...o,i],stateAttributesMapping:p})}export{M as C};
+//# sourceMappingURL=CompositeItem-BxkF5RG3.js.map

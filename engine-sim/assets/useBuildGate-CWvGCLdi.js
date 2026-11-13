@@ -1,0 +1,2 @@
+import{u}from"./index-BGemXSDc.js";import{u as n}from"./entitlement-C1Y6k9D6.js";function a(e,r){return e?r.status==="ready"?r.pro?"open":"upgrade":r.status==="error"?"open":"loading":"signin"}function i(e,r){const t=a(e,r);return t!=="open"||r.status!=="ready"?t:r.tier==="max"?"open":"upgrade_max"}function f(){return a(u(),n())}function p(){return i(u(),n())}export{p as a,a as g,f as u};
+//# sourceMappingURL=useBuildGate-CWvGCLdi.js.map

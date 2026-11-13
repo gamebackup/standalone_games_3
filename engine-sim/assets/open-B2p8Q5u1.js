@@ -1,0 +1,2 @@
+import{d as o}from"./store-BKii1Nm8.js";import{t}from"./index-BGemXSDc.js";import{d}from"./buildUrl-DeF04TyG.js";import{u as i}from"./store-D9U2xz8r.js";function f(a,r){const e=d(a.payload);return e?(i.getState().applyBuild(e.kind,{...e.input,name:a.name,description:a.description},{autosave:!1,resetEventLog:!0}),t("garage_loaded",{source:r}),!0):!1}function l(a){return`/simulator?build=${a.payload}&${o}=${encodeURIComponent(a.id)}`}function m(a){return`/build?from=garage&build=${a.payload}`}export{m as a,l as g,f as o};
+//# sourceMappingURL=open-B2p8Q5u1.js.map

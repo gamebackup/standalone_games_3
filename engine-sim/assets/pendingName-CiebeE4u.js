@@ -1,0 +1,2 @@
+import{bk as l}from"./index-BGemXSDc.js";const a="esg.build.pending";function u(t=l()?.local??null){try{const n=JSON.parse(t?.getItem(a)??"null")?.draft?.name;return typeof n=="string"&&n.trim()?n.trim():null}catch{return null}}const e="esg.build.email";function c(t,n=l()?.local??null){try{n?.setItem(e,t)}catch{}}function o(t=l()?.local??null){try{return t?.getItem(e)||null}catch{return null}}const r="run_kept",i=`/build/manual?${r}=1`;export{a as P,r as R,e as T,i as a,u as p,c as s,o as t};
+//# sourceMappingURL=pendingName-CiebeE4u.js.map

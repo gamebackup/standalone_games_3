@@ -1,0 +1,2 @@
+import{j as a}from"./vendor-react-CLEC0ccb.js";import{aQ as o}from"./index-BGemXSDc.js";function s({className:e,...t}){return a.jsx("label",{"data-slot":"label",className:o("flex items-center gap-2 font-mono text-[11px] leading-none tracking-[0.12em] text-dim uppercase select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",e),...t})}export{s as L};
+//# sourceMappingURL=label-DG0xRdFc.js.map

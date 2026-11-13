@@ -1,0 +1,2 @@
+import{b as a,o as t,g as o}from"./schemas-CpSbszyY.js";const c=0,d=60,s=280,r=8192,i=["piston","radial","rotary","turbojet","turboprop"],n=a().trim().min(1).max(d),e=a().trim().max(s);t({name:n,description:e.default(""),kind:o(i),payload:a().min(8).max(r)});t({name:n});t({id:a().uuid(),user_id:a().uuid(),name:a(),description:a(),kind:o(i),payload:a(),created_at:a(),updated_at:a()});const m=t({id:a(),name:a(),description:a(),kind:o(i),payload:a(),updatedAt:a()});export{i as E,d as G,c as a,m as b};
+//# sourceMappingURL=schema-C8vQm7FP.js.map

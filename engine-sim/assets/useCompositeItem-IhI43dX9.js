@@ -1,0 +1,2 @@
+import{r as a}from"./vendor-react-CLEC0ccb.js";import{cs as f,cw as h,d8 as p}from"./index-BGemXSDc.js";function I(i={}){const{highlightItemOnHover:n,highlightedIndex:r,onHighlightedIndexChange:c}=f(),{ref:m,index:t}=h(i),o=r===t,s=a.useRef(null),u=p(m,s);return{compositeProps:{tabIndex:o?0:-1,onFocus(){c(t)},onMouseMove(){const e=s.current;if(!n||!e)return;const d=e.hasAttribute("disabled")||e.ariaDisabled==="true";!o&&!d&&e.focus()}},compositeRef:u,index:t}}export{I as u};
+//# sourceMappingURL=useCompositeItem-IhI43dX9.js.map
