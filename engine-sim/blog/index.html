@@ -1,0 +1,152 @@
+<!doctype html>
+<!-- Local snub page: this partial build does not include the JavaScript chunk
+     for this route, so the app cannot render it here. The page says so instead
+     of returning a 404. Replace with the real prerendered page when the full
+     build is available. -->
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blog — Real Engine Simulator</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2" />
+    <link rel="shortcut icon" href="/favicon.ico?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <link rel="stylesheet" crossorigin href="/assets/index-PVmJnFyc.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--display-font);
+        -webkit-font-smoothing: antialiased;
+      }
+      .snub-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+      .snub-logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--text-bright);
+        text-decoration: none;
+      }
+      .snub-logo span:first-child {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        border: 1px solid var(--accent-soft-hi);
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 14px;
+      }
+      .snub-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-family: var(--mono-font);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .snub-nav a { color: var(--text-dim); text-decoration: none; }
+      .snub-nav a:hover { color: var(--text-bright); }
+      .snub-main {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 72px 24px 96px;
+      }
+      .snub-eyebrow {
+        margin: 0;
+        font-family: var(--mono-font);
+        font-size: 10.5px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent-warm);
+      }
+      .snub-main h1 {
+        margin: 14px 0 0;
+        font-size: clamp(28px, 4vw, 38px);
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        color: var(--text-bright);
+      }
+      .snub-main p {
+        margin: 16px 0 0;
+        font-size: 14.5px;
+        line-height: 1.65;
+        color: var(--text-muted);
+      }
+      .snub-main code {
+        font-family: var(--mono-font);
+        font-size: 12.5px;
+        color: var(--text-bright);
+      }
+      .snub-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+      }
+      .snub-actions a {
+        display: inline-flex;
+        align-items: center;
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--border-hi);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-bright);
+        text-decoration: none;
+      }
+      .snub-actions a:first-child {
+        background: var(--accent);
+        border-color: transparent;
+        color: #06121a;
+      }
+      .snub-actions a:hover { border-color: var(--accent-soft-hi); }
+    </style>
+  </head>
+  <body>
+    <header class="snub-header">
+      <a class="snub-logo" href="/"><span aria-hidden="true">⛽</span><span>Real Engine Simulator</span></a>
+      <nav class="snub-nav" aria-label="Local copy">
+        <a href="/engines">Engines</a>
+        <a href="/simulator">Simulator</a>
+        <a href="/">Home</a>
+      </nav>
+    </header>
+    <main class="snub-main">
+      <p class="snub-eyebrow">Not in this local copy</p>
+      <h1>Blog</h1>
+      <p>
+        This workspace is a partial build of the site: the page's own JavaScript chunk is not
+        included, so the app cannot render <code>/blog</code> here. The stub exists so the link
+        resolves instead of returning a 404 — the page itself needs the full build.
+      </p>
+      <p>
+        Everything the simulator needs is here: the roster, the physics core and the dyno all run.
+      </p>
+      <div class="snub-actions">
+        <a href="/engines">Browse all engines</a>
+        <a href="/simulator">Open the simulator</a>
+        <a href="/">Back home</a>
+      </div>
+    </main>
+  </body>
+</html>

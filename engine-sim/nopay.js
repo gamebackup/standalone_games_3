@@ -38,10 +38,18 @@
     '[data-testid="community-teaser"]'  /* blurred community list */
   ];
 
-  /* Pages that ship as their own HTML document instead of as a React route.
-     A client-side pushState to one of these would render the app's not-found
-     view, so clicks are handed back to the browser for a full page load. */
-  var DOCUMENT_PAGES = /^\/build-your-own-engine(\/|$)/;
+  /* Routes that ship as their own HTML document instead of as a React route:
+     the free builder page, plus every route whose lazy chunk is not part of
+     this partial build (their stubs explain that instead of 404ing). A
+     client-side pushState to one of these would render the app's not-found
+     view or fail a dynamic import, so clicks are handed to the browser. */
+  var DOCUMENT_PAGES = /^\/(?:build-your-own-engine|blog|tools|gearbox|about|contact|changelog|privacy|terms)(\/|$)/;
+
+  /* The nav's "Build your own engine" entry points at the paid builder. In this
+     local copy the builder is gone and the free page above takes its place, so
+     the entry is promoted in the DOM rather than by editing the bundle. */
+  var PROMOTED_HREF = '/build?from=nav';
+  var PROMOTED_TO = '/build-your-own-engine';
 
   /* Links into any blocked area. */
   var HIDE_LINKS = [
@@ -132,6 +140,12 @@
     if (anchor) {
       var target = null;
       try { target = new URL(anchor.getAttribute('href'), location.href); } catch (err) { target = null; }
+      if (target && target.origin === location.origin && target.pathname === '/build' && target.search.indexOf('from=nav') !== -1) {
+        event.preventDefault();
+        event.stopPropagation();
+        location.assign(PROMOTED_TO);
+        return;
+      }
       if (target && target.origin === location.origin && DOCUMENT_PAGES.test(target.pathname)) {
         event.preventDefault();
         event.stopPropagation();
@@ -160,6 +174,17 @@
   /* 5. Style + DOM sweep: hide paid chrome as it renders. */
   function sweep() {
     var i, j, list;
+
+    /* Promote the nav entry before the hiding pass, so it is never matched by
+       the paid-link selectors below. React re-renders reset the attribute, and
+       every re-render triggers another sweep. */
+    list = document.querySelectorAll('a[href="' + PROMOTED_HREF + '"]');
+    for (j = 0; j < list.length; j++) {
+      list[j].setAttribute('href', PROMOTED_TO);
+      list[j].removeAttribute('tabindex');
+      list[j].removeAttribute('aria-hidden');
+      list[j].style.removeProperty('display');
+    }
 
     for (i = 0; i < HIDE_SELECTORS.length; i++) {
       list = document.querySelectorAll(HIDE_SELECTORS[i]);
