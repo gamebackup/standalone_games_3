@@ -627,7 +627,7 @@
               <p class="byo-match-eyebrow">Closest in the roster</p>
               <p class="byo-match-name" id="match-name">3.0 L turbo straight-six</p>
               <p class="byo-match-meta" id="match-meta">3.0 L · turbocharged inline six</p>
-              <a class="byo-match-link" id="match-link" href="/engines/turbo-i6-3l">Open engine <span aria-hidden="true">→</span></a>
+              <a class="byo-match-link" href="/simulator">Find it in the simulator <span aria-hidden="true">→</span></a>
             </div>
           </aside>
         </section>
@@ -750,15 +750,15 @@
         "use strict";
 
         var ROSTER = [
-          { family: "piston", slug: "turbo-i6-3l", name: "3.0 L turbo straight-six", meta: "3.0 L · turbocharged inline six", litres: 3.0 },
-          { family: "piston", slug: "v8-5l", name: "5.0 L V8", meta: "5.0 L · naturally aspirated V8", litres: 5.0 },
-          { family: "piston", slug: "v12-6l", name: "6.0 L V12", meta: "6.0 L · naturally aspirated V12", litres: 6.0 },
-          { family: "piston", slug: "sc-v8-6l2", name: "6.2 L supercharged V8", meta: "6.2 L · supercharged V8", litres: 6.2 },
-          { family: "piston", slug: "turbo-diesel-v8-6l7", name: "6.7 L turbodiesel V8", meta: "6.7 L · turbocharged diesel V8", litres: 6.7 },
-          { family: "piston", slug: "v16-60l", name: "60 L V16", meta: "60 L · aero-engine displacement in a V16", litres: 60.0 },
-          { family: "radial", slug: "radial-r2800", name: "R-2800 radial", meta: "45.9 L · 18-cylinder two-row radial", litres: 45.9 },
-          { family: "rotary", slug: "rotary-2r-1l3", name: "1.3 L two-rotor", meta: "1.3 L · two-rotor Wankel", litres: 1.308 },
-          { family: "rotary", slug: "rotary-4r-2l6", name: "2.6 L four-rotor", meta: "2.6 L · four-rotor Wankel", litres: 2.616 }
+          { family: "piston", name: "3.0 L turbo straight-six", meta: "3.0 L · turbocharged inline six", litres: 3.0 },
+          { family: "piston", name: "5.0 L V8", meta: "5.0 L · naturally aspirated V8", litres: 5.0 },
+          { family: "piston", name: "6.0 L V12", meta: "6.0 L · naturally aspirated V12", litres: 6.0 },
+          { family: "piston", name: "6.2 L supercharged V8", meta: "6.2 L · supercharged V8", litres: 6.2 },
+          { family: "piston", name: "6.7 L turbodiesel V8", meta: "6.7 L · turbocharged diesel V8", litres: 6.7 },
+          { family: "piston", name: "60 L V16", meta: "60 L · aero-engine displacement in a V16", litres: 60.0 },
+          { family: "radial", name: "R-2800 radial", meta: "45.9 L · 18-cylinder two-row radial", litres: 45.9 },
+          { family: "rotary", name: "1.3 L two-rotor", meta: "1.3 L · two-rotor Wankel", litres: 1.308 },
+          { family: "rotary", name: "2.6 L four-rotor", meta: "2.6 L · four-rotor Wankel", litres: 2.616 }
         ];
 
         var ARCH_DEFAULTS = {
@@ -800,8 +800,7 @@
           mpsRow: document.getElementById("row-mps"),
           pulses: document.getElementById("val-pulses"),
           matchName: document.getElementById("match-name"),
-          matchMeta: document.getElementById("match-meta"),
-          matchLink: document.getElementById("match-link")
+          matchMeta: document.getElementById("match-meta")
         };
 
         var inputs = {
@@ -921,7 +920,6 @@
           if (match) {
             out.matchName.textContent = match.name;
             out.matchMeta.textContent = match.meta;
-            out.matchLink.setAttribute("href", "/engines/" + match.slug);
           }
         }
 
