@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/nopay.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2" />
+    <link rel="shortcut icon" href="/favicon.ico?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <title>Build Your Own Engine — Real Engine Simulator</title>
+    <meta
+      name="description"
+      content="Spec an engine from scratch: bore, stroke, cylinders, compression and redline. See displacement, bore/stroke ratio and mean piston speed as you move a slider, then run the closest build in the roster."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Real Engine Simulator" />
+    <meta property="og:title" content="Build Your Own Engine — Real Engine Simulator" />
+    <meta
+      property="og:description"
+      content="Bore, stroke, cylinders, compression, redline: spec an engine and read the numbers live before you run it."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <link rel="stylesheet" crossorigin href="/assets/index-PVmJnFyc.css" />
+    <style>
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--display-font);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .byo-wrap {
+        width: 100%;
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 24px;
+        box-sizing: border-box;
+      }
+
+      /* ---- Hero ---- */
+      .byo-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 76px 0 54px;
+        border-bottom: 1px solid var(--border);
+      }
+      .byo-hero::before {
+        content: "";
+        position: absolute;
+        inset: -260px auto auto 50%;
+        width: 880px;
+        height: 620px;
+        transform: translateX(-50%);
+        pointer-events: none;
+        background: radial-gradient(ellipse, rgba(122, 215, 255, 0.13), transparent 65%);
+      }
+      .byo-hero > * {
+        position: relative;
+      }
+      .byo-eyebrow {
+        margin: 0;
+        font-family: var(--mono-font);
+        font-size: 10.5px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .byo-title {
+        margin: 16px 0 0;
+        font-size: clamp(36px, 5.4vw, 58px);
+        line-height: 1.01;
+        letter-spacing: -0.035em;
+        font-weight: 700;
+        color: var(--text-bright);
+      }
+      .byo-lede {
+        max-width: 620px;
+        margin: 20px 0 0;
+        font-size: 16px;
+        line-height: 1.65;
+        color: var(--text-muted);
+      }
+      .byo-cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 30px;
+      }
+      .byo-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 17px;
+        border-radius: 999px;
+        border: 1px solid var(--border-hi);
+        background: transparent;
+        color: var(--text-bright);
+        font-family: var(--display-font);
+        font-size: 13.5px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      }
+      .byo-btn:hover {
+        background: var(--accent-soft);
+        border-color: var(--accent-soft-hi);
+      }
+      .byo-btn--primary {
+        border-color: transparent;
+        background: var(--accent);
+        color: #06121a;
+        box-shadow: 0 8px 32px rgba(122, 215, 255, 0.22);
+      }
+      .byo-btn--primary:hover {
+        background: #96e2ff;
+        border-color: transparent;
+        transform: translateY(-1px);
+      }
+      .byo-note {
+        margin: 22px 0 0;
+        font-family: var(--mono-font);
+        font-size: 11.5px;
+        letter-spacing: 0.02em;
+        color: var(--text-dim);
+      }
+
+      /* ---- Shared type ---- */
+      .byo-h2 {
+        margin: 0;
+        font-size: 21px;
+        line-height: 1.2;
+        letter-spacing: -0.015em;
+        font-weight: 650;
+        color: var(--text-bright);
+      }
+      .byo-sub {
+        margin: 7px 0 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--text-dim);
+      }
+
+      /* ---- Builder ---- */
+      .byo-builder {
+        display: grid;
+        grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+        gap: 20px;
+        align-items: start;
+        padding: 44px 0 72px;
+      }
+      @media (max-width: 900px) {
+        .byo-builder {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .byo-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+        padding: 22px;
+      }
+      .byo-readout {
+        position: sticky;
+        top: calc(var(--header-height, 56px) + 20px);
+      }
+      @media (max-width: 900px) {
+        .byo-readout {
+          position: static;
+        }
+      }
+
+      .byo-presets {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        margin: 20px 0 0;
+      }
+      .byo-presets-label {
+        font-family: var(--mono-font);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-right: 2px;
+      }
+      .byo-chip {
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border-hi);
+        background: transparent;
+        color: var(--text-muted);
+        font-family: var(--mono-font);
+        font-size: 11px;
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+      }
+      .byo-chip:hover {
+        color: var(--text-bright);
+        border-color: var(--accent-soft-hi);
+        background: var(--accent-soft);
+      }
+
+      .byo-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin: 22px 0 4px;
+      }
+      .byo-tab {
+        padding: 10px 8px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.012);
+        color: var(--text-dim);
+        font-family: var(--display-font);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+      }
+      .byo-tab:hover {
+        color: var(--text-bright);
+        border-color: var(--border-hi);
+      }
+      .byo-tab[aria-pressed="true"] {
+        color: var(--text-bright);
+        border-color: var(--accent-soft-hi);
+        background: var(--accent-soft);
+      }
+
+      .byo-field {
+        margin-top: 18px;
+      }
+      .byo-field[hidden] {
+        display: none;
+      }
+      .byo-label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        font-family: var(--mono-font);
+        font-size: 10.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .byo-label output {
+        font-size: 12.5px;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        color: var(--text-bright);
+      }
+      .byo-range {
+        display: block;
+        width: 100%;
+        margin: 9px 0 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .byo-hint {
+        margin: 8px 0 0;
+        font-family: var(--mono-font);
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--text-dim);
+      }
+
+      /* ---- Readout ---- */
+      .byo-desc {
+        margin: 12px 0 0;
+        font-family: var(--mono-font);
+        font-size: 11.5px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .byo-big {
+        margin: 10px 0 0;
+        font-size: clamp(40px, 6vw, 54px);
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 700;
+        color: var(--text-bright);
+        font-variant-numeric: tabular-nums;
+      }
+      .byo-big-unit {
+        margin-left: 6px;
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: 0;
+        color: var(--accent);
+      }
+      .byo-small {
+        margin: 8px 0 0;
+        font-family: var(--mono-font);
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .byo-rows {
+        margin: 18px 0 0;
+        padding: 0;
+        border-top: 1px solid var(--border);
+      }
+      .byo-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 9px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+      }
+      .byo-row[hidden] {
+        display: none;
+      }
+      .byo-row dt {
+        font-family: var(--mono-font);
+        font-size: 10px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .byo-row dd {
+        margin: 0;
+        font-family: var(--mono-font);
+        font-size: 12.5px;
+        color: var(--text-bright);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .byo-row dd.is-warn {
+        color: var(--accent-warm);
+      }
+
+      .byo-match {
+        margin-top: 20px;
+        padding: 14px;
+        border-radius: 11px;
+        border: 1px solid var(--border-hi);
+        background: var(--bg-elev);
+      }
+      .byo-match-eyebrow {
+        margin: 0;
+        font-family: var(--mono-font);
+        font-size: 9.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .byo-match-name {
+        margin: 8px 0 0;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: var(--text-bright);
+      }
+      .byo-match-meta {
+        margin: 4px 0 0;
+        font-family: var(--mono-font);
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: var(--text-muted);
+      }
+      .byo-match-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        font-family: var(--display-font);
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .byo-match-link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      /* ---- Explainer ---- */
+      .byo-section {
+        padding: 64px 0;
+        border-top: 1px solid var(--border);
+        background: var(--bg-elev);
+      }
+      .byo-steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+      @media (max-width: 860px) {
+        .byo-steps {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .byo-step {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--bg-card);
+        padding: 18px;
+      }
+      .byo-step-n {
+        font-family: var(--mono-font);
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        color: var(--accent);
+      }
+      .byo-step h3 {
+        margin: 10px 0 0;
+        font-size: 14.5px;
+        font-weight: 650;
+        line-height: 1.3;
+        color: var(--text-bright);
+      }
+      .byo-step p {
+        margin: 8px 0 0;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+
+      .byo-formulas {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 18px;
+        margin-top: 16px;
+      }
+      @media (max-width: 860px) {
+        .byo-formulas {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .byo-formula dt {
+        font-family: var(--mono-font);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .byo-formula dd {
+        margin: 6px 0 0;
+        font-family: var(--mono-font);
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--text-bright);
+      }
+      .byo-formula p {
+        margin: 7px 0 0;
+        font-size: 12.5px;
+        line-height: 1.55;
+        color: var(--text-muted);
+      }
+
+      /* ---- Closing CTA ---- */
+      .byo-final {
+        padding: 74px 0;
+        text-align: center;
+        border-top: 1px solid var(--border);
+        background:
+          radial-gradient(ellipse at 50% 130%, rgba(122, 215, 255, 0.14), transparent 62%)
+          var(--bg);
+      }
+      .byo-final h2 {
+        margin: 0 auto;
+        max-width: 620px;
+        font-size: clamp(26px, 3.6vw, 36px);
+        line-height: 1.12;
+        letter-spacing: -0.03em;
+        font-weight: 700;
+        color: var(--text-bright);
+      }
+      .byo-final p {
+        margin: 14px auto 0;
+        max-width: 520px;
+        font-size: 14.5px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .byo-final .byo-cta-row {
+        justify-content: center;
+      }
+
+      .byo-footer-link {
+        font-family: var(--display-font);
+        font-size: 13px;
+        color: var(--text-muted);
+        text-decoration: none;
+        width: fit-content;
+      }
+      .byo-footer-link:hover {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="uikit min-h-full w-full overflow-x-clip bg-background text-foreground antialiased [--header-height:56px]">
+      <header class="sticky top-0 z-50 box-content h-[var(--header-height,56px)] border-b border-border bg-[rgba(10,14,20,0.78)] backdrop-blur-[14px] backdrop-saturate-[1.4]">
+        <div class="mx-auto flex h-full max-w-[1280px] items-center justify-between gap-2.5 px-4 min-[761px]:gap-4 min-[761px]:px-6">
+          <a aria-label="Real Engine Simulator — home" class="inline-flex shrink-0 items-center gap-2 font-sans text-[15px] font-bold tracking-[-0.01em] whitespace-nowrap text-foreground transition-colors hover:text-primary focus-visible:text-primary focus-visible:outline-none" href="/">
+            <span aria-hidden="true" class="inline-flex size-[26px] items-center justify-center rounded-[7px] border border-[var(--accent-soft-hi)] bg-[var(--accent-soft)] text-sm text-primary">⛽</span>
+            <span class="hidden tracking-[0.01em] min-[961px]:inline">Real Engine Simulator</span>
+          </a>
+          <nav aria-label="Primary" class="inline-flex flex-1 justify-center gap-2 min-[421px]:gap-2.5 min-[561px]:gap-3.5 min-[761px]:gap-[22px]">
+            <a class="px-1 py-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-dim transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none min-[561px]:text-xs min-[561px]:tracking-[0.06em]" href="/">Home</a>
+            <a class="px-1 py-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-dim transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none min-[561px]:text-xs min-[561px]:tracking-[0.06em]" href="/engines">Engines</a>
+            <a aria-current="page" class="px-1 py-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-primary transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none min-[561px]:text-xs min-[561px]:tracking-[0.06em]" href="/build-your-own-engine">Build</a>
+            <a class="hidden px-1 py-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-dim transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none min-[561px]:inline-flex min-[561px]:text-xs min-[561px]:tracking-[0.06em]" href="/tools">Calculators</a>
+            <a class="hidden px-1 py-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-dim transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none min-[561px]:inline-flex min-[561px]:text-xs min-[561px]:tracking-[0.06em]" href="/blog">Blog</a>
+          </nav>
+          <a role="button" tabindex="0" data-slot="button" class="group/button inline-flex items-center justify-center rounded-full border border-transparent bg-clip-padding font-sans whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 bg-primary font-semibold text-primary-foreground shadow-[0_8px_32px_rgba(122,215,255,0.25)] hover:-translate-y-px hover:shadow-[0_12px_40px_rgba(122,215,255,0.35)] h-8 pointer-coarse:h-11 px-3 shrink-0 gap-1.5 text-[13px]" href="/simulator">
+            <span class="hidden min-[961px]:inline">Open the Simulator</span>
+            <span class="min-[961px]:hidden" aria-hidden="true">Simulator</span>
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </header>
+
+      <main>
+        <section class="byo-hero">
+          <div class="byo-wrap">
+            <p class="byo-eyebrow">Build sheet</p>
+            <h1 class="byo-title">Build your own engine.</h1>
+            <p class="byo-lede">
+              Pick a family, then set the bore, the stroke and the cylinder count. Displacement, ratio and mean
+              piston speed move with every slider, and the sheet names the closest engine already in the roster so
+              you can hear the idea before you commit to it.
+            </p>
+            <div class="byo-cta-row">
+              <a class="byo-btn byo-btn--primary" href="/simulator">Open the simulator <span aria-hidden="true">→</span></a>
+              <a class="byo-btn" href="/engines">Browse all engines</a>
+            </div>
+            <p class="byo-note">Free, in the browser. No account, no download.</p>
+          </div>
+        </section>
+
+        <section class="byo-wrap byo-builder" aria-labelledby="build-sheet-heading">
+          <div class="byo-card">
+            <h2 id="build-sheet-heading" class="byo-h2">The build sheet</h2>
+            <p class="byo-sub">Move a slider. Every number on the right recalculates.</p>
+
+            <div class="byo-presets" role="group" aria-label="Starting points">
+              <span class="byo-presets-label">Start from</span>
+              <button type="button" class="byo-chip" data-preset="four">Turbo four</button>
+              <button type="button" class="byo-chip" data-preset="v8">Big-block V8</button>
+              <button type="button" class="byo-chip" data-preset="rotary">Two-rotor</button>
+              <button type="button" class="byo-chip" data-preset="radial">Radial nine</button>
+            </div>
+
+            <div class="byo-tabs" role="group" aria-label="Engine family">
+              <button type="button" class="byo-tab" data-arch="piston" aria-pressed="true">Piston</button>
+              <button type="button" class="byo-tab" data-arch="radial" aria-pressed="false">Radial</button>
+              <button type="button" class="byo-tab" data-arch="rotary" aria-pressed="false">Rotary</button>
+            </div>
+
+            <div class="byo-field" data-when="recip">
+              <label class="byo-label" for="bore">Bore <output id="bore-out" for="bore">86 mm</output></label>
+              <input class="byo-range" type="range" id="bore" min="60" max="130" step="1" value="86" />
+            </div>
+
+            <div class="byo-field" data-when="recip">
+              <label class="byo-label" for="stroke">Stroke <output id="stroke-out" for="stroke">86 mm</output></label>
+              <input class="byo-range" type="range" id="stroke" min="60" max="130" step="1" value="86" />
+            </div>
+
+            <div class="byo-field" data-when="recip">
+              <label class="byo-label" for="cylinders">Cylinders <output id="cylinders-out" for="cylinders">4</output></label>
+              <input class="byo-range" type="range" id="cylinders" min="1" max="16" step="1" value="4" />
+            </div>
+
+            <div class="byo-field" data-when="rotary" hidden>
+              <label class="byo-label" for="rotors">Rotors <output id="rotors-out" for="rotors">2</output></label>
+              <input class="byo-range" type="range" id="rotors" min="1" max="4" step="1" value="2" />
+              <p class="byo-hint">654 cc per rotor, the geometry of the 13B two-rotor.</p>
+            </div>
+
+            <div class="byo-field">
+              <label class="byo-label" for="cr">Compression ratio <output id="cr-out" for="cr">10.5 : 1</output></label>
+              <input class="byo-range" type="range" id="cr" min="6" max="15" step="0.1" value="10.5" />
+            </div>
+
+            <div class="byo-field">
+              <label class="byo-label" for="rpm">Redline <output id="rpm-out" for="rpm">6,500 rpm</output></label>
+              <input class="byo-range" type="range" id="rpm" min="3000" max="10000" step="100" value="6500" />
+            </div>
+          </div>
+
+          <aside class="byo-card byo-readout" aria-label="Specification readout">
+            <p class="byo-eyebrow">Readout</p>
+            <p class="byo-desc" id="desc">4-cylinder, 86 × 86 mm</p>
+            <p class="byo-big"><span id="disp-litres">2.0</span><span class="byo-big-unit">L</span></p>
+            <p class="byo-small" id="disp-cc">2,000 cc · 122 cu in</p>
+
+            <dl class="byo-rows">
+              <div class="byo-row" id="row-per">
+                <dt>Per cylinder</dt>
+                <dd id="val-per">500 cc</dd>
+              </div>
+              <div class="byo-row" id="row-ratio">
+                <dt>Bore / stroke</dt>
+                <dd id="val-ratio">1.00 : 1</dd>
+              </div>
+              <div class="byo-row" id="row-rotors" hidden>
+                <dt>Rotors</dt>
+                <dd id="val-rotors">2</dd>
+              </div>
+              <div class="byo-row" id="row-cr">
+                <dt>Compression</dt>
+                <dd id="val-cr">10.5 : 1</dd>
+              </div>
+              <div class="byo-row" id="row-mps">
+                <dt>Mean piston speed</dt>
+                <dd id="val-mps">18.6 m/s</dd>
+              </div>
+              <div class="byo-row" id="row-pulses">
+                <dt>Power pulses / rev</dt>
+                <dd id="val-pulses">2</dd>
+              </div>
+            </dl>
+
+            <div class="byo-match">
+              <p class="byo-match-eyebrow">Closest in the roster</p>
+              <p class="byo-match-name" id="match-name">3.0 L turbo straight-six</p>
+              <p class="byo-match-meta" id="match-meta">3.0 L · turbocharged inline six</p>
+              <a class="byo-match-link" id="match-link" href="/engines/turbo-i6-3l">Open engine <span aria-hidden="true">→</span></a>
+            </div>
+          </aside>
+        </section>
+
+        <section class="byo-section">
+          <div class="byo-wrap">
+            <h2 class="byo-h2">How a spec becomes a simulation</h2>
+            <p class="byo-sub">Geometry first, then the cycle, then the dyno. Nothing on this page is a canned curve.</p>
+            <div class="byo-steps">
+              <article class="byo-step">
+                <span class="byo-step-n">01</span>
+                <h3>Geometry sets the airflow</h3>
+                <p>
+                  Bore, stroke and cylinder count decide how much air the engine can move per revolution. That
+                  displacement, plus the compression ratio, is the input every other number is built on.
+                </p>
+              </article>
+              <article class="byo-step">
+                <span class="byo-step-n">02</span>
+                <h3>The cycle does the rest</h3>
+                <p>
+                  The simulator steps the engine cycle by cycle, with induction, fuel, ignition and exhaust resolved
+                  at each step. Change the compression ratio and the torque curve moves because the physics moved.
+                </p>
+              </article>
+              <article class="byo-step">
+                <span class="byo-step-n">03</span>
+                <h3>Measure it, don't guess</h3>
+                <p>
+                  Run it on the dyno, watch the power and torque curves build, and listen to the exhaust the model
+                  synthesises from the firing order you chose.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="byo-section" style="background: var(--bg)">
+          <div class="byo-wrap">
+            <h2 class="byo-h2">The arithmetic on this page</h2>
+            <p class="byo-sub">Two formulae, no hidden correction factors.</p>
+            <div class="byo-formulas">
+              <dl class="byo-formula">
+                <dt>Displacement</dt>
+                <dd>V = π/4 · bore² · stroke · cylinders</dd>
+                <p>
+                  Swept volume for one cylinder, multiplied out. The rotary sheet uses 654 cc per rotor instead, so a
+                  two-rotor comes out at 1.3 litres the way Mazda badged it.
+                </p>
+              </dl>
+              <dl class="byo-formula">
+                <dt>Mean piston speed</dt>
+                <dd>v̄ = 2 · stroke · rpm / 60</dd>
+                <p>
+                  The average speed of the piston at the redline you set. Production engines live under roughly
+                  25 m/s; the readout turns amber past that, which is where you are asking for exotic metallurgy.
+                </p>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <section class="byo-final">
+          <div class="byo-wrap">
+            <h2>Spec it, then run it.</h2>
+            <p>
+              Take the sheet into the simulator, load the closest engine from the roster, and hear what the numbers
+              sound like.
+            </p>
+            <div class="byo-cta-row">
+              <a class="byo-btn byo-btn--primary" href="/simulator">Open the simulator <span aria-hidden="true">→</span></a>
+              <a class="byo-btn" href="/engines">All engines</a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="border-t border-border bg-[#070b10] px-6 pb-7 pt-16">
+        <div class="mx-auto grid max-w-[1120px] grid-cols-1 gap-9 min-[761px]:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)] min-[761px]:gap-12">
+          <div class="grid content-start gap-2.5">
+            <span class="font-sans text-[18px]/[21px] font-semibold text-bright">Real Engine Simulator</span>
+            <p class="font-mono text-[12.5px]/[1.6] text-dim">Real physics. Real noise. Zero installs.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-7 min-[761px]:grid-cols-3 min-[761px]:gap-8">
+            <nav aria-label="Simulate" class="grid content-start gap-2.5">
+              <span class="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-dim">Simulate</span>
+              <a class="byo-footer-link" href="/simulator">Open the simulator</a>
+              <a class="byo-footer-link" href="/gearbox">Gearbox simulator</a>
+              <a class="byo-footer-link" href="/engines">All engines</a>
+              <a class="byo-footer-link" href="/#how-it-works">How it works</a>
+            </nav>
+            <nav aria-label="Learn" class="grid content-start gap-2.5">
+              <span class="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-dim">Learn</span>
+              <a class="byo-footer-link" href="/blog">Blog</a>
+              <a class="byo-footer-link" href="/tools">Engine calculators</a>
+              <a class="byo-footer-link" href="/blog/how-a-four-stroke-engine-works">How a four-stroke engine works</a>
+              <a class="byo-footer-link" href="/blog/how-a-turbocharger-works">How a turbocharger works</a>
+              <a class="byo-footer-link" href="/blog/otto-cycle-explained">The Otto cycle explained</a>
+            </nav>
+            <nav aria-label="Project" class="grid content-start gap-2.5">
+              <span class="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-dim">Project</span>
+              <a class="byo-footer-link" href="/build-your-own-engine">Build your own engine</a>
+              <a class="byo-footer-link" href="/about">About</a>
+              <a class="byo-footer-link" href="/contact">Contact</a>
+              <a class="byo-footer-link" href="/changelog">Changelog</a>
+              <a class="byo-footer-link" href="/privacy">Privacy</a>
+              <a class="byo-footer-link" href="/terms">Terms</a>
+            </nav>
+          </div>
+        </div>
+        <div class="mx-auto mt-12 flex max-w-[1120px] flex-wrap justify-between gap-4 border-t border-border pt-5">
+          <p class="font-mono text-[11px]/[13px] text-dim">© 2026 Real Engine Simulator</p>
+          <p class="font-mono text-[11px]/[13px] text-dim">Simulated cycle by cycle, in your browser.</p>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var ROSTER = [
+          { family: "piston", slug: "turbo-i6-3l", name: "3.0 L turbo straight-six", meta: "3.0 L · turbocharged inline six", litres: 3.0 },
+          { family: "piston", slug: "v8-5l", name: "5.0 L V8", meta: "5.0 L · naturally aspirated V8", litres: 5.0 },
+          { family: "piston", slug: "v12-6l", name: "6.0 L V12", meta: "6.0 L · naturally aspirated V12", litres: 6.0 },
+          { family: "piston", slug: "sc-v8-6l2", name: "6.2 L supercharged V8", meta: "6.2 L · supercharged V8", litres: 6.2 },
+          { family: "piston", slug: "turbo-diesel-v8-6l7", name: "6.7 L turbodiesel V8", meta: "6.7 L · turbocharged diesel V8", litres: 6.7 },
+          { family: "piston", slug: "v16-60l", name: "60 L V16", meta: "60 L · aero-engine displacement in a V16", litres: 60.0 },
+          { family: "radial", slug: "radial-r2800", name: "R-2800 radial", meta: "45.9 L · 18-cylinder two-row radial", litres: 45.9 },
+          { family: "rotary", slug: "rotary-2r-1l3", name: "1.3 L two-rotor", meta: "1.3 L · two-rotor Wankel", litres: 1.308 },
+          { family: "rotary", slug: "rotary-4r-2l6", name: "2.6 L four-rotor", meta: "2.6 L · four-rotor Wankel", litres: 2.616 }
+        ];
+
+        var ARCH_DEFAULTS = {
+          piston: { bore: 86, stroke: 86, cylinders: 4, cr: 10.5, rpm: 6500 },
+          radial: { bore: 146, stroke: 152, cylinders: 9, cr: 6.8, rpm: 2600 },
+          rotary: { rotors: 2, cr: 10, rpm: 8000 }
+        };
+
+        var LIMITS = {
+          piston: { bore: [60, 130], stroke: [60, 130], cylinders: [1, 16], cr: [6, 15], rpm: [3000, 10000, 100] },
+          radial: { bore: [100, 170], stroke: [100, 180], cylinders: [3, 18], cr: [5, 10], rpm: [1200, 3600, 50] },
+          rotary: { rotors: [1, 4], cr: [7, 12], rpm: [3000, 10000, 100] }
+        };
+
+        var PRESETS = {
+          four: { arch: "piston", bore: 86, stroke: 86, cylinders: 4, cr: 9.5, rpm: 6500 },
+          v8: { arch: "piston", bore: 103, stroke: 92, cylinders: 8, cr: 10.5, rpm: 6200 },
+          rotary: { arch: "rotary", rotors: 2, cr: 10, rpm: 8000 },
+          radial: { arch: "radial", bore: 146, stroke: 152, cylinders: 9, cr: 6.8, rpm: 2600 }
+        };
+
+        var state = { arch: "piston", bore: 86, stroke: 86, cylinders: 4, rotors: 2, cr: 10.5, rpm: 6500 };
+
+        var out = {
+          bore: document.getElementById("bore-out"),
+          stroke: document.getElementById("stroke-out"),
+          cylinders: document.getElementById("cylinders-out"),
+          rotors: document.getElementById("rotors-out"),
+          cr: document.getElementById("cr-out"),
+          rpm: document.getElementById("rpm-out"),
+          desc: document.getElementById("desc"),
+          litres: document.getElementById("disp-litres"),
+          cc: document.getElementById("disp-cc"),
+          per: document.getElementById("val-per"),
+          ratio: document.getElementById("val-ratio"),
+          rotorsRow: document.getElementById("val-rotors"),
+          crVal: document.getElementById("val-cr"),
+          mps: document.getElementById("val-mps"),
+          mpsRow: document.getElementById("row-mps"),
+          pulses: document.getElementById("val-pulses"),
+          matchName: document.getElementById("match-name"),
+          matchMeta: document.getElementById("match-meta"),
+          matchLink: document.getElementById("match-link")
+        };
+
+        var inputs = {
+          bore: document.getElementById("bore"),
+          stroke: document.getElementById("stroke"),
+          cylinders: document.getElementById("cylinders"),
+          rotors: document.getElementById("rotors"),
+          cr: document.getElementById("cr"),
+          rpm: document.getElementById("rpm")
+        };
+
+        function fmt(n, digits) {
+          return n.toLocaleString("en-US", {
+            minimumFractionDigits: digits || 0,
+            maximumFractionDigits: digits || 0
+          });
+        }
+
+        function setLimits(arch) {
+          var limits = LIMITS[arch];
+          Object.keys(limits).forEach(function (key) {
+            var input = inputs[key];
+            if (!input) return;
+            var l = limits[key];
+            input.min = String(l[0]);
+            input.max = String(l[1]);
+            if (l[2]) input.step = String(l[2]);
+          });
+        }
+
+        function nearestEngine(arch, litres) {
+          var pool = ROSTER.filter(function (engine) {
+            return engine.family === arch;
+          });
+          var best = pool[0];
+          var bestGap = Math.abs(best.litres - litres);
+          for (var i = 1; i < pool.length; i++) {
+            var gap = Math.abs(pool[i].litres - litres);
+            if (gap < bestGap) {
+              best = pool[i];
+              bestGap = gap;
+            }
+          }
+          return best;
+        }
+
+        function compute() {
+          var rotary = state.arch === "rotary";
+          var perCylinder;
+          var totalCc;
+          var desc;
+          var mps = null;
+          var pulses;
+          var ratio = null;
+
+          if (rotary) {
+            perCylinder = 654;
+            totalCc = perCylinder * state.rotors;
+            desc = state.rotors + "-rotor Wankel";
+            pulses = state.rotors;
+          } else {
+            perCylinder = (Math.PI / 4) * state.bore * state.bore * state.stroke / 1000;
+            totalCc = perCylinder * state.cylinders;
+            ratio = state.bore / state.stroke;
+            mps = (2 * (state.stroke / 1000) * state.rpm) / 60;
+            pulses = state.cylinders / 2;
+            desc =
+              state.cylinders +
+              "-cylinder " +
+              (state.arch === "radial" ? "radial" : "inline or V") +
+              ", " + state.bore + " × " + state.stroke + " mm";
+          }
+
+          return {
+            rotary: rotary,
+            perCylinder: perCylinder,
+            totalCc: totalCc,
+            litres: totalCc / 1000,
+            desc: desc,
+            mps: mps,
+            pulses: pulses,
+            ratio: ratio
+          };
+        }
+
+        function render() {
+          var r = compute();
+
+          out.bore.textContent = state.bore + " mm";
+          out.stroke.textContent = state.stroke + " mm";
+          out.cylinders.textContent = String(state.cylinders);
+          out.rotors.textContent = String(state.rotors);
+          out.cr.textContent = state.cr.toFixed(1) + " : 1";
+          out.rpm.textContent = fmt(state.rpm) + " rpm";
+
+          out.desc.textContent = r.desc;
+          out.litres.textContent = r.litres >= 10 ? fmt(r.litres, 1) : r.litres.toFixed(1);
+          out.cc.textContent =
+            fmt(Math.round(r.totalCc)) + " cc · " + fmt(Math.round(r.totalCc / 16.387)) + " cu in";
+          out.per.textContent = fmt(Math.round(r.perCylinder)) + " cc";
+          out.crVal.textContent = state.cr.toFixed(1) + " : 1";
+          out.pulses.textContent = fmt(r.pulses, r.pulses % 1 === 0 ? 0 : 1);
+
+          document.getElementById("row-ratio").hidden = r.rotary;
+          document.getElementById("row-rotors").hidden = !r.rotary;
+          out.mpsRow.hidden = r.rotary;
+          if (!r.rotary) {
+            out.ratio.textContent = r.ratio.toFixed(2) + " : 1";
+            out.rotorsRow.textContent = String(state.rotors);
+            out.mps.textContent = r.mps.toFixed(1) + " m/s";
+            out.mps.classList.toggle("is-warn", r.mps > 25);
+          } else {
+            out.rotorsRow.textContent = String(state.rotors);
+          }
+
+          var match = nearestEngine(state.arch, r.litres);
+          if (match) {
+            out.matchName.textContent = match.name;
+            out.matchMeta.textContent = match.meta;
+            out.matchLink.setAttribute("href", "/engines/" + match.slug);
+          }
+        }
+
+        function apply(source) {
+          if (source.arch) state.arch = source.arch;
+          setLimits(state.arch);
+          Object.keys(source).forEach(function (key) {
+            if (key === "arch") return;
+            if (inputs[key]) {
+              state[key] = Number(source[key]);
+              inputs[key].value = String(state[key]);
+            } else {
+              state[key] = source[key];
+            }
+          });
+          Array.prototype.forEach.call(document.querySelectorAll(".byo-tab"), function (tab) {
+            tab.setAttribute("aria-pressed", tab.getAttribute("data-arch") === state.arch ? "true" : "false");
+          });
+          Array.prototype.forEach.call(document.querySelectorAll("[data-when]"), function (field) {
+            var wanted = field.getAttribute("data-when");
+            var show = wanted === "recip" ? state.arch !== "rotary" : state.arch === "rotary";
+            field.hidden = !show;
+          });
+          render();
+        }
+
+        Array.prototype.forEach.call(document.querySelectorAll(".byo-tab"), function (tab) {
+          tab.addEventListener("click", function () {
+            var arch = tab.getAttribute("data-arch");
+            if (arch === state.arch) return;
+            apply(Object.assign({ arch: arch }, ARCH_DEFAULTS[arch]));
+          });
+        });
+
+        Array.prototype.forEach.call(document.querySelectorAll(".byo-chip"), function (chip) {
+          chip.addEventListener("click", function () {
+            apply(PRESETS[chip.getAttribute("data-preset")]);
+          });
+        });
+
+        Object.keys(inputs).forEach(function (key) {
+          inputs[key].addEventListener("input", function () {
+            state[key] = Number(inputs[key].value);
+            render();
+          });
+        });
+
+        apply({});
+      })();
+    </script>
+  </body>
+</html>

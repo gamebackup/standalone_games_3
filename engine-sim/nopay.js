@@ -38,10 +38,17 @@
     '[data-testid="community-teaser"]'  /* blurred community list */
   ];
 
+  /* Pages that ship as their own HTML document instead of as a React route.
+     A client-side pushState to one of these would render the app's not-found
+     view, so clicks are handed back to the browser for a full page load. */
+  var DOCUMENT_PAGES = /^\/build-your-own-engine(\/|$)/;
+
   /* Links into any blocked area. */
   var HIDE_LINKS = [
     'a[href^="/pricing"]',
-    'a[href^="/build"]',
+    'a[href="/build"]',
+    'a[href^="/build?"]',
+    'a[href^="/build/"]',
     'a[href^="/garage"]',
     'a[href^="/community"]',
     'a[href^="/settings"]',
@@ -125,6 +132,12 @@
     if (anchor) {
       var target = null;
       try { target = new URL(anchor.getAttribute('href'), location.href); } catch (err) { target = null; }
+      if (target && target.origin === location.origin && DOCUMENT_PAGES.test(target.pathname)) {
+        event.preventDefault();
+        event.stopPropagation();
+        location.assign(target.pathname);
+        return;
+      }
       if (target && target.origin === location.origin && isBlocked(target.pathname)) {
         event.preventDefault();
         event.stopPropagation();
